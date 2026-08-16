@@ -54,8 +54,14 @@ export default function LineChatModal({ assembly, onClose, initialTheme }: LineC
   useEffect(() => {
     async function fetchMessages() {
       setIsLoading(true);
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 4000); // 4s timeout
+
       try {
-        const res = await fetch(`${getApiBase()}/api/assemblies/${assembly.id}/chat?page=1`);
+        const res = await fetch(`${getApiBase()}/api/assemblies/${assembly.id}/chat?page=1`, {
+          signal: controller.signal,
+        });
+        clearTimeout(timeoutId);
         if (res.ok) {
           const data = await res.json();
           setMessages(data.messages || []);
@@ -63,39 +69,76 @@ export default function LineChatModal({ assembly, onClose, initialTheme }: LineC
           throw new Error('Failed to load chat');
         }
       } catch (err) {
+        clearTimeout(timeoutId);
         console.error('FastAPI fetch error, using client fallback:', err);
-        setMessages([
-          {
-            id: 'msg-1',
-            date: '2026年8月10日 (第2回定例会)',
-            category: '💻 デジタル・DX',
-            speaker: '佐藤たかし 議員',
-            role: '都民ファーストの会',
-            avatar_type: 'politician_male',
-            plain_text: '【デジタル改革について】都の行政手続き、スマホで完結できるように進んでる？ペーパーレスの進捗を教えて！',
-            original_quote: '「本都における行政手続のデジタル化およびペーパーレス化推進の取り組み状況、並びに都民の利便性向上に向けた今後のロードマップについて伺う。」',
-            timestamp: '10:15',
-            agree_count: 84,
-            disagree_count: 12,
-            comments: [
-              { user: '都民Aさん', text: '役所に行かずにスマホで手続きできるのは本当に助かります！' }
-            ],
-          },
-          {
-            id: 'msg-2',
-            date: '2026年8月10日 (第2回定例会)',
-            category: '💻 デジタル・DX',
-            speaker: '小池知事',
-            role: '答弁者 (東京都知事)',
-            avatar_type: 'governor_female',
-            plain_text: '【要するに：今年度中に主要手続きの95%をオンライン対応完了します！】\n紙の書類を削減し、待ち時間なしの『キャッシュレス＆スマホ完結』を一気に加速させます！',
-            original_quote: '「都民の皆様が役所に来ずとも完結するデジタル行政の実現に向け、主要手続の95%以上をオンライン対応へ移行すべく全力で取り組んでおります。」',
-            timestamp: '10:18',
-            agree_count: 142,
-            disagree_count: 18,
-            comments: [],
-          },
-        ]);
+        if (assembly.id === 'machida-shi') {
+          setMessages([
+            {
+              id: 'msg-mc-1',
+              date: '2026年8月12日 (第2回定例会)',
+              timestamp: '10:10',
+              category: '👶 おむつ代補助・子育て支援',
+              speaker: '高橋りえ 議員',
+              role: '町田市民の会',
+              avatar_type: 'politician_female',
+              plain_text: '【赤ちゃんのおむつ代補助】物価高で子育て世帯の家計が苦しい！乳幼児のおむつ定額クーポンや現物支給助成を町田市でも導入できない？',
+              original_quote: '「乳幼児を養育する世帯への物価高騰対策として、紙おむつ購入費助成券の発行並びに配送事業の早期導入を求める。」',
+              agree_count: 189,
+              disagree_count: 8,
+              comments: [
+                { user: '町田在住20代ママ', text: '毎月のおむつ代で1万円近く飛ぶので絶対実現してほしい！' },
+                { user: '鶴川のパパさん', text: '紙のクーポンじゃなくてスマホアプリ決済で配付してほしいです！' }
+              ]
+            },
+            {
+              id: 'msg-mc-2',
+              date: '2026年8月12日 (第2回定例会)',
+              timestamp: '10:15',
+              category: '👶 おむつ代補助・子育て支援',
+              speaker: '町田市長',
+              role: '答弁者 (町田市長)',
+              avatar_type: 'mayor_male',
+              plain_text: '【要するに：来年度から0歳〜2歳児へ『年間最大3万円相当のおむつ電子クーポン』を即時スタートします！】\nスマホで受け取れるデジタル決済を導入し、子育て世帯へ直接届く支援を実施します！',
+              original_quote: '「次年度当初予算におきまして、電子ポイントを活用した紙おむつ等購入費助成事業を計上し、子育て世帯の経済的負担軽減を強力に推進してまいります。」',
+              agree_count: 210,
+              disagree_count: 11,
+              comments: []
+            }
+          ]);
+        } else {
+          setMessages([
+            {
+              id: 'msg-1',
+              date: '2026年8月10日 (第2回定例会)',
+              category: '💻 デジタル・DX',
+              speaker: '佐藤たかし 議員',
+              role: '都民ファーストの会',
+              avatar_type: 'politician_male',
+              plain_text: '【デジタル改革について】都の行政手続き、スマホで完結できるように進んでる？ペーパーレスの進捗を教えて！',
+              original_quote: '「本都における行政手続のデジタル化およびペーパーレス化推進の取り組み状況、並びに都民の利便性向上に向けた今後のロードマップについて伺う。」',
+              timestamp: '10:15',
+              agree_count: 84,
+              disagree_count: 12,
+              comments: [
+                { user: '都民Aさん', text: '役所に行かずにスマホで手続きできるのは本当に助かります！' }
+              ],
+            },
+            {
+              id: 'msg-2',
+              date: '2026年8月10日 (第2回定例会)',
+              category: '💻 デジタル・DX',
+              speaker: '小池知事',
+              role: '答弁者 (東京都知事)',
+              avatar_type: 'governor_female',
+              plain_text: '【要するに：今年度中に主要手続きの95%をオンライン対応完了します！】\n紙の書類を削減し、待ち時間なしの『キャッシュレス＆スマホ完結』を一気に加速させます！',
+              original_quote: '「都民の皆様が役所に来ずとも完結するデジタル行政の実現に向け、主要手続の95%以上をオンライン対応へ移行すべく全力で取り組んでおります。」',
+              timestamp: '10:18',
+              agree_count: 142,
+              disagree_count: 18,
+              comments: [],
+            },
+          ]);
+        }
       } finally {
         setIsLoading(false);
       }
@@ -310,8 +353,10 @@ export default function LineChatModal({ assembly, onClose, initialTheme }: LineC
   const filteredMessages = messages.filter((msg) => {
     if (activeCategoryFilter === 'all') return true;
     if (!msg.category) return true;
-    return msg.category.includes(activeCategoryFilter);
+    return msg.category.includes(activeCategoryFilter) || activeCategoryFilter.includes(msg.category);
   });
+
+  const displayMessages = filteredMessages.length > 0 ? filteredMessages : messages;
 
   if (!mounted) return null;
 
@@ -440,12 +485,12 @@ export default function LineChatModal({ assembly, onClose, initialTheme }: LineC
               <div className="w-10 h-10 border-4 border-white/30 border-t-white rounded-full animate-spin" />
               <p className="text-sm font-medium">発言データと市民世論を読み込み中...</p>
             </div>
-          ) : filteredMessages.length === 0 ? (
+          ) : displayMessages.length === 0 ? (
             <div className="text-center py-12 text-white/80 text-xs">
               該当する分類の発言が見つかりませんでした。別のタグをお選びください。
             </div>
           ) : (
-            filteredMessages.map((msg) => {
+            displayMessages.map((msg) => {
               const isUser = msg.avatar_type === 'user';
               const isExpanded = expandedQuotes[msg.id];
               const isCommentOpen = activeCommentBox[msg.id];

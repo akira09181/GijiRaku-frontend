@@ -53,7 +53,7 @@ export default function AnalyticsDashboardModal({ assembly, onClose }: Analytics
   const [mounted, setMounted] = useState(false);
   const [analytics, setAnalytics] = useState<AnalyticsData | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
-  const [activeTab, setActiveTab] = useState<'ebpm' | 'party' | 'member' | 'public'>('ebpm');
+  const [activeTab, setActiveTab] = useState<'ebpm' | 'cycle' | 'party' | 'member' | 'public'>('ebpm');
 
   useEffect(() => {
     setMounted(true);
@@ -185,7 +185,17 @@ export default function AnalyticsDashboardModal({ assembly, onClose }: Analytics
                   : 'bg-slate-800 text-slate-400 hover:text-white'
               }`}
             >
-              👔 議員・行政向け EBPM民意分析 (マネタイズ)
+              👔 議員向け EBPM民意分析
+            </button>
+            <button
+              onClick={() => setActiveTab('cycle')}
+              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all shrink-0 ${
+                activeTab === 'cycle'
+                  ? 'bg-gradient-to-r from-teal-400 to-cyan-500 text-slate-950 shadow-lg shadow-cyan-500/20 font-black'
+                  : 'bg-slate-800 text-slate-400 hover:text-white'
+              }`}
+            >
+              🔄 双方向サイクル & 横展開ロードマップ
             </button>
             <button
               onClick={() => setActiveTab('party')}
@@ -195,7 +205,7 @@ export default function AnalyticsDashboardModal({ assembly, onClose }: Analytics
                   : 'bg-slate-800 text-slate-400 hover:text-white'
               }`}
             >
-              🏛️ 政党別 注力テーマ分析
+              🏛️ 政党別 注力テーマ
             </button>
             <button
               onClick={() => setActiveTab('member')}
@@ -205,7 +215,7 @@ export default function AnalyticsDashboardModal({ assembly, onClose }: Analytics
                   : 'bg-slate-800 text-slate-400 hover:text-white'
               }`}
             >
-              👤 議員発言スコアリング
+              👤 議員スコアリング
             </button>
             <button
               onClick={() => setActiveTab('public')}
@@ -336,7 +346,112 @@ export default function AnalyticsDashboardModal({ assembly, onClose }: Analytics
                 </div>
               )}
 
-              {/* Tab 1: Party Analytics */}
+              {/* Tab 1: Data Cycle & Multi-Region Expansion Roadmap */}
+              {activeTab === 'cycle' && (
+                <div className="space-y-6">
+                  {/* Two-Way Data Cycle Diagram Story */}
+                  <div className="space-y-3">
+                    <h3 className="text-sm font-bold text-slate-100 flex items-center gap-2">
+                      <span>🔄</span>
+                      <span>双方向データの循環ストーリー（市民の声 ➔ 政策予算化への4ステップ）</span>
+                    </h3>
+
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-3 text-xs">
+                      <div className="bg-slate-800/90 border border-emerald-500/30 rounded-2xl p-3.5 space-y-2 flex flex-col justify-between">
+                        <div className="space-y-1">
+                          <span className="bg-emerald-500 text-slate-950 font-black text-[10px] px-2 py-0.5 rounded">STEP 1</span>
+                          <h4 className="font-bold text-white text-sm">💬 市民リアクション</h4>
+                          <p className="text-slate-300 leading-relaxed text-[11px]">
+                            超翻訳チャットで「👍 賛成」「👎 懸念」「💬 パブコメ」を1タップ投稿。
+                          </p>
+                        </div>
+                        <div className="text-emerald-400 text-right font-black text-lg">➔</div>
+                      </div>
+
+                      <div className="bg-slate-800/90 border border-teal-500/30 rounded-2xl p-3.5 space-y-2 flex flex-col justify-between">
+                        <div className="space-y-1">
+                          <span className="bg-teal-400 text-slate-950 font-black text-[10px] px-2 py-0.5 rounded">STEP 2</span>
+                          <h4 className="font-bold text-white text-sm">📊 議員ダッシュボード</h4>
+                          <p className="text-slate-300 leading-relaxed text-[11px]">
+                            年代別支持率や優先要望（例: 20代の91%がおむつ補助要望）をEBPM集計。
+                          </p>
+                        </div>
+                        <div className="text-teal-400 text-right font-black text-lg">➔</div>
+                      </div>
+
+                      <div className="bg-slate-800/90 border border-cyan-500/30 rounded-2xl p-3.5 space-y-2 flex flex-col justify-between">
+                        <div className="space-y-1">
+                          <span className="bg-cyan-400 text-slate-950 font-black text-[10px] px-2 py-0.5 rounded">STEP 3</span>
+                          <h4 className="font-bold text-white text-sm">🏛️ 定例会で政策提案</h4>
+                          <p className="text-slate-300 leading-relaxed text-[11px]">
+                            議員がリアルデータをもとに一般質問し、電子クーポン等として3万円予算化！
+                          </p>
+                        </div>
+                        <div className="text-cyan-400 text-right font-black text-lg">➔</div>
+                      </div>
+
+                      <div className="bg-slate-800/90 border border-purple-500/30 rounded-2xl p-3.5 space-y-2 flex flex-col justify-between">
+                        <div className="space-y-1">
+                          <span className="bg-purple-400 text-slate-950 font-black text-[10px] px-2 py-0.5 rounded">STEP 4</span>
+                          <h4 className="font-bold text-white text-sm">🔔 政策決定フィードバック</h4>
+                          <p className="text-slate-300 leading-relaxed text-[11px]">
+                            「あなたの声が予算化されました！」とLINEで通知。市民の参政実感を創出。
+                          </p>
+                        </div>
+                        <div className="text-purple-400 text-right font-black">完成✨</div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Multi-Region Scalability Roadmap */}
+                  <div className="bg-slate-800/90 border border-slate-700/80 rounded-2xl p-4 space-y-4">
+                    <h3 className="text-sm font-bold text-slate-100 flex items-center gap-2">
+                      <span>🗺️</span>
+                      <span>自治体横展開ロードマップ（都内全62市区町村 ➔ 全国展開）</span>
+                    </h3>
+
+                    <div className="space-y-3 text-xs">
+                      <div className="flex items-start space-x-3 bg-slate-950/80 p-3 rounded-xl border border-slate-800">
+                        <span className="bg-emerald-500 text-slate-950 font-extrabold px-2.5 py-1 rounded-lg text-[11px] shrink-0">
+                          Phase 1 (現在)
+                        </span>
+                        <div className="space-y-0.5">
+                          <h4 className="font-bold text-white">重点モデル自治体でのPoC実証 (町田市・品川区・東京都議会)</h4>
+                          <p className="text-slate-400">
+                            東京都オープンデータカタログAPIと連携し、超翻訳精度およびEBPM議員分析の価値を実証。
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="flex items-start space-x-3 bg-slate-950/80 p-3 rounded-xl border border-slate-800">
+                        <span className="bg-teal-500 text-slate-950 font-extrabold px-2.5 py-1 rounded-lg text-[11px] shrink-0">
+                          Phase 2 (2026年後半)
+                        </span>
+                        <div className="space-y-0.5">
+                          <h4 className="font-bold text-white">東京都内 全62市区町村へのフルカバー横展開</h4>
+                          <p className="text-slate-400">
+                            東京都オープンデータカタログの標準CSVフォーマットを活用し、都内全域の議事録を自動クローリング対応。
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="flex items-start space-x-3 bg-slate-950/80 p-3 rounded-xl border border-slate-800">
+                        <span className="bg-blue-500 text-white font-extrabold px-2.5 py-1 rounded-lg text-[11px] shrink-0">
+                          Phase 3 (2027年)
+                        </span>
+                        <div className="space-y-0.5">
+                          <h4 className="font-bold text-white">全国1,700自治体への水平展開（スマートシティ・自治体DX標準化）</h4>
+                          <p className="text-slate-400">
+                            デジタル庁の「自治体DX標準仕様」および全国自治体オープンデータ共通基盤と連携し、全国版へスケール。
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Tab 2: Party Analytics */}
               {activeTab === 'party' && (
                 <div className="space-y-4">
                   <h3 className="text-sm font-bold text-slate-200 flex items-center gap-2">
@@ -370,7 +485,7 @@ export default function AnalyticsDashboardModal({ assembly, onClose }: Analytics
                 </div>
               )}
 
-              {/* Tab 2: Member Scorecards */}
+              {/* Tab 3: Member Scorecards */}
               {activeTab === 'member' && (
                 <div className="space-y-4">
                   <h3 className="text-sm font-bold text-slate-200 flex items-center gap-2">
@@ -413,7 +528,7 @@ export default function AnalyticsDashboardModal({ assembly, onClose }: Analytics
                 </div>
               )}
 
-              {/* Tab 3: Public Sentiment */}
+              {/* Tab 4: Public Sentiment */}
               {activeTab === 'public' && (
                 <div className="space-y-4">
                   <h3 className="text-sm font-bold text-slate-200 flex items-center gap-2">
