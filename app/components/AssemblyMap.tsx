@@ -2,6 +2,13 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 
+declare global {
+  interface Window {
+    L?: any;
+    selectGijiAssembly?: any;
+  }
+}
+
 export interface Assembly {
   id: string;
   name: string;
@@ -10,6 +17,7 @@ export interface Assembly {
   lng: number;
   badge: string;
   hot_topic: string;
+  survey_stat?: string;
   dataset_url?: string;
   avatar_theme: string;
 }
