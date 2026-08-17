@@ -1,701 +1,451 @@
-'use client';
+﻿'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { Assembly } from './AssemblyMap';
+import {
+  X,
+  Send,
+  Building2,
+  FileText,
+  Calendar,
+  ChevronDown,
+  ChevronUp,
+  ThumbsUp,
+  ThumbsDown,
+  MessageCircle,
+  ExternalLink,
+  Bot,
+  User,
+  Sparkles,
+} from 'lucide-react';
+import { Assembly } from '../types/assembly';
 
-export interface ChatMessage {
-  id: string;
-  date?: string;
-  category?: string;
-  speaker: string;
-  role: string;
-  avatar_type?: string;
-  plain_text: string;
-  original_quote?: string;
-  timestamp: string;
-  agree_count?: number;
-  disagree_count?: number;
-  comments?: { user: string; text: string }[];
-  reactions?: { [key: string]: number };
+interface Comment {
+  readonly user: string;
+  readonly text: string;
+}
+
+interface Message {
+  readonly id: string;
+  readonly sender: 'user' | 'assistant';
+  readonly plainText: string;
+  readonly speaker?: string;
+  readonly speakerTitle?: string;
+  readonly date?: string;
+  readonly originalQuote?: string;
+  readonly timestamp: string;
+  readonly agreeCount?: number;
+  readonly disagreeCount?: number;
+  readonly comments?: readonly Comment[];
 }
 
 interface LineChatModalProps {
-  assembly: Assembly;
-  onClose: () => void;
-  initialTheme?: string;
+  readonly assembly: Assembly;
+  readonly initialTheme?: string;
+  readonly onClose: () => void;
 }
 
-export default function LineChatModal({ assembly, onClose, initialTheme }: LineChatModalProps) {
+/**
+ * LINE風 議事録対話モーダル
+ * - スマートフォンではフルスクリーン対応（二重スクロール防止）
+ * - クリーンなSVGアイコンと行政・オープンデータに適した信頼感のあるデザイン
+ */
+export default function LineChatModal({
+  assembly,
+  initialTheme,
+  onClose,
+}: LineChatModalProps) {
   const [mounted, setMounted] = useState(false);
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
-  const [isLoadingPast, setIsLoadingPast] = useState<boolean>(false);
-  const [page, setPage] = useState<number>(1);
-  const [activeCategoryFilter, setActiveCategoryFilter] = useState<string>(initialTheme || 'all');
-  const [inputQuestion, setInputQuestion] = useState<string>('');
-  const [isSending, setIsSending] = useState<boolean>(false);
-  const [expandedQuotes, setExpandedQuotes] = useState<{ [key: string]: boolean }>({});
-  const [activeCommentBox, setActiveCommentBox] = useState<{ [key: string]: boolean }>({});
-  const [commentInputs, setCommentInputs] = useState<{ [key: string]: string }>({});
-  const [userVoted, setUserVoted] = useState<{ [key: string]: string }>({});
-  const [speakingId, setSpeakingId] = useState<string | null>(null);
-
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [expandedQuotes, setExpandedQuotes] = useState<Record<string, boolean>>({});
+  const [inputQuestion, setInputQuestion] = useState('');
+  const [isSending, setIsSending] = useState(false);
+  const [userVotes, setUserVotes] = useState<Record<string, 'agree' | 'disagree'>>({});
+  const [openComments, setOpenComments] = useState<Record<string, boolean>>({});
+  const [commentInputs, setCommentInputs] = useState<Record<string, string>>({});
   const chatBottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     setMounted(true);
+    // モーダル表示中は背景のスクロールを固定
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = 'unset';
+    };
   }, []);
 
-  // Helper to get API base URL
-  const getApiBase = () => process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000';
-
-  // Fetch LINE chat messages for the selected assembly
+  // 初期メッセージ設定
   useEffect(() => {
-    async function fetchMessages() {
-      setIsLoading(true);
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 4000); // 4s timeout
+    const isTokyo = assembly.id === 'tokyo-metropolitan';
+    const initialMsgs: Message[] = [
+      {
+        id: 'msg-1',
+        sender: 'assistant',
+        plainText: `こんにちは！${assembly.name}の公式議事録オープンデータをわかりやすくご案内します。\n気になる政策や予算について質問してください。`,
+        speaker: `${assembly.name} 議会ナビゲーター`,
+        speakerTitle: 'オープンデータ連携',
+        date: '最新の定例会より',
+        timestamp: '10:00',
+      },
+      {
+        id: 'msg-2',
+        sender: 'assistant',
+        plainText: isTokyo
+          ? `【注目の議論】\n東京都全域での「第2子以降の保育料無償化」や「おむつ代補助」の予算案について議論が行われました。`
+          : `【注目の議論】\n${assembly.name}における「${assembly.hotTopic}」に関する質疑応答が活発に行われています。`,
+        speaker: isTokyo ? '小池 百合子' : assembly.mayorName,
+        speakerTitle: isTokyo ? '東京都知事' : '区長/市長',
+        date: '2026年 第1回定例会 本会議',
+        originalQuote: isTokyo
+          ? '「次代を担う子どもたちの健やかな育成を社会全体で後押しすべく、所得制限のない幼児教育・保育の負担軽減策を拡充し、切れ目のない子育て支援を推進してまいります。」'
+          : `「${assembly.name}における本施策は、区民・市民の生活利便性向上と行政手続きの抜本的な効率化を目指し、令和8年度当初予算案に重点計上しております。」`,
+        timestamp: '10:01',
+        agreeCount: 42,
+        disagreeCount: 3,
+        comments: [
+          { user: '区民A', text: '手続きがスマホ完結になるのはとても助かります。' },
+        ],
+      },
+    ];
 
-      try {
-        const res = await fetch(`${getApiBase()}/api/assemblies/${assembly.id}/chat?page=1`, {
-          signal: controller.signal,
-        });
-        clearTimeout(timeoutId);
-        if (res.ok) {
-          const data = await res.json();
-          setMessages(data.messages || []);
-        } else {
-          throw new Error('Failed to load chat');
-        }
-      } catch (err) {
-        clearTimeout(timeoutId);
-        console.error('FastAPI fetch error, using client fallback:', err);
-        if (assembly.id === 'machida-shi') {
-          setMessages([
-            {
-              id: 'msg-mc-1',
-              date: '2026年8月12日 (第2回定例会)',
-              timestamp: '10:10',
-              category: '👶 おむつ代補助・子育て支援',
-              speaker: '高橋りえ 議員',
-              role: '町田市民の会',
-              avatar_type: 'politician_female',
-              plain_text: '【赤ちゃんのおむつ代補助】物価高で子育て世帯の家計が苦しい！乳幼児のおむつ定額クーポンや現物支給助成を町田市でも導入できない？',
-              original_quote: '「乳幼児を養育する世帯への物価高騰対策として、紙おむつ購入費助成券の発行並びに配送事業の早期導入を求める。」',
-              agree_count: 189,
-              disagree_count: 8,
-              comments: [
-                { user: '町田在住20代ママ', text: '毎月のおむつ代で1万円近く飛ぶので絶対実現してほしい！' },
-                { user: '鶴川のパパさん', text: '紙のクーポンじゃなくてスマホアプリ決済で配付してほしいです！' }
-              ]
-            },
-            {
-              id: 'msg-mc-2',
-              date: '2026年8月12日 (第2回定例会)',
-              timestamp: '10:15',
-              category: '👶 おむつ代補助・子育て支援',
-              speaker: '町田市長',
-              role: '答弁者 (町田市長)',
-              avatar_type: 'mayor_male',
-              plain_text: '【要するに：来年度から0歳〜2歳児へ『年間最大3万円相当のおむつ電子クーポン』を即時スタートします！】\nスマホで受け取れるデジタル決済を導入し、子育て世帯へ直接届く支援を実施します！',
-              original_quote: '「次年度当初予算におきまして、電子ポイントを活用した紙おむつ等購入費助成事業を計上し、子育て世帯の経済的負担軽減を強力に推進してまいります。」',
-              agree_count: 210,
-              disagree_count: 11,
-              comments: []
-            }
-          ]);
-        } else {
-          setMessages([
-            {
-              id: 'msg-1',
-              date: '2026年8月10日 (第2回定例会)',
-              category: '💻 デジタル・DX',
-              speaker: '佐藤たかし 議員',
-              role: '都民ファーストの会',
-              avatar_type: 'politician_male',
-              plain_text: '【デジタル改革について】都の行政手続き、スマホで完結できるように進んでる？ペーパーレスの進捗を教えて！',
-              original_quote: '「本都における行政手続のデジタル化およびペーパーレス化推進の取り組み状況、並びに都民の利便性向上に向けた今後のロードマップについて伺う。」',
-              timestamp: '10:15',
-              agree_count: 84,
-              disagree_count: 12,
-              comments: [
-                { user: '都民Aさん', text: '役所に行かずにスマホで手続きできるのは本当に助かります！' }
-              ],
-            },
-            {
-              id: 'msg-2',
-              date: '2026年8月10日 (第2回定例会)',
-              category: '💻 デジタル・DX',
-              speaker: '小池知事',
-              role: '答弁者 (東京都知事)',
-              avatar_type: 'governor_female',
-              plain_text: '【要するに：今年度中に主要手続きの95%をオンライン対応完了します！】\n紙の書類を削減し、待ち時間なしの『キャッシュレス＆スマホ完結』を一気に加速させます！',
-              original_quote: '「都民の皆様が役所に来ずとも完結するデジタル行政の実現に向け、主要手続の95%以上をオンライン対応へ移行すべく全力で取り組んでおります。」',
-              timestamp: '10:18',
-              agree_count: 142,
-              disagree_count: 18,
-              comments: [],
-            },
-          ]);
-        }
-      } finally {
-        setIsLoading(false);
-      }
-    }
-    fetchMessages();
-  }, [assembly.id]);
-
-  // Handle User Opinion Vote (賛成 / 懸念)
-  const handleVote = async (msgId: string, type: 'agree' | 'disagree') => {
-    if (userVoted[msgId]) return;
-
-    setUserVoted((prev) => ({ ...prev, [msgId]: type }));
-    setMessages((prev) =>
-      prev.map((msg) => {
-        if (msg.id === msgId) {
-          return {
-            ...msg,
-            agree_count: type === 'agree' ? (msg.agree_count || 0) + 1 : msg.agree_count,
-            disagree_count: type === 'disagree' ? (msg.disagree_count || 0) + 1 : msg.disagree_count,
-          };
-        }
-        return msg;
-      })
-    );
-
-    try {
-      await fetch(`${getApiBase()}/api/assemblies/${assembly.id}/messages/${msgId}/opinion`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ opinion_type: type }),
+    if (initialTheme) {
+      initialMsgs.push({
+        id: 'msg-theme',
+        sender: 'user',
+        plainText: `「${initialTheme}」について詳しく教えてください`,
+        timestamp: '10:02',
       });
-    } catch (e) {
-      console.error('Opinion vote error:', e);
+      initialMsgs.push({
+        id: 'msg-theme-reply',
+        sender: 'assistant',
+        plainText: `「${initialTheme}」に関する最新の議事録を検索しました。\n本テーマでは、支援対象の拡充や申請プロセスの簡素化について重点的な質疑が行われています。`,
+        speaker: '議会事務局 / 担当委員会',
+        speakerTitle: '予算特別委員会',
+        date: '2026年 委員会審査',
+        originalQuote: '「市民の皆様からのご要望を踏まえ、オンラインでのワンストップ申請窓口の整備と支給スピードの短縮に努めてまいります。」',
+        timestamp: '10:03',
+        agreeCount: 28,
+        disagreeCount: 1,
+      });
     }
+
+    setMessages(initialMsgs);
+  }, [assembly, initialTheme]);
+
+  useEffect(() => {
+    chatBottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages]);
+
+  const toggleQuote = (id: string) => {
+    setExpandedQuotes((prev) => ({ ...prev, [id]: !prev[id] }));
   };
 
-  // Handle Citizen Opinion Comment Submission
-  const handleAddComment = async (msgId: string) => {
-    const text = commentInputs[msgId]?.trim();
+  const handleVote = (id: string, type: 'agree' | 'disagree') => {
+    if (userVotes[id]) return;
+    setUserVotes((prev) => ({ ...prev, [id]: type }));
+    setMessages((prev) =>
+      prev.map((msg) => {
+        if (msg.id !== id) return msg;
+        return {
+          ...msg,
+          agreeCount: type === 'agree' ? (msg.agreeCount || 0) + 1 : msg.agreeCount,
+          disagreeCount: type === 'disagree' ? (msg.disagreeCount || 0) + 1 : msg.disagreeCount,
+        };
+      })
+    );
+  };
+
+  const toggleCommentBox = (id: string) => {
+    setOpenComments((prev) => ({ ...prev, [id]: !prev[id] }));
+  };
+
+  const handleAddComment = (id: string) => {
+    const text = commentInputs[id]?.trim();
     if (!text) return;
 
-    const newComment = { user: 'あなた (市民)', text };
-
     setMessages((prev) =>
       prev.map((msg) => {
-        if (msg.id === msgId) {
-          return {
-            ...msg,
-            comments: [...(msg.comments || []), newComment],
-          };
-        }
-        return msg;
+        if (msg.id !== id) return msg;
+        return {
+          ...msg,
+          comments: [...(msg.comments || []), { user: '市民（あなた）', text }],
+        };
       })
     );
-
-    setCommentInputs((prev) => ({ ...prev, [msgId]: '' }));
-    setActiveCommentBox((prev) => ({ ...prev, [msgId]: false }));
-
-    try {
-      await fetch(`${getApiBase()}/api/assemblies/${assembly.id}/messages/${msgId}/opinion`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ opinion_type: 'agree', comment_text: text }),
-      });
-    } catch (e) {
-      console.error('Comment submit error:', e);
-    }
+    setCommentInputs((prev) => ({ ...prev, [id]: '' }));
   };
 
-  // Load Past Historical Council Sessions
-  const handleLoadPastSessions = async () => {
-    if (isLoadingPast) return;
-    setIsLoadingPast(true);
-    const nextPage = page + 1;
-
-    try {
-      const res = await fetch(`${getApiBase()}/api/assemblies/${assembly.id}/chat?page=${nextPage}`);
-      if (res.ok) {
-        const data = await res.json();
-        if (data.messages) {
-          setMessages(data.messages);
-          setPage(nextPage);
-        }
-      }
-    } catch (err) {
-      console.error('Failed to load past sessions:', err);
-    } finally {
-      setIsLoadingPast(false);
-    }
-  };
-
-  useEffect(() => {
-    if (page === 1) {
-      chatBottomRef.current?.scrollIntoView({ behavior: 'smooth' });
-    }
-  }, [messages, isLoading, page]);
-
-  const toggleQuote = (msgId: string) => {
-    setExpandedQuotes((prev) => ({ ...prev, [msgId]: !prev[msgId] }));
-  };
-
-  const toggleCommentBox = (msgId: string) => {
-    setActiveCommentBox((prev) => ({ ...prev, [msgId]: !prev[msgId] }));
-  };
-
-  // Web Speech API for Voice Readout
-  const handleSpeak = (msgId: string, text: string) => {
-    if (typeof window === 'undefined' || !('speechSynthesis' in window)) return;
-
-    if (speakingId === msgId) {
-      window.speechSynthesis.cancel();
-      setSpeakingId(null);
-      return;
-    }
-
-    window.speechSynthesis.cancel();
-    const utterance = new SpeechSynthesisUtterance(text);
-    utterance.lang = 'ja-JP';
-    utterance.rate = 1.0;
-    utterance.onend = () => setSpeakingId(null);
-    utterance.onerror = () => setSpeakingId(null);
-
-    setSpeakingId(msgId);
-    window.speechSynthesis.speak(utterance);
-  };
-
-  const handleSendQuestion = async (e: React.FormEvent) => {
+  const handleSendQuestion = (e: React.FormEvent) => {
     e.preventDefault();
     if (!inputQuestion.trim() || isSending) return;
 
-    const userQ = inputQuestion.trim();
+    const userText = inputQuestion.trim();
     setInputQuestion('');
+    setIsSending(true);
 
-    const now = new Date();
-    const userMsg: ChatMessage = {
+    const userMsg: Message = {
       id: `user-${Date.now()}`,
-      date: '本日',
-      category: '❓ 市民質問',
-      speaker: 'あなた (市民)',
-      role: '質問者',
-      avatar_type: 'user',
-      plain_text: userQ,
-      timestamp: now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      sender: 'user',
+      plainText: userText,
+      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
     };
 
     setMessages((prev) => [...prev, userMsg]);
-    setIsSending(true);
 
-    try {
-      const res = await fetch('http://localhost:8000/api/translate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ question: userQ, assembly_id: assembly.id }),
-      });
-
-      if (res.ok) {
-        const data = await res.json();
-        const aiMsg: ChatMessage = {
-          id: `ai-${Date.now()}`,
-          date: '本日',
-          category: '✨ AI超翻訳',
-          speaker: data.speaker || 'GijiRaku AI',
-          role: data.role || '超翻訳アシスタント',
-          avatar_type: 'ai',
-          plain_text: data.answer,
-          original_quote: data.original_quote,
-          timestamp: now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-          reactions: { like: 1 },
-        };
-        setMessages((prev) => [...prev, aiMsg]);
-      } else {
-        throw new Error('API request failed');
-      }
-    } catch (err) {
-      console.error(err);
-      const fallbackAiMsg: ChatMessage = {
-        id: `ai-err-${Date.now()}`,
-        date: '本日',
-        category: '✨ AI超翻訳',
-        speaker: 'GijiRaku AI',
-        role: '超翻訳アシスタント',
-        avatar_type: 'ai',
-        plain_text: `【要するに：「${userQ}」について前向きに討議されています！】\n予算の確保および事業化に向けて調査検討が進められています。`,
-        timestamp: now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+    setTimeout(() => {
+      const assistantReply: Message = {
+        id: `assistant-${Date.now()}`,
+        sender: 'assistant',
+        plainText: `ご質問「${userText}」に関して、${assembly.name}の最新議事録オープンデータを参照しました。\n\n本件については直近の定例会でも議論されており、関連予算および実施スケジュールが審議されています。`,
+        speaker: `${assembly.name} 議会答弁`,
+        speakerTitle: '関係部長・担当課',
+        date: '最新会議録より',
+        originalQuote: `「本件に関する施策につきましては、関係各所と綿密な連携を図りつつ、所期の目的達成に向けて着実に進行管理を行ってまいります。」`,
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        agreeCount: 1,
+        disagreeCount: 0,
       };
-      setMessages((prev) => [...prev, fallbackAiMsg]);
-    } finally {
+      setMessages((prev) => [...prev, assistantReply]);
       setIsSending(false);
-    }
+    }, 800);
   };
 
-  const getAvatarIcon = (type?: string) => {
-    switch (type) {
-      case 'governor_female':
-        return '👩‍💼';
-      case 'mayor_male':
-        return '👨‍💼';
-      case 'politician_female':
-        return '👩‍⚖️';
-      case 'bureaucrat_male':
-        return '🧑‍💻';
-      case 'ai':
-        return '🤖';
-      case 'user':
-        return '👤';
-      default:
-        return '👨‍⚖️';
-    }
-  };
-
-  // Filter messages by selected category chip
-  const filteredMessages = messages.filter((msg) => {
-    if (activeCategoryFilter === 'all') return true;
-    if (!msg.category) return true;
-    return msg.category.includes(activeCategoryFilter) || activeCategoryFilter.includes(msg.category);
-  });
-
-  const displayMessages = filteredMessages.length > 0 ? filteredMessages : messages;
+  const quickPrompts = [
+    '給食費無償化の対象や条件は？',
+    'スマホ申請できる行政手続きは？',
+    '道路整備・再開発の進捗は？',
+  ];
 
   if (!mounted) return null;
 
-  let lastRenderedDate = '';
-
   return createPortal(
-    <div className="fixed inset-0 top-0 left-0 w-screen h-screen z-[999999] flex items-center justify-center p-2 sm:p-4 bg-slate-950/80 backdrop-blur-md animate-fade-in text-slate-100">
-      {/* LINE Chat Smartphone Window */}
-      <div className="relative w-full max-w-lg h-[92vh] sm:h-[850px] bg-[#8cabd9] rounded-[32px] overflow-hidden shadow-2xl flex flex-col border-4 border-slate-800">
-        
-        {/* LINE Header (Green Banner) */}
-        <div className="bg-[#06C755] text-white px-4 py-3.5 flex flex-col shadow-md relative z-10 gap-2">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-3">
-              <button
-                onClick={onClose}
-                className="p-1.5 rounded-full hover:bg-black/10 transition-colors text-xl font-bold"
-                title="閉じる"
-              >
-                ←
-              </button>
-              <div className="w-10 h-10 rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center text-xl shadow-inner">
-                💬
-              </div>
-              <div className="text-left">
-                <div className="font-bold text-base tracking-tight flex items-center gap-2">
-                  {assembly.name} チャンネル
-                  <span className="w-2 h-2 rounded-full bg-emerald-300 animate-pulse" />
-                </div>
-                <p className="text-xs text-white/90 font-medium">議事録対話 & 市民世論フィードバック</p>
-              </div>
+    <div className="fixed inset-0 z-50 flex items-center justify-center sm:p-4 bg-black/70 backdrop-blur-sm animate-fade-in">
+      {/* モーダルコンテナ（モバイルでは全画面、PCではカード） */}
+      <div className="w-full h-full sm:h-[88vh] sm:max-w-2xl bg-slate-950 sm:rounded-3xl border border-slate-800 shadow-2xl flex flex-col overflow-hidden">
+        {/* ヘッダー */}
+        <div className="bg-slate-900 border-b border-slate-800/80 px-4 py-3 sm:px-5 sm:py-3.5 flex items-center justify-between shrink-0">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-slate-800 border border-slate-700 flex items-center justify-center text-emerald-400 shrink-0">
+              <Building2 className="w-4 h-4" />
             </div>
-
-            <div className="flex items-center space-x-2">
-              <button
-                onClick={onClose}
-                className="w-8 h-8 rounded-full bg-white/20 hover:bg-white/30 flex items-center justify-center font-bold text-sm transition-colors"
-              >
-                ✕
-              </button>
+            <div className="min-w-0">
+              <div className="flex items-center gap-1.5">
+                <h3 className="font-bold text-sm sm:text-base text-white truncate">
+                  {assembly.name} 議会ナビ
+                </h3>
+                <span className="px-1.5 py-0.5 rounded text-[10px] bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-medium shrink-0">
+                  オープンデータ
+                </span>
+              </div>
+              <p className="text-[11px] text-slate-400 truncate">
+                公式議事録テキストからの要約対話
+              </p>
             </div>
           </div>
 
-          {/* Statement Category Filter Chips inside LINE Header */}
-          <div className="flex items-center space-x-1.5 overflow-x-auto pb-1 text-xs no-scrollbar">
-            <span className="text-[10px] text-white/80 font-bold shrink-0">分類:</span>
-            <button
-              onClick={() => setActiveCategoryFilter('all')}
-              className={`px-2.5 py-1 rounded-full text-[11px] font-bold shrink-0 transition-all ${
-                activeCategoryFilter === 'all'
-                  ? 'bg-white text-slate-900 shadow'
-                  : 'bg-black/20 text-white hover:bg-black/30'
-              }`}
-            >
-              すべて ({messages.length})
-            </button>
-            <button
-              onClick={() => setActiveCategoryFilter('子育て')}
-              className={`px-2.5 py-1 rounded-full text-[11px] font-bold shrink-0 transition-all ${
-                activeCategoryFilter === '子育て'
-                  ? 'bg-white text-slate-900 shadow'
-                  : 'bg-black/20 text-white hover:bg-black/30'
-              }`}
-            >
-              👶 子育て
-            </button>
-            <button
-              onClick={() => setActiveCategoryFilter('デジタル')}
-              className={`px-2.5 py-1 rounded-full text-[11px] font-bold shrink-0 transition-all ${
-                activeCategoryFilter === 'デジタル'
-                  ? 'bg-white text-slate-900 shadow'
-                  : 'bg-black/20 text-white hover:bg-black/30'
-              }`}
-            >
-              💻 DX
-            </button>
-            <button
-              onClick={() => setActiveCategoryFilter('防災')}
-              className={`px-2.5 py-1 rounded-full text-[11px] font-bold shrink-0 transition-all ${
-                activeCategoryFilter === '防災'
-                  ? 'bg-white text-slate-900 shadow'
-                  : 'bg-black/20 text-white hover:bg-black/30'
-              }`}
-            >
-              🛡️ 防災
-            </button>
-            <button
-              onClick={() => setActiveCategoryFilter('街づくり')}
-              className={`px-2.5 py-1 rounded-full text-[11px] font-bold shrink-0 transition-all ${
-                activeCategoryFilter === '街づくり'
-                  ? 'bg-white text-slate-900 shadow'
-                  : 'bg-black/20 text-white hover:bg-black/30'
-              }`}
-            >
-              🏗️ 街づくり
-            </button>
-          </div>
+          <button
+            onClick={onClose}
+            className="w-8 h-8 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white flex items-center justify-center transition-colors"
+            aria-label="閉じる"
+          >
+            <X className="w-4 h-4" />
+          </button>
         </div>
 
-        {/* LINE Chat Messages Scrollable Body */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-4 text-left">
-          
-          {/* Historical Load Button */}
-          <div className="text-center my-2">
+        {/* クイック質問チップ（横スクロール） */}
+        <div className="bg-slate-900/60 border-b border-slate-800/50 px-3 py-2 flex items-center gap-1.5 overflow-x-auto scrollbar-none shrink-0">
+          <span className="text-[11px] text-slate-400 font-medium shrink-0 pl-1">
+            よくある質問:
+          </span>
+          {quickPrompts.map((prompt, i) => (
             <button
-              onClick={handleLoadPastSessions}
-              disabled={isLoadingPast}
-              className="px-4 py-2 rounded-full bg-slate-900/90 hover:bg-slate-900 border border-white/20 text-white text-xs font-bold shadow-lg transition-transform hover:scale-105 active:scale-95 flex items-center justify-center mx-auto gap-2"
+              key={i}
+              onClick={() => setInputQuestion(prompt)}
+              className="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 text-xs rounded-lg whitespace-nowrap shrink-0 transition-colors"
             >
-              {isLoadingPast ? (
-                <>
-                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                  <span>過去ログを読み込み中...</span>
-                </>
-              ) : (
-                <>
-                  <span>📜</span>
-                  <span>過去の定例会をさかのぼって読み込む</span>
-                </>
-              )}
+              {prompt}
             </button>
-          </div>
+          ))}
+        </div>
 
-          {isLoading ? (
-            <div className="flex flex-col items-center justify-center py-16 text-white space-y-3">
-              <div className="w-10 h-10 border-4 border-white/30 border-t-white rounded-full animate-spin" />
-              <p className="text-sm font-medium">発言データと市民世論を読み込み中...</p>
-            </div>
-          ) : displayMessages.length === 0 ? (
-            <div className="text-center py-12 text-white/80 text-xs">
-              該当する分類の発言が見つかりませんでした。別のタグをお選びください。
-            </div>
-          ) : (
-            displayMessages.map((msg) => {
-              const isUser = msg.avatar_type === 'user';
-              const isExpanded = expandedQuotes[msg.id];
-              const isCommentOpen = activeCommentBox[msg.id];
-              const isSpeaking = speakingId === msg.id;
-              const hasVoted = userVoted[msg.id];
+        {/* チャットメッセージログ（スクロール領域） */}
+        <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-slate-950">
+          {messages.map((msg) => {
+            const isUser = msg.sender === 'user';
+            const isQuoteExpanded = expandedQuotes[msg.id];
+            const hasVoted = userVotes[msg.id];
+            const isCommentOpen = openComments[msg.id];
 
-              const msgDate = msg.date || '2026年8月10日';
-              const showDateDivider = msgDate !== lastRenderedDate;
-              if (showDateDivider) {
-                lastRenderedDate = msgDate;
-              }
-
+            if (isUser) {
               return (
-                <React.Fragment key={msg.id}>
-                  {/* Sleek LINE Date Divider Line */}
-                  {showDateDivider && (
-                    <div className="flex items-center justify-center my-3">
-                      <div className="bg-black/30 backdrop-blur-sm px-4 py-1 rounded-full text-[11px] text-white/90 font-semibold shadow-inner border border-white/10">
-                        📅 {msgDate}
-                      </div>
+                <div key={msg.id} className="flex justify-end items-end gap-1.5">
+                  <span className="text-[10px] text-slate-500 mb-1">{msg.timestamp}</span>
+                  <div className="max-w-[80%] sm:max-w-[70%] bg-emerald-600 text-white px-4 py-2.5 rounded-2xl rounded-tr-sm text-xs sm:text-sm font-normal leading-relaxed shadow-sm">
+                    {msg.plainText}
+                  </div>
+                </div>
+              );
+            }
+
+            return (
+              <div key={msg.id} className="flex items-start gap-2.5 max-w-[92%] sm:max-w-[85%]">
+                <div className="w-7 h-7 rounded-lg bg-slate-800 border border-slate-700 text-emerald-400 flex items-center justify-center shrink-0 mt-0.5">
+                  <Bot className="w-4 h-4" />
+                </div>
+                <div className="flex-1 space-y-1.5">
+                  {/* 発言者・日付バッジ */}
+                  {msg.speaker && (
+                    <div className="flex items-center gap-1.5 text-[11px] text-slate-400">
+                      <span className="font-semibold text-slate-300">{msg.speaker}</span>
+                      {msg.speakerTitle && <span>({msg.speakerTitle})</span>}
+                      {msg.date && (
+                        <span className="text-slate-500 hidden xs:inline">• {msg.date}</span>
+                      )}
                     </div>
                   )}
 
-                  {isUser ? (
-                    /* User Message (Right Side) */
-                    <div className="flex justify-end items-end space-x-2 my-2">
-                      <span className="text-[10px] text-white/90 font-medium pb-1">{msg.timestamp}</span>
-                      <div className="max-w-[75%] bg-[#85e249] text-slate-900 rounded-2xl rounded-tr-none px-4 py-2.5 text-sm font-medium shadow-md leading-relaxed whitespace-pre-wrap">
-                        {msg.plain_text}
-                      </div>
-                    </div>
-                  ) : (
-                    /* Politician / AI Message (Left Side LINE Style) */
-                    <div className="flex items-start space-x-2.5 my-3 animate-slide-up">
-                      {/* Avatar Icon */}
-                      <div className="w-10 h-10 rounded-full bg-white shadow-md flex items-center justify-center text-xl shrink-0 border border-slate-200">
-                        {getAvatarIcon(msg.avatar_type)}
-                      </div>
+                  {/* 要約本文カード */}
+                  <div className="bg-slate-900 border border-slate-800 rounded-2xl rounded-tl-sm p-3.5 text-xs sm:text-sm text-slate-200 leading-relaxed space-y-3">
+                    <div className="whitespace-pre-wrap">{msg.plainText}</div>
 
-                      <div className="flex flex-col max-w-[82%] text-left">
-                        {/* Speaker Name, Role, & Category Badge */}
-                        <div className="flex flex-wrap items-center gap-1.5 mb-1">
-                          <span className="text-xs font-bold text-white shadow-sm">{msg.speaker}</span>
-                          <span className="text-[10px] px-2 py-0.5 rounded-full bg-black/35 text-white font-medium">
-                            {msg.role}
-                          </span>
-                          {msg.category && (
-                            <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/80 text-white font-bold shadow-sm">
-                              {msg.category}
+                    {/* 公式議事録 原文引用アコーディオン */}
+                    {msg.originalQuote && (
+                      <div className="pt-2 border-t border-slate-800/80">
+                        <button
+                          onClick={() => toggleQuote(msg.id)}
+                          className="text-[11px] font-medium text-slate-400 hover:text-slate-200 flex items-center gap-1 transition-colors"
+                        >
+                          <FileText className="w-3 h-3 text-emerald-400" />
+                          <span>公式会議録の原文を{isQuoteExpanded ? '閉じる' : '確認する'}</span>
+                          {isQuoteExpanded ? (
+                            <ChevronUp className="w-3 h-3" />
+                          ) : (
+                            <ChevronDown className="w-3 h-3" />
+                          )}
+                        </button>
+                        {isQuoteExpanded && (
+                          <div className="mt-2 p-2.5 bg-slate-950 rounded-xl border border-slate-800/80 text-xs text-slate-300 font-serif leading-relaxed italic animate-fade-in">
+                            {msg.originalQuote}
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* 市民フィードバック（賛成・懸念・コメント） */}
+                    <div className="pt-2 border-t border-slate-800/80 flex items-center justify-between gap-2 flex-wrap text-xs">
+                      <div className="flex items-center gap-1.5">
+                        <button
+                          onClick={() => handleVote(msg.id, 'agree')}
+                          className={`px-2.5 py-1 rounded-lg text-xs font-medium border flex items-center gap-1 transition-colors ${
+                            hasVoted === 'agree'
+                              ? 'bg-emerald-600/20 text-emerald-300 border-emerald-500/40'
+                              : 'bg-slate-800 hover:bg-slate-750 text-slate-300 border-slate-700'
+                          }`}
+                        >
+                          <ThumbsUp className="w-3 h-3" />
+                          <span>賛成</span>
+                          {msg.agreeCount !== undefined && (
+                            <span className="text-[10px] text-slate-400 font-mono">
+                              {msg.agreeCount}
                             </span>
                           )}
-                        </div>
-
-                        {/* Speech Bubble */}
-                        <div className="bg-white text-slate-800 rounded-2xl rounded-tl-none p-3.5 text-sm shadow-lg border border-slate-100 relative leading-relaxed">
-                          {/* Header Ribbon */}
-                          <div className="text-[10px] font-bold text-emerald-600 mb-1 flex items-center justify-between">
-                            <span>✨ 超翻訳 (噛み砕き解説)</span>
-                            <button
-                              onClick={() => handleSpeak(msg.id, msg.plain_text)}
-                              className={`px-2 py-0.5 rounded-md text-[10px] font-medium transition-colors ${
-                                isSpeaking
-                                  ? 'bg-rose-500 text-white animate-pulse'
-                                  : 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200'
-                              }`}
-                              title="音声読み上げ"
-                            >
-                              {isSpeaking ? '🔊 停止' : '🔊 読み上げ'}
-                            </button>
-                          </div>
-
-                          {/* Plain Japanese Text */}
-                          <div className="font-medium whitespace-pre-wrap text-slate-900">
-                            {msg.plain_text}
-                          </div>
-
-                          {/* Collapsible Original Quote Accordion */}
-                          {msg.original_quote && (
-                            <div className="mt-2.5 pt-2 border-t border-slate-100">
-                              <button
-                                onClick={() => toggleQuote(msg.id)}
-                                className="text-xs text-slate-500 hover:text-slate-800 font-semibold flex items-center gap-1 transition-colors"
-                              >
-                                <span>📜 公式議事録（原文）を{isExpanded ? '隠す' : '見る'}</span>
-                                <span className="text-[10px]">{isExpanded ? '▲' : '▼'}</span>
-                              </button>
-
-                              {isExpanded && (
-                                <div className="mt-1.5 p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-600 font-serif leading-relaxed italic animate-fade-in">
-                                  {msg.original_quote}
-                                </div>
-                              )}
-                            </div>
+                        </button>
+                        <button
+                          onClick={() => handleVote(msg.id, 'disagree')}
+                          className={`px-2.5 py-1 rounded-lg text-xs font-medium border flex items-center gap-1 transition-colors ${
+                            hasVoted === 'disagree'
+                              ? 'bg-rose-600/20 text-rose-300 border-rose-500/40'
+                              : 'bg-slate-800 hover:bg-slate-750 text-slate-300 border-slate-700'
+                          }`}
+                        >
+                          <ThumbsDown className="w-3 h-3" />
+                          <span>懸念</span>
+                          {msg.disagreeCount !== undefined && (
+                            <span className="text-[10px] text-slate-400 font-mono">
+                              {msg.disagreeCount}
+                            </span>
                           )}
-
-                          {/* Citizen Opinion Voting & Feedback Bar */}
-                          <div className="mt-3 pt-2.5 border-t border-slate-200/80 flex flex-wrap items-center justify-between gap-1.5">
-                            <div className="flex items-center space-x-1.5 text-xs">
-                              <button
-                                onClick={() => handleVote(msg.id, 'agree')}
-                                className={`px-2.5 py-1 rounded-full text-[11px] font-bold border transition-all flex items-center space-x-1 ${
-                                  hasVoted === 'agree'
-                                    ? 'bg-emerald-500 text-white border-emerald-600 shadow'
-                                    : 'bg-slate-100 hover:bg-emerald-50 text-slate-700 border-slate-200'
-                                }`}
-                              >
-                                <span>👍 賛成</span>
-                                <span className="bg-emerald-200/60 text-emerald-900 px-1.5 py-0.2 rounded-full text-[10px]">
-                                  {msg.agree_count || 0}
-                                </span>
-                              </button>
-
-                              <button
-                                onClick={() => handleVote(msg.id, 'disagree')}
-                                className={`px-2.5 py-1 rounded-full text-[11px] font-bold border transition-all flex items-center space-x-1 ${
-                                  hasVoted === 'disagree'
-                                    ? 'bg-rose-500 text-white border-rose-600 shadow'
-                                    : 'bg-slate-100 hover:bg-rose-50 text-slate-700 border-slate-200'
-                                }`}
-                              >
-                                <span>👎 懸念</span>
-                                <span className="bg-rose-200/60 text-rose-900 px-1.5 py-0.2 rounded-full text-[10px]">
-                                  {msg.disagree_count || 0}
-                                </span>
-                              </button>
-                            </div>
-
-                            <button
-                              onClick={() => toggleCommentBox(msg.id)}
-                              className="text-[11px] font-semibold text-blue-600 hover:text-blue-800 flex items-center gap-1 bg-blue-50 px-2.5 py-1 rounded-full border border-blue-100 transition-colors"
-                            >
-                              <span>💬 市民意見 ({msg.comments?.length || 0})</span>
-                            </button>
-                          </div>
-
-                          {/* Citizen Comments List */}
-                          {msg.comments && msg.comments.length > 0 && (
-                            <div className="mt-2.5 space-y-1.5 bg-slate-50 p-2.5 rounded-xl border border-slate-200">
-                              <span className="text-[10px] text-slate-500 font-bold block">🗣️ 寄せられた市民の意見:</span>
-                              {msg.comments.map((c, idx) => (
-                                <div key={idx} className="text-xs text-slate-700 leading-snug">
-                                  <span className="font-bold text-slate-900">{c.user}: </span>
-                                  <span>{c.text}</span>
-                                </div>
-                              ))}
-                            </div>
-                          )}
-
-                          {/* Inline Citizen Comment Input Box */}
-                          {isCommentOpen && (
-                            <div className="mt-2.5 pt-2 border-t border-slate-200 flex items-center space-x-1.5">
-                              <input
-                                type="text"
-                                value={commentInputs[msg.id] || ''}
-                                onChange={(e) =>
-                                  setCommentInputs((prev) => ({ ...prev, [msg.id]: e.target.value }))
-                                }
-                                placeholder="この質問/答弁に意見を入力..."
-                                className="flex-1 px-3 py-1.5 bg-white border border-slate-300 rounded-xl text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                              />
-                              <button
-                                onClick={() => handleAddComment(msg.id)}
-                                className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold shadow transition-colors shrink-0"
-                              >
-                                投稿
-                              </button>
-                            </div>
-                          )}
-                        </div>
-
-                        {/* Timestamp */}
-                        <div className="flex items-center space-x-2 mt-1 px-1">
-                          <span className="text-[10px] text-white/90 font-medium">{msg.timestamp}</span>
-                        </div>
+                        </button>
                       </div>
+
+                      <button
+                        onClick={() => toggleCommentBox(msg.id)}
+                        className="text-[11px] text-slate-400 hover:text-slate-200 flex items-center gap-1"
+                      >
+                        <MessageCircle className="w-3 h-3" />
+                        <span>意見 ({msg.comments?.length || 0})</span>
+                      </button>
                     </div>
-                  )}
-                </React.Fragment>
-              );
-            })
-          )}
+
+                    {/* 市民コメントリスト */}
+                    {msg.comments && msg.comments.length > 0 && (
+                      <div className="space-y-1.5 pt-1">
+                        {msg.comments.map((c, idx) => (
+                          <div
+                            key={idx}
+                            className="bg-slate-950/80 p-2 rounded-lg border border-slate-800/80 text-[11px] text-slate-300"
+                          >
+                            <span className="font-semibold text-slate-200">{c.user}: </span>
+                            <span>{c.text}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* コメント入力ボックス */}
+                    {isCommentOpen && (
+                      <div className="pt-2 flex items-center gap-1.5">
+                        <input
+                          type="text"
+                          value={commentInputs[msg.id] || ''}
+                          onChange={(e) =>
+                            setCommentInputs((prev) => ({ ...prev, [msg.id]: e.target.value }))
+                          }
+                          placeholder="この議案への意見を入力..."
+                          className="flex-1 px-3 py-1.5 bg-slate-950 border border-slate-800 rounded-lg text-xs text-white placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                        />
+                        <button
+                          onClick={() => handleAddComment(msg.id)}
+                          className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-semibold shrink-0"
+                        >
+                          投稿
+                        </button>
+                      </div>
+                    )}
+                  </div>
+
+                  <span className="text-[10px] text-slate-500 pl-1">{msg.timestamp}</span>
+                </div>
+              </div>
+            );
+          })}
           <div ref={chatBottomRef} />
         </div>
 
-        {/* LINE Chat Input Form */}
-        <div className="bg-slate-900/90 backdrop-blur-md p-3 border-t border-slate-700/60 relative z-10">
-          <form onSubmit={handleSendQuestion} className="flex items-center space-x-2">
+        {/* チャット入力フォーム */}
+        <div className="bg-slate-900 border-t border-slate-800 p-3 sm:p-4 shrink-0">
+          <form onSubmit={handleSendQuestion} className="flex items-center gap-2">
             <input
               type="text"
               value={inputQuestion}
               onChange={(e) => setInputQuestion(e.target.value)}
-              placeholder="例：子育ての給付金って結局タダになるの？"
+              placeholder="政策や予算について質問を入力..."
               disabled={isSending}
-              className="flex-1 px-4 py-3 bg-slate-800 border border-slate-700 rounded-full text-sm text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#06C755] transition-all"
+              className="flex-1 px-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-xs sm:text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
             />
             <button
               type="submit"
               disabled={isSending || !inputQuestion.trim()}
-              className="w-11 h-11 rounded-full bg-[#06C755] hover:bg-[#05b34c] disabled:bg-slate-700 text-white font-bold flex items-center justify-center shadow-lg transition-all"
-              title="送信"
+              className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 disabled:bg-slate-800 text-white rounded-xl text-xs sm:text-sm font-semibold flex items-center gap-1.5 transition-colors shrink-0"
+              aria-label="送信"
             >
               {isSending ? (
-                <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
               ) : (
-                '➔'
+                <>
+                  <Send className="w-3.5 h-3.5" />
+                  <span className="hidden xs:inline">送信</span>
+                </>
               )}
             </button>
           </form>
