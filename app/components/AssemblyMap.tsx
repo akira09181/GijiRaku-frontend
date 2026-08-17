@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import React, { useEffect, useRef, useState, useMemo } from 'react';
 import { MapPin, Search, Layers, MessageSquare, Compass, CheckCircle2 } from 'lucide-react';
@@ -34,7 +34,7 @@ export default function AssemblyMap({
   const markersRef = useRef<{ [key: string]: any }>({});
   const [mapLoaded, setMapLoaded] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
-  const [mapStyle, setMapStyle] = useState<'streets' | 'satellite' | 'dark'>('dark');
+  const [mapStyle, setMapStyle] = useState<'streets' | 'satellite' | 'dark'>('streets');
 
   // グローバルコールバック（LeafletのHTML Marker用）
   useEffect(() => {

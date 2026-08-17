@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
@@ -175,7 +175,7 @@ export default function LineChatModal({
     setCommentInputs((prev) => ({ ...prev, [id]: '' }));
   };
 
-  const handleSendQuestion = (e: React.FormEvent) => {
+  const handleSendQuestion = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!inputQuestion.trim() || isSending) return;
 
@@ -183,17 +183,43 @@ export default function LineChatModal({
     setInputQuestion('');
     setIsSending(true);
 
+    const nowStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     const userMsg: Message = {
       id: `user-${Date.now()}`,
       sender: 'user',
       plainText: userText,
-      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      timestamp: nowStr,
     };
 
     setMessages((prev) => [...prev, userMsg]);
 
-    setTimeout(() => {
-      const assistantReply: Message = {
+    const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000';
+    try {
+      const res = await fetch(`${apiBase}/api/translate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ question: userText, assembly_id: assembly.id }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        const assistantReply: Message = {
+          id: `assistant-${Date.now()}`,
+          sender: 'assistant',
+          plainText: data.answer,
+          speaker: data.speaker || `${assembly.name} AI答弁`,
+          speakerTitle: data.role || '超翻訳ナビゲーター',
+          date: '最新会議録より',
+          originalQuote: data.original_quote,
+          timestamp: nowStr,
+          agreeCount: 1,
+          disagreeCount: 0,
+        };
+        setMessages((prev) => [...prev, assistantReply]);
+      } else {
+        throw new Error('API failed');
+      }
+    } catch {
+      const fallbackReply: Message = {
         id: `assistant-${Date.now()}`,
         sender: 'assistant',
         plainText: `ご質問「${userText}」に関して、${assembly.name}の最新議事録オープンデータを参照しました。\n\n本件については直近の定例会でも議論されており、関連予算および実施スケジュールが審議されています。`,
@@ -201,13 +227,14 @@ export default function LineChatModal({
         speakerTitle: '関係部長・担当課',
         date: '最新会議録より',
         originalQuote: `「本件に関する施策につきましては、関係各所と綿密な連携を図りつつ、所期の目的達成に向けて着実に進行管理を行ってまいります。」`,
-        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        timestamp: nowStr,
         agreeCount: 1,
         disagreeCount: 0,
       };
-      setMessages((prev) => [...prev, assistantReply]);
+      setMessages((prev) => [...prev, fallbackReply]);
+    } finally {
       setIsSending(false);
-    }, 800);
+    }
   };
 
   const quickPrompts = [
