@@ -231,16 +231,6 @@ export default function AssemblyMap({
           {/* レイヤー切替 */}
           <div className="flex items-center bg-slate-900 p-0.5 rounded-xl border border-slate-800 text-[11px] shrink-0">
             <button
-              onClick={() => setMapStyle('dark')}
-              className={`px-2 py-1 rounded-lg font-medium transition-all ${
-                mapStyle === 'dark'
-                  ? 'bg-slate-800 text-white font-semibold shadow-sm'
-                  : 'text-slate-400 hover:text-slate-200'
-              }`}
-            >
-              ダーク
-            </button>
-            <button
               onClick={() => setMapStyle('streets')}
               className={`px-2 py-1 rounded-lg font-medium transition-all ${
                 mapStyle === 'streets'
@@ -249,6 +239,26 @@ export default function AssemblyMap({
               }`}
             >
               標準
+            </button>
+            <button
+              onClick={() => setMapStyle('satellite')}
+              className={`px-2 py-1 rounded-lg font-medium transition-all ${
+                mapStyle === 'satellite'
+                  ? 'bg-slate-800 text-white font-semibold shadow-sm'
+                  : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              航空写真
+            </button>
+            <button
+              onClick={() => setMapStyle('dark')}
+              className={`px-2 py-1 rounded-lg font-medium transition-all ${
+                mapStyle === 'dark'
+                  ? 'bg-slate-800 text-white font-semibold shadow-sm'
+                  : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              ダーク
             </button>
           </div>
 
