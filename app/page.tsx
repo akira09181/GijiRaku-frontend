@@ -191,13 +191,13 @@ export default function Home() {
       {/* 共通ヘッダー */}
       <Header onOpenAnalytics={() => setAnalyticsAssembly(TOKYO_ASSEMBLIES[0])} />
 
-      {/* メインヒーローセクション: 「あなたの街の議論を、3分で。」 */}
+      {/* メインヒーローセクション: 「あなたの街で、いま何が話されてる？」 */}
       <section className="px-4 pt-10 pb-8 sm:pt-14 sm:pb-10 max-w-4xl w-full mx-auto flex flex-col items-center text-center">
         <h2 className="text-2xl sm:text-4xl font-bold text-white tracking-tight leading-tight">
-          あなたの街の議論を、3分で。
+          あなたの街で、いま何が話されてる？
         </h2>
-        <p className="text-xs sm:text-sm text-slate-400 mt-3 max-w-lg leading-relaxed">
-          東京都内の各議会でいま何が話されているか、気になる地域とテーマを選ぶだけでチェックできます。
+        <p className="text-xs sm:text-sm text-slate-400 mt-2.5 max-w-lg leading-relaxed">
+          気になる地域とテーマを選ぶだけで、直近の議会で話し合われている施策や議論をすぐにチェックできます。
         </p>
 
         {/* 2ステップ選択カード */}
@@ -260,7 +260,7 @@ export default function Home() {
           <h3 className="text-sm font-bold text-white flex items-center gap-2">
             <span>注目されている議論</span>
             <span className="px-2 py-0.5 rounded-full text-[11px] font-normal bg-slate-800 text-slate-300 border border-slate-700">
-              {activeAssemblies.length}自治体該当
+              {activeAssemblies.length}地域
             </span>
           </h3>
           {selectedAssemblyId !== 'all' && (
@@ -296,7 +296,7 @@ export default function Home() {
                   </div>
                   <span className="text-slate-400 text-[11px] flex items-center gap-1">
                     <Calendar className="w-3.5 h-3.5 text-slate-400" />
-                    <span>定例会 会議録より</span>
+                    <span>定例会</span>
                   </span>
                 </div>
 
@@ -313,10 +313,9 @@ export default function Home() {
                   {relevantIssues.map((issue, idx) => (
                     <span
                       key={idx}
-                      className="px-2.5 py-1 rounded-lg text-[11px] bg-slate-950 text-slate-300 border border-slate-800 flex items-center gap-1"
+                      className="px-2.5 py-1 rounded-lg text-[11px] bg-slate-950 text-slate-300 border border-slate-800"
                     >
-                      <span>{issue.label}</span>
-                      <span className="text-[10px] text-slate-500 font-mono">({issue.count}件)</span>
+                      {issue.label}
                     </span>
                   ))}
                 </div>
@@ -325,10 +324,10 @@ export default function Home() {
                 <div className="pt-2 border-t border-slate-800/80 flex items-center justify-between gap-3">
                   <button
                     onClick={() => setSelectedAssemblyForModal(assembly)}
-                    className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-colors shadow-sm"
+                    className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-colors shadow-sm"
                   >
                     <MessageSquare className="w-3.5 h-3.5" />
-                    <span>3分で理解する（AI対話）</span>
+                    <span>この議論を見る（3分解説）</span>
                   </button>
 
                   <a
