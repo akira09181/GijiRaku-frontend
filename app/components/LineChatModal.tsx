@@ -18,6 +18,7 @@ import {
   MessageSquare,
   CheckCircle2,
   AlertCircle,
+  Users,
 } from 'lucide-react';
 import { Assembly } from '../types/assembly';
 import { incrementEbpmReactionCount } from '../utils/ebpmStore';
@@ -45,6 +46,14 @@ export interface PolicyArguments {
   readonly concerns: readonly string[];
 }
 
+export interface SpeakerUtterance {
+  readonly roleName: string;
+  readonly roleTitle: string;
+  readonly stanceLabel: '推進' | '慎重' | '拡大提案' | '課題提起' | string;
+  readonly summaryText: string;
+  readonly avatarColor?: string;
+}
+
 export interface StructuredSummary {
   readonly whatChanges: string;
   readonly targetAudience: string;
@@ -60,6 +69,7 @@ interface Message {
   readonly structuredSummary?: StructuredSummary;
   readonly timeline?: readonly TimelineItem[];
   readonly policyArguments?: PolicyArguments;
+  readonly speakerUtterances?: readonly SpeakerUtterance[];
   readonly speaker?: string;
   readonly speakerTitle?: string;
   readonly date?: string;
@@ -163,6 +173,29 @@ export default function LineChatModal({
             '受入枠（保育士・施設容量）の確保が課題',
           ],
         },
+        speakerUtterances: [
+          {
+            roleName: isTokyo ? '小池 百合子' : assembly.mayorName || '首長',
+            roleTitle: isTokyo ? '東京都知事' : '首長提案',
+            stanceLabel: '推進',
+            summaryText: '子育て世帯の負担を軽くするため、所得制限のない支援を前に進めたい',
+            avatarColor: 'emerald',
+          },
+          {
+            roleName: '議員A',
+            roleTitle: '予算特別委員会',
+            stanceLabel: '慎重',
+            summaryText: '制度を長く続けるために、年間の予算・財源をどう確保するか慎重に確認が必要です',
+            avatarColor: 'amber',
+          },
+          {
+            roleName: '議員B',
+            roleTitle: '文教子育て委員会',
+            stanceLabel: '拡大提案',
+            summaryText: '第2子以降だけでなく、病児保育の受け入れ枠拡充もあわせて検討すべきです',
+            avatarColor: 'sky',
+          },
+        ],
         speaker: isTokyo ? '小池 百合子' : assembly.mayorName,
         speakerTitle: isTokyo ? '東京都知事' : '首長答弁',
         date: '2026年 第1回定例会 本会議',
@@ -210,6 +243,22 @@ export default function LineChatModal({
             '個人情報・セキュリティ対策の徹底が求められる',
           ],
         },
+        speakerUtterances: [
+          {
+            roleName: 'デジタル推進部長',
+            roleTitle: '行政担当者',
+            stanceLabel: '推進',
+            summaryText: '窓口に並ばずにスマホで手続きが完結できるよう、オンライン申請を順次拡大します',
+            avatarColor: 'emerald',
+          },
+          {
+            roleName: '議員C',
+            roleTitle: '総務委員会',
+            stanceLabel: '課題提起',
+            summaryText: 'スマホをお持ちでない高齢者の方への代理窓口・手厚いサポート体制も必要です',
+            avatarColor: 'purple',
+          },
+        ],
         speaker: '議会事務局 / 担当委員会',
         speakerTitle: '予算特別委員会',
         date: '2026年 委員会審査',
@@ -518,6 +567,70 @@ export default function LineChatModal({
                             {msg.structuredSummary.budgetInfo || '令和8年度当初予算案に重点計上'}
                           </div>
                         </div>
+                      </div>
+                    )}
+
+                    {/* 【主要ブロック】この議論で、誰が何を言った？ (発言の要旨アバター吹き出し) */}
+                    {msg.speakerUtterances && msg.speakerUtterances.length > 0 && (
+                      <div className="pt-3 border-t border-slate-800/80 space-y-2.5">
+                        <div className="flex items-center justify-between">
+                          <div className="text-xs font-bold text-white flex items-center gap-1.5">
+                            <Users className="w-4 h-4 text-emerald-400" />
+                            <span>この議論で、誰が何を言った？</span>
+                          </div>
+                          <span className="text-[10px] px-2 py-0.5 rounded bg-slate-800 text-slate-400 border border-slate-700 font-medium">
+                            発言の要旨
+                          </span>
+                        </div>
+
+                        <div className="space-y-2">
+                          {msg.speakerUtterances.map((utt, idx) => {
+                            const stanceStyle =
+                              utt.stanceLabel === '推進'
+                                ? 'bg-emerald-950/90 text-emerald-300 border-emerald-700/60'
+                                : utt.stanceLabel === '慎重'
+                                ? 'bg-amber-950/90 text-amber-300 border-amber-700/60'
+                                : utt.stanceLabel === '拡大提案'
+                                ? 'bg-sky-950/90 text-sky-300 border-sky-700/60'
+                                : 'bg-purple-950/90 text-purple-300 border-purple-700/60';
+
+                            const avatarBg =
+                              utt.avatarColor === 'emerald'
+                                ? 'bg-emerald-600 text-white'
+                                : utt.avatarColor === 'amber'
+                                ? 'bg-amber-600 text-white'
+                                : utt.avatarColor === 'sky'
+                                ? 'bg-sky-600 text-white'
+                                : 'bg-purple-600 text-white';
+
+                            return (
+                              <div key={idx} className="flex items-start gap-2 text-xs">
+                                {/* 丸型簡易アバター */}
+                                <div className={`w-7 h-7 rounded-full ${avatarBg} font-bold text-[10px] flex items-center justify-center shrink-0 shadow-sm mt-0.5`}>
+                                  {utt.roleName.slice(0, 2)}
+                                </div>
+
+                                {/* 吹き出し要旨 */}
+                                <div className="flex-1 space-y-1">
+                                  <div className="flex items-center gap-1.5 text-[11px]">
+                                    <span className="font-bold text-slate-200">{utt.roleName}</span>
+                                    <span className="text-slate-400 text-[10px]">({utt.roleTitle})</span>
+                                    <span className={`px-1.5 py-0.2 rounded text-[9.5px] font-semibold border ${stanceStyle}`}>
+                                      {utt.stanceLabel}
+                                    </span>
+                                  </div>
+                                  <div className="bg-slate-950 border border-slate-800/90 p-2.5 rounded-2xl rounded-tl-xs text-slate-200 leading-relaxed font-normal">
+                                    💬「{utt.summaryText}」
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+
+                        <p className="text-[10px] text-slate-400 font-normal pt-0.5">
+                          ※上記は議事録をもとにした発言の要旨です。正確な表現は原文をご確認ください。
+                        </p>
                       </div>
                     )}
 
