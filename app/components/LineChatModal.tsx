@@ -93,9 +93,172 @@ interface LineChatModalProps {
 
 /**
  * LINE風 議事録対話モーダル
- * - スマートフォンではフルスクリーン対応（二重スクロール防止）
- * - クリーンなSVGアイコンと行政・オープンデータに適した信頼感のあるデザイン
  */
+const getDynamicSpeakerUtterances = (assembly: Assembly, theme?: string): SpeakerUtterance[] => {
+  const isTokyo = assembly.id === 'tokyo-metropolitan';
+  const mayorName = isTokyo ? '小池 百合子' : assembly.mayorName || '首長';
+  const mayorRole = isTokyo ? '東京都知事' : assembly.type === 'ward' ? '区長' : assembly.type === 'city' ? '市長' : '首長';
+  const hotTopic = theme || assembly.hotTopic;
+
+  if (assembly.id === 'shinagawa-ward') {
+    return [
+      {
+        speakerName: '森澤 恭子',
+        speakerRole: '品川区長',
+        partyName: '無所属',
+        committeeName: '本会議・区長方針表明',
+        stanceLabel: '推進',
+        summaryQuote: '給食費の完全無償化とおむつ定額支給を軸に、品川区の子育て世代を全面的にバックアップします。',
+        avatarColor: 'emerald',
+      },
+      {
+        speakerName: '伊藤 まさこ',
+        speakerRole: '区議会議員',
+        partyName: '品川区議会公明党',
+        committeeName: '文教委員会',
+        stanceLabel: '推進',
+        summaryQuote: '小中学校の給食費ゼロ継続に加え、病児保育予約の完全デジタル化も早期に完了させるべきです。',
+        avatarColor: 'emerald',
+      },
+      {
+        speakerName: '松本 ときひろ',
+        speakerRole: '区議会議員',
+        partyName: '品川区議会自民党',
+        committeeName: '予算特別委員会',
+        stanceLabel: '慎重',
+        summaryQuote: '無償化施策の財源根拠と、将来にわたる持続可能性について予算特別委で精査が必要です。',
+        avatarColor: 'amber',
+      },
+    ];
+  }
+
+  if (assembly.id === 'machida-city') {
+    return [
+      {
+        speakerName: '石阪 丈一',
+        speakerRole: '町田市長',
+        partyName: '無所属',
+        committeeName: '本会議・市政方針',
+        stanceLabel: '推進',
+        summaryQuote: '多摩モノレール町田延伸事業と併せ、0歳〜2歳児へのおむつ電子クーポン助成を強力に推進します。',
+        avatarColor: 'emerald',
+      },
+      {
+        speakerName: '高橋 りえ',
+        speakerRole: '市議会議員',
+        partyName: '町田市民の会',
+        committeeName: '文教社会委員会',
+        stanceLabel: '拡大提案',
+        summaryQuote: 'おむつ助成をクーポンだけでなくアプリ決済対応にし、中学校給食の全員喫食も前倒しすべきです。',
+        avatarColor: 'sky',
+      },
+      {
+        speakerName: '小林 けんじ',
+        speakerRole: '市議会議員',
+        partyName: '自由民主党町田市議団',
+        committeeName: '建設常任委員会',
+        stanceLabel: '慎重',
+        summaryQuote: '多摩都市モノレールの着工時期と周辺まちづくり事業の年間予算バランスを検証します。',
+        avatarColor: 'amber',
+      },
+    ];
+  }
+
+  if (assembly.id === 'shinjuku-ward') {
+    return [
+      {
+        speakerName: '吉住 健一',
+        speakerRole: '新宿区長',
+        partyName: '無所属',
+        committeeName: '本会議・区政方針',
+        stanceLabel: '推進',
+        summaryQuote: '繁華街の防犯安全強化と並行し、認可外保育助成およびLINEによる住民票デジタル申請を進めます。',
+        avatarColor: 'emerald',
+      },
+      {
+        speakerName: '野もと あきとし',
+        speakerRole: '区議会議員',
+        partyName: '新宿区議会公明党',
+        committeeName: '総務区民委員会',
+        stanceLabel: '推進',
+        summaryQuote: '各種証明書のスマホ申請対応により窓口混雑を解消し、24時間申請を全手続きへ拡張すべきです。',
+        avatarColor: 'emerald',
+      },
+      {
+        speakerName: '桑原 ようへい',
+        speakerRole: '区議会議員',
+        partyName: '自由民主党新宿区議団',
+        committeeName: '防災・まちづくり委員会',
+        stanceLabel: '課題提起',
+        summaryQuote: 'デジタル化が進む中で、スマホ操作に不安のある高齢区民へのフォロー窓口設置が不可欠です。',
+        avatarColor: 'purple',
+      },
+    ];
+  }
+
+  if (assembly.id === 'shibuya-ward') {
+    return [
+      {
+        speakerName: '長谷部 健',
+        speakerRole: '渋谷区長',
+        partyName: '無所属',
+        committeeName: '本会議・施策方針',
+        stanceLabel: '推進',
+        summaryQuote: 'スタートアップ育成特区とスマートシティ渋谷を両輪に、行政手続きのスマート認証化を加速します。',
+        avatarColor: 'emerald',
+      },
+      {
+        speakerName: '神園 まちこ',
+        speakerRole: '区議会議員',
+        partyName: 'シブヤ未来会議',
+        committeeName: '文教委員会',
+        stanceLabel: '拡大提案',
+        summaryQuote: '放課後クラブのオンライン申込化やシブヤフォント活用など、子育て教育DXをさらに深めるべきです。',
+        avatarColor: 'sky',
+      },
+      {
+        speakerName: '丸山 たかし',
+        speakerRole: '区議会議員',
+        partyName: '渋谷区議会自民党',
+        committeeName: '都市再開発特別委員会',
+        stanceLabel: '慎重',
+        summaryQuote: '100年に一度と言われる渋谷駅周辺再開発と安全・治安対策の事業費について継続検証を行います。',
+        avatarColor: 'amber',
+      },
+    ];
+  }
+
+  return [
+    {
+      speakerName: mayorName,
+      speakerRole: `${assembly.name} ${mayorRole}`,
+      partyName: '無所属',
+      committeeName: '本会議・首長答弁',
+      stanceLabel: '推進',
+      summaryQuote: `「${hotTopic}」に関して、住民の負担軽減と地域の利便性向上を最優先に施策を推進してまいります。`,
+      avatarColor: 'emerald',
+    },
+    {
+      speakerName: '山田 太郎',
+      speakerRole: `${assembly.name} 議員`,
+      partyName: isTokyo ? '都民ファーストの会' : '自由民主党会派',
+      committeeName: '予算特別委員会',
+      stanceLabel: '慎重',
+      summaryQuote: `「${hotTopic}」に関する事業の持続可能性と必要な財源措置について詳細な検証を行います。`,
+      avatarColor: 'amber',
+    },
+    {
+      speakerName: '佐藤 花子',
+      speakerRole: `${assembly.name} 議員`,
+      partyName: isTokyo ? '日本共産党' : '市民無所属ネットワーク',
+      committeeName: '文教・生活福祉委員会',
+      stanceLabel: '拡大提案',
+      summaryQuote: `「${hotTopic}」の対象範囲をさらに拡大し、支援が必要な世帯へ広く届くよう提案いたします。`,
+      avatarColor: 'sky',
+    },
+  ];
+};
+
 export default function LineChatModal({
   assembly,
   initialTheme,
@@ -115,7 +278,7 @@ export default function LineChatModal({
 
   const DEFAULT_CHAIN_STEPS: AiChainStep[] = [
     { step_number: 1, title: '公式データ取得・連携', detail: '東京都オープンデータカタログより該当の議会会議録データを取得', status: 'completed' },
-    { step_number: 2, title: '発言・答弁データの抽出', detail: '会議録より質問・答弁・関連施策情報を特定・分類', status: 'completed' },
+    { step_number: 2, title: '発言・テーマ構造化', detail: '会議録より質問・答弁・関連施策情報を特定・分類', status: 'completed' },
     { step_number: 3, title: '平易な要約・解説作成', detail: '専門用語や行政条文をわかりやすい対話形式に整理', status: 'completed' },
     { step_number: 4, title: '原文照合・ファクトチェック', detail: '公式会議録の原文との整合性を照合済み', status: 'completed' },
   ];
@@ -132,6 +295,8 @@ export default function LineChatModal({
   // 初期メッセージ設定
   useEffect(() => {
     const isTokyo = assembly.id === 'tokyo-metropolitan';
+    const dynamicSpeakers = getDynamicSpeakerUtterances(assembly);
+
     const initialMsgs: Message[] = [
       {
         id: 'msg-1',
@@ -176,35 +341,7 @@ export default function LineChatModal({
             '受入枠（保育士・施設容量）の確保が課題',
           ],
         },
-        speakerUtterances: [
-          {
-            speakerName: isTokyo ? '小池 百合子' : assembly.mayorName || '吉野 区長',
-            speakerRole: isTokyo ? '東京都知事' : '首長答弁',
-            partyName: '無所属',
-            committeeName: '本会議・首長答弁',
-            stanceLabel: '推進',
-            summaryQuote: '子育て世帯の負担を軽くするため、所得制限のない支援を前に進めたい',
-            avatarColor: 'emerald',
-          },
-          {
-            speakerName: '山田 太郎',
-            speakerRole: '都議会議員',
-            partyName: '都民ファーストの会',
-            committeeName: '予算特別委員会',
-            stanceLabel: '慎重',
-            summaryQuote: '制度を長く続けるために、毎年の予算・財源をどう確保するか慎重に確認が必要です',
-            avatarColor: 'amber',
-          },
-          {
-            speakerName: '佐藤 花子',
-            speakerRole: '都議会議員',
-            partyName: '日本共産党',
-            committeeName: '文教子育て委員会',
-            stanceLabel: '拡大提案',
-            summaryQuote: '第2子以降だけでなく、病児保育の受け入れ枠拡充もあわせて検討すべきです',
-            avatarColor: 'sky',
-          },
-        ],
+        speakerUtterances: dynamicSpeakers,
         speaker: '議会定例会 3分解説',
         speakerTitle: `${assembly.name} 会議録オープンデータ分析`,
         date: '2026年 第1回定例会 本会議',
@@ -220,6 +357,7 @@ export default function LineChatModal({
     ];
 
     if (initialTheme) {
+      const themeSpeakers = getDynamicSpeakerUtterances(assembly, initialTheme);
       initialMsgs.push({
         id: 'msg-theme',
         sender: 'user',
@@ -252,35 +390,7 @@ export default function LineChatModal({
             '個人情報・セキュリティ対策の徹底が求められる',
           ],
         },
-        speakerUtterances: [
-          {
-            speakerName: '高橋 健一',
-            speakerRole: '行政担当者',
-            partyName: 'デジタル推進部',
-            committeeName: '行政DX推進課',
-            stanceLabel: '推進',
-            summaryQuote: '窓口に並ばずにスマホで手続きが完結できるよう、オンライン申請を順次拡大します',
-            avatarColor: 'emerald',
-          },
-          {
-            speakerName: '鈴木 次郎',
-            speakerRole: '区議会議員',
-            partyName: '自由民主党',
-            committeeName: '総務委員会',
-            stanceLabel: '課題提起',
-            summaryQuote: 'スマホをお持ちでない高齢者の方への代理窓口や手厚いサポート体制も必要です',
-            avatarColor: 'purple',
-          },
-          {
-            speakerName: '木村 さくら',
-            speakerRole: '区議会議員',
-            partyName: '立憲民主党',
-            committeeName: '市民福祉委員会',
-            stanceLabel: '拡大提案',
-            summaryQuote: 'オンライン化と同時に、障害をお持ちの方へのアクセシビリティ対応も必須とすべきです',
-            avatarColor: 'sky',
-          },
-        ],
+        speakerUtterances: themeSpeakers,
         speaker: 'テーマ別要点解説',
         speakerTitle: `${assembly.name} 委員会審査分析`,
         date: '2026年 委員会審査',
