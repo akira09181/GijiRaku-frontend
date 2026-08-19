@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import React from 'react';
 import { Layers, Baby, Laptop, Building2, HeartPulse, Filter } from 'lucide-react';
@@ -33,14 +33,14 @@ export default function ThemeSelector({
   onSelectTheme,
 }: ThemeSelectorProps) {
   return (
-    <div className="bg-slate-900/40 border-b border-slate-800/60 py-2.5 px-4 sm:px-6">
+    <div className="bg-slate-900/60 border-b border-slate-800 py-2.5 px-4 sm:px-6">
       <div className="max-w-7xl mx-auto flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
         {/* ラベル */}
         <div className="flex items-center gap-2 text-xs font-semibold text-slate-300 shrink-0">
           <Filter className="w-3.5 h-3.5 text-emerald-400" />
           <span className="text-white">政策テーマ絞り込み</span>
-          <span className="text-slate-500 hidden md:inline text-[11px]">
-            関心のあるテーマを選ぶと議事録・発言データを抽出します
+          <span className="text-slate-400 hidden md:inline text-[11px] font-normal">
+            選択したテーマで議事録・発言データをフィルタリングします
           </span>
         </div>
 
@@ -53,10 +53,10 @@ export default function ThemeSelector({
                 key={theme.id}
                 onClick={() => onSelectTheme(theme.id)}
                 aria-pressed={isSelected}
-                className={`px-3 py-1.5 rounded-xl text-xs font-medium flex items-center gap-1.5 shrink-0 transition-all active:scale-95 ${
+                className={`px-3 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1.5 shrink-0 transition-all active:scale-95 ${
                   isSelected
-                    ? 'bg-emerald-600 text-white shadow-sm font-semibold'
-                    : 'bg-slate-900/80 hover:bg-slate-800 text-slate-300 border border-slate-800'
+                    ? 'bg-emerald-600 text-white font-semibold shadow-sm'
+                    : 'bg-slate-800/80 hover:bg-slate-800 text-slate-300 border border-slate-700/60'
                 }`}
               >
                 {theme.icon}
