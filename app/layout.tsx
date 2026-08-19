@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+﻿import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 
@@ -13,8 +13,16 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "GijiRaku - 東京都議会オープンデータ LINE風超翻訳マップ",
-  description: "東京都内の議会オープンデータをLINE風対話で超翻訳",
+  title: "GijiRaku - 東京都議会オープンデータ 対話型議会ナビ & EBPM",
+  description: "東京都内の議会オープンデータをAI解析し、わかりやすい対話形式で住民・議員・行政に届けるEBPMプラットフォーム",
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+  themeColor: "#020617",
 };
 
 export default function RootLayout({

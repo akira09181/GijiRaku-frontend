@@ -1,344 +1,370 @@
-'use client';
+﻿'use client';
 
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { Assembly } from './AssemblyMap';
+import {
+  X,
+  BarChart3,
+  Users,
+  Building2,
+  Activity,
+  FileText,
+  Vote,
+  Layers,
+  CheckCircle2,
+  TrendingUp,
+  Award,
+} from 'lucide-react';
+import { Assembly } from '../types/assembly';
+import {
+  AssemblyAnalytics,
+  TopicTrend,
+  PartyPolicyStance,
+  MemberScorecard,
+} from '../types/analytics';
 
 interface AnalyticsDashboardModalProps {
-  assembly: Assembly;
-  onClose: () => void;
+  readonly assembly: Assembly;
+  readonly onClose: () => void;
 }
 
-interface TopicDistribution {
-  name: string;
-  ratio: number;
-  color: string;
-}
+type TabType = 'overview' | 'party' | 'member' | 'public';
 
-interface PartyAnalytics {
-  party_name: string;
-  members_count: number;
-  top_category: string;
-  ai_stance_summary: string;
-  category_breakdown: { category: string; percent: number }[];
-}
-
-interface MemberScorecard {
-  id: string;
-  name: string;
-  title: string;
-  party: string;
-  avatar_type: string;
-  total_statements: number;
-  activity_score: number;
-  main_focus: string;
-  ai_eval: string;
-}
-
-interface EbpmData {
-  youth_uninterested_rate: number;
-  total_votes_recorded: number;
-  age_demographics: { group: string; support_ratio: number; top_issue: string }[];
-  ebpm_ai_recommendations: { rank: number; title: string; action: string }[];
-}
-
-interface AnalyticsData {
-  topic_distribution: TopicDistribution[];
-  party_analytics: PartyAnalytics[];
-  member_scorecards: MemberScorecard[];
-  ebpm_citizen_data?: EbpmData;
-}
-
-export default function AnalyticsDashboardModal({ assembly, onClose }: AnalyticsDashboardModalProps) {
+/**
+ * 議員・行政向け EBPM分析ダッシュボードモーダル
+ * - 行政・議員向けEBPM分析・議事録トピック抽出・市民世論スコア
+ * - スマートフォンでのフルスクリーンレスポンシブ対応
+ */
+export default function AnalyticsDashboardModal({
+  assembly,
+  onClose,
+}: AnalyticsDashboardModalProps) {
   const [mounted, setMounted] = useState(false);
-  const [analytics, setAnalytics] = useState<AnalyticsData | null>(null);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
-  const [activeTab, setActiveTab] = useState<'ebpm' | 'cycle' | 'party' | 'member' | 'public'>('ebpm');
+  const [activeTab, setActiveTab] = useState<TabType>('overview');
+  const [loading, setLoading] = useState(true);
+  const [analytics, setAnalytics] = useState<AssemblyAnalytics | null>(null);
 
   useEffect(() => {
     setMounted(true);
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = 'unset';
+    };
   }, []);
 
   useEffect(() => {
-    async function loadAnalytics() {
-      setIsLoading(true);
-      const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000';
-      try {
-        const res = await fetch(`${apiBase}/api/assemblies/${assembly.id}/analytics`);
-        if (res.ok) {
-          const json = await res.json();
-          setAnalytics(json.data);
-        } else {
-          throw new Error('Analytics fetch failed');
-        }
-      } catch (err) {
-        console.error(err);
-        setAnalytics({
-          topic_distribution: [
-            { name: '👶 おむつ代補助・給食費無償化', ratio: 32, color: '#06C755' },
-            { name: '💻 スマホ行政手続95%化', ratio: 24, color: '#3B82F6' },
-            { name: '🏗️ 街づくり・多摩モノレール', ratio: 20, color: '#F59E0B' },
-            { name: '🛡️ 防災・避難所Wi-Fi', ratio: 14, color: '#EF4444' },
-            { name: '🏥 医療・病児保育予約', ratio: 10, color: '#EC4899' },
-          ],
-          ebpm_citizen_data: {
-            youth_uninterested_rate: 84.8,
-            total_votes_recorded: 1420,
-            age_demographics: [
-              { group: '10代・20代 (若者)', support_ratio: 91, top_issue: 'おむつ代補助電子クーポン・給食ゼロ' },
-              { group: '30代 (子育て層)', support_ratio: 88, top_issue: '病児保育当日スマホ予約・学童枠拡大' },
-            ],
-            ebpm_ai_recommendations: [
-              {
-                rank: 1,
-                title: '若者・子育て世代の89%が賛同: 『紙おむつデジタルクーポン支給』',
-                action: '次回定例会にてスマホアプリ決済による電子クーポン予算枠の拡大提言を推奨。',
-              },
-            ],
-          },
-          party_analytics: [
-            {
-              party_name: '町田市民の会 / 都民ファースト',
-              members_count: 31,
-              top_category: '👶 おむつ代補助・給食費無償化',
-              ai_stance_summary: '0歳〜2歳児へ『年間最大3万円のおむつ電子クーポン』および都内小中学校給食費全額公費負担を最優先で推進。',
-              category_breakdown: [
-                { category: 'おむつ・子育て', percent: 50 },
-                { category: 'デジタルDX', percent: 30 },
-                { category: '街づくり', percent: 20 },
-              ],
-            },
-          ],
-          member_scorecards: [
-            {
-              id: 'mem-mc-1',
-              name: '高橋 りえ',
-              title: '市議会議員',
-              party: '町田市民の会',
-              avatar_type: 'politician_female',
-              total_statements: 38,
-              activity_score: 96,
-              main_focus: 'おむつ代補助・乳幼児電子クーポン',
-              ai_eval: '物価高に悩む子育て世代の切実な声を取り上げ、おむつ代の具体的な電子クーポン（3万円分）支給を市長から引き出す高い答弁引き出し力を発揮。',
-            },
-          ],
-        });
-      } finally {
-        setIsLoading(false);
-      }
-    }
-    loadAnalytics();
-  }, [assembly.id]);
+    setLoading(true);
+    const timer = setTimeout(() => {
+      const isTokyo = assembly.id === 'tokyo-metropolitan';
 
-  const getAvatarIcon = (type?: string) => {
-    switch (type) {
-      case 'governor_female':
-        return '👩‍💼';
-      case 'mayor_male':
-        return '👨‍💼';
-      case 'politician_female':
-        return '👩‍⚖️';
-      case 'bureaucrat_male':
-        return '🧑‍💻';
-      default:
-        return '👨‍⚖️';
-    }
-  };
+      const mockTopicTrends: readonly TopicTrend[] = [
+        {
+          topic: '子育て支援・給食費無償化',
+          frequency: 342,
+          sentimentRatio: { positive: 65, neutral: 25, negative: 10 },
+          hotKeywords: ['第2子無償', '所得制限撤廃', 'おむつ支援'],
+        },
+        {
+          topic: '行政DX・窓口オンライン化',
+          frequency: 218,
+          sentimentRatio: { positive: 80, neutral: 15, negative: 5 },
+          hotKeywords: ['スマホ申請', 'LINE連携', 'マイナンバー'],
+        },
+        {
+          topic: '都市交通・再開発・防災',
+          frequency: 185,
+          sentimentRatio: { positive: 50, neutral: 35, negative: 15 },
+          hotKeywords: ['モノレール', '駅前再開発', '浸水対策'],
+        },
+        {
+          topic: '休日夜間診療・病児保育',
+          frequency: 142,
+          sentimentRatio: { positive: 55, neutral: 30, negative: 15 },
+          hotKeywords: ['小児科確保', '即時予約', '待機児童'],
+        },
+      ];
+
+      const mockPartyAnalytics: readonly PartyPolicyStance[] = [
+        {
+          partyName: isTokyo ? '都民ファーストの会' : '自由民主党・無所属の会',
+          membersCount: isTokyo ? 27 : 12,
+          topCategory: '行政DX・少子化対策',
+          aiStanceSummary:
+            'オープンデータ活用と子育て世代への直接給付を強く推進。財源確保の精査を求めつつ前向き姿勢。',
+        },
+        {
+          partyName: isTokyo ? '公明党' : '公明党議員団',
+          membersCount: isTokyo ? 23 : 8,
+          topCategory: '医療福祉・学校教育',
+          aiStanceSummary:
+            '給食費無償化と病児保育の拡充を最重要課題と位置づけ。現場ニーズに基づく政策提案が中心。',
+        },
+        {
+          partyName: isTokyo ? '立憲民主党' : '立憲・無所属クラブ',
+          membersCount: isTokyo ? 15 : 6,
+          topCategory: '情報公開・環境政策',
+          aiStanceSummary:
+            '行政プロセスの透明化と市民参加型合意形成を要求。再開発事業の検証を重点的に指摘。',
+        },
+        {
+          partyName: isTokyo ? '日本共産党' : '日本共産党議員団',
+          membersCount: isTokyo ? 19 : 5,
+          topCategory: '福祉拡充・住民負担軽減',
+          aiStanceSummary:
+            '国民健康保険料の引き下げや公共施設使用料の据え置きなど、生活者目線での支援拡充を主張。',
+        },
+      ];
+
+      const mockMemberScorecards: readonly MemberScorecard[] = [
+        {
+          id: 'mem-1',
+          name: isTokyo ? '小池 百合子' : assembly.mayorName,
+          title: isTokyo ? '東京都知事' : '区長 / 市長',
+          party: '行政執行部',
+          avatarType: 'neutral',
+          activityScore: 96,
+          aiEval: '政策推進力が高く、オープンデータおよびEBPM活用に強いリーダーシップを発揮。',
+        },
+        {
+          id: 'mem-2',
+          name: '山田 太郎',
+          title: '総務政策委員会 委員長',
+          party: '市政推進クラブ',
+          avatarType: 'male',
+          activityScore: 89,
+          aiEval: '行政手続きのデジタル化や議会ペーパーレス化に関して鋭い質問を多数展開。',
+        },
+        {
+          id: 'mem-3',
+          name: '佐藤 花子',
+          title: '文教子ども委員会 副委員長',
+          party: '市民ネットワーク',
+          avatarType: 'female',
+          activityScore: 92,
+          aiEval: '保育現場や学校現場のヒアリングデータを元にした具体的提言が多数。',
+        },
+      ];
+
+      setAnalytics({
+        assemblyId: assembly.id,
+        assemblyName: assembly.name,
+        totalSpeechesAnalyzed: isTokyo ? 12450 : assembly.totalMinutesCount,
+        ebpmDataReadinessScore: isTokyo ? 94 : 88,
+        topicTrends: mockTopicTrends,
+        partyAnalytics: mockPartyAnalytics,
+        memberScorecards: mockMemberScorecards,
+        publicSentimentScore: 86,
+      });
+      setLoading(false);
+    }, 250);
+
+    return () => clearTimeout(timer);
+  }, [assembly]);
 
   if (!mounted) return null;
 
   return createPortal(
-    <div className="fixed inset-0 top-0 left-0 w-screen h-screen z-[999999] flex items-center justify-center p-2 sm:p-4 bg-slate-950/85 backdrop-blur-md animate-fade-in text-slate-100">
-      {/* Analytics Modal Window */}
-      <div className="relative w-full max-w-4xl h-[92vh] sm:h-[840px] bg-slate-900 rounded-[28px] overflow-hidden shadow-2xl flex flex-col border border-slate-700 text-left">
-        
-        {/* Modal Header */}
-        <div className="bg-slate-800/90 border-b border-slate-700/80 px-6 py-4 flex items-center justify-between">
-          <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-emerald-500 to-teal-400 flex items-center justify-center text-xl shadow-lg">
-              📊
+    <div className="fixed inset-0 z-50 flex items-center justify-center sm:p-4 bg-black/75 backdrop-blur-sm animate-fade-in">
+      {/* モーダル枠 */}
+      <div className="w-full h-full sm:h-[90vh] sm:max-w-4xl bg-slate-950 sm:rounded-3xl border border-slate-800 shadow-2xl flex flex-col overflow-hidden">
+        {/* モーダルヘッダー */}
+        <div className="bg-slate-900 border-b border-slate-800/80 px-4 py-3 sm:px-6 sm:py-4 flex items-center justify-between shrink-0">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-slate-800 border border-slate-700 flex items-center justify-center text-emerald-400 shrink-0">
+              <BarChart3 className="w-4 h-4" />
             </div>
-            <div>
-              <h2 className="text-lg font-bold text-white tracking-tight flex items-center gap-2">
-                {assembly.name} 発言分析 & 議員向けEBPMダッシュボード
-              </h2>
-              <p className="text-xs text-slate-400">東京都オープンデータ × リアルタイム市民世論EBPM分析（B2G画面）</p>
+            <div className="min-w-0">
+              <div className="flex items-center gap-2">
+                <h3 className="font-bold text-sm sm:text-base text-white truncate">
+                  {assembly.name} EBPM政策分析
+                </h3>
+                <span className="px-2 py-0.5 rounded text-[10px] bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-semibold shrink-0">
+                  EBPM Suite
+                </span>
+              </div>
+              <p className="text-[11px] text-slate-400 truncate">
+                オープンデータ解析に基づくエビデンス・議会トレンド
+              </p>
             </div>
           </div>
 
           <button
             onClick={onClose}
-            className="w-9 h-9 rounded-full bg-slate-700 hover:bg-slate-600 flex items-center justify-center font-bold text-slate-300 hover:text-white transition-colors"
+            className="w-8 h-8 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white flex items-center justify-center transition-colors"
+            aria-label="閉じる"
           >
-            ✕
+            <X className="w-4 h-4" />
           </button>
         </div>
 
-        {/* Navigation Tabs */}
-        <div className="bg-slate-950/60 border-b border-slate-800 px-6 py-3 flex items-center justify-between">
-          <div className="flex items-center space-x-2 overflow-x-auto">
-            <button
-              onClick={() => setActiveTab('ebpm')}
-              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all shrink-0 ${
-                activeTab === 'ebpm'
-                  ? 'bg-gradient-to-r from-emerald-500 to-teal-500 text-slate-950 shadow-lg shadow-emerald-500/20 font-black'
-                  : 'bg-slate-800 text-slate-400 hover:text-white'
-              }`}
-            >
-              👔 議員向け EBPM民意分析
-            </button>
-            <button
-              onClick={() => setActiveTab('cycle')}
-              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all shrink-0 ${
-                activeTab === 'cycle'
-                  ? 'bg-gradient-to-r from-teal-400 to-cyan-500 text-slate-950 shadow-lg shadow-cyan-500/20 font-black'
-                  : 'bg-slate-800 text-slate-400 hover:text-white'
-              }`}
-            >
-              🔄 双方向サイクル & 横展開ロードマップ
-            </button>
-            <button
-              onClick={() => setActiveTab('party')}
-              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all shrink-0 ${
-                activeTab === 'party'
-                  ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/20'
-                  : 'bg-slate-800 text-slate-400 hover:text-white'
-              }`}
-            >
-              🏛️ 政党別 注力テーマ
-            </button>
-            <button
-              onClick={() => setActiveTab('member')}
-              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all shrink-0 ${
-                activeTab === 'member'
-                  ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/20'
-                  : 'bg-slate-800 text-slate-400 hover:text-white'
-              }`}
-            >
-              👤 議員スコアリング
-            </button>
-            <button
-              onClick={() => setActiveTab('public')}
-              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all shrink-0 ${
-                activeTab === 'public'
-                  ? 'bg-purple-600 text-white shadow-lg shadow-purple-500/20'
-                  : 'bg-slate-800 text-slate-400 hover:text-white'
-              }`}
-            >
-              🗳️ 市民パブコメ集計
-            </button>
-          </div>
-
-          <div className="hidden sm:block text-xs text-emerald-400 font-semibold bg-emerald-950/80 px-3 py-1 rounded-full border border-emerald-500/30 shrink-0">
-            オープンデータ実態連動中
-          </div>
+        {/* ナビゲーションタブ */}
+        <div className="bg-slate-900/60 border-b border-slate-800/60 px-4 sm:px-6 flex items-center gap-2 overflow-x-auto scrollbar-none shrink-0">
+          {[
+            { id: 'overview', label: '政策トピック概況', icon: <Layers className="w-3.5 h-3.5" /> },
+            { id: 'party', label: '会派・政党スタンス', icon: <Building2 className="w-3.5 h-3.5" /> },
+            { id: 'member', label: '発言・答弁評価', icon: <Users className="w-3.5 h-3.5" /> },
+            { id: 'public', label: '市民世論フィードバック', icon: <Vote className="w-3.5 h-3.5" /> },
+          ].map((tab) => {
+            const isActive = activeTab === tab.id;
+            return (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id as TabType)}
+                className={`py-2.5 px-3 border-b-2 text-xs font-semibold flex items-center gap-1.5 whitespace-nowrap transition-colors ${
+                  isActive
+                    ? 'border-emerald-500 text-emerald-400'
+                    : 'border-transparent text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                {tab.icon}
+                <span>{tab.label}</span>
+              </button>
+            );
+          })}
         </div>
 
-        {/* Scrollable Analytics Body */}
-        <div className="flex-1 overflow-y-auto p-6 space-y-6">
-          
-          {isLoading ? (
-            <div className="flex flex-col items-center justify-center py-24 space-y-3">
-              <div className="w-10 h-10 border-4 border-emerald-500/30 border-t-emerald-500 rounded-full animate-spin" />
-              <p className="text-sm font-medium text-slate-400">EBPM民意データを解析中...</p>
+        {/* タブコンテンツ */}
+        <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-5 bg-slate-950">
+          {loading || !analytics ? (
+            <div className="flex flex-col items-center justify-center py-20 text-slate-400 gap-3">
+              <div className="w-6 h-6 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin" />
+              <span className="text-xs">オープンデータを解析中...</span>
             </div>
-          ) : !analytics ? (
-            <div className="text-center py-16 text-slate-400 text-sm">データを読み込めませんでした。</div>
           ) : (
             <>
-              {/* Assembly Global Topic Share Bar */}
-              <div className="bg-slate-800/60 border border-slate-700/60 rounded-2xl p-4 space-y-3">
-                <div className="flex items-center justify-between text-xs font-bold">
-                  <span className="text-slate-300 flex items-center gap-1.5">
-                    <span>📈</span>
-                    <span>{assembly.name} イシュー別関心構成比</span>
-                  </span>
-                  <span className="text-slate-400 font-normal">全議題のAI自動カテゴリ分類結果</span>
+              {/* サマリー数値カード */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <div className="bg-slate-900 border border-slate-800 rounded-xl p-3 sm:p-4">
+                  <span className="text-[11px] text-slate-400 block mb-1">解析対象 発言数</span>
+                  <div className="text-base sm:text-xl font-bold text-white">
+                    {analytics.totalSpeechesAnalyzed.toLocaleString()}
+                    <span className="text-xs font-normal text-slate-400 ml-1">件</span>
+                  </div>
                 </div>
 
-                <div className="w-full h-4 bg-slate-950 rounded-full overflow-hidden flex">
-                  {analytics.topic_distribution.map((topic, i) => (
-                    <div
-                      key={i}
-                      style={{ width: `${topic.ratio}%`, backgroundColor: topic.color }}
-                      className="h-full transition-all duration-500 hover:opacity-90 relative group"
-                      title={`${topic.name}: ${topic.ratio}%`}
-                    />
-                  ))}
+                <div className="bg-slate-900 border border-slate-800 rounded-xl p-3 sm:p-4">
+                  <span className="text-[11px] text-slate-400 block mb-1">EBPM準備度</span>
+                  <div className="text-base sm:text-xl font-bold text-emerald-400">
+                    {analytics.ebpmDataReadinessScore}
+                    <span className="text-xs font-normal text-slate-400 ml-1">/ 100点</span>
+                  </div>
                 </div>
 
-                <div className="flex flex-wrap items-center gap-3 text-xs pt-1">
-                  {analytics.topic_distribution.map((topic, i) => (
-                    <div key={i} className="flex items-center space-x-1.5 text-slate-300 font-medium">
-                      <span className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: topic.color }} />
-                      <span>{topic.name}</span>
-                      <span className="font-bold text-white">({topic.ratio}%)</span>
-                    </div>
-                  ))}
+                <div className="bg-slate-900 border border-slate-800 rounded-xl p-3 sm:p-4">
+                  <span className="text-[11px] text-slate-400 block mb-1">政策トピック数</span>
+                  <div className="text-base sm:text-xl font-bold text-white">
+                    {analytics.topicTrends.length}
+                    <span className="text-xs font-normal text-slate-400 ml-1">分野</span>
+                  </div>
+                </div>
+
+                <div className="bg-slate-900 border border-slate-800 rounded-xl p-3 sm:p-4">
+                  <span className="text-[11px] text-slate-400 block mb-1">市民賛同スコア</span>
+                  <div className="text-base sm:text-xl font-bold text-emerald-400">
+                    {analytics.publicSentimentScore}%
+                  </div>
                 </div>
               </div>
 
-              {/* Tab 0: EBPM Politician Analytics Mode */}
-              {activeTab === 'ebpm' && (
-                <div className="space-y-5">
-                  {/* B2G Header Banner */}
-                  <div className="bg-gradient-to-r from-emerald-950 via-slate-900 to-teal-950 border border-emerald-500/40 rounded-2xl p-4 space-y-2">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-extrabold text-emerald-400 tracking-wide uppercase flex items-center gap-1.5">
-                        <span>💡</span>
-                        <span>議員・行政向け EBPM政策立案エビデンス画面</span>
-                      </span>
-                      <span className="text-[11px] bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 px-3 py-0.5 rounded-full font-bold">
-                        B2G SaaSサービス
-                      </span>
-                    </div>
-                    <p className="text-xs text-slate-300 leading-relaxed">
-                      「若者の84.8%が政治に関心なし（東京都オープンデータ調査）」という課題に対し、アプリ上で収集された若者・子育て世代のリアルタイムな政策賛否データを議員・行政へ還元する意思決定ダッシュボードです。
-                    </p>
+              {/* タブ 1: 政策トピック概況 */}
+              {activeTab === 'overview' && (
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h4 className="text-xs sm:text-sm font-bold text-white flex items-center gap-1.5">
+                      <TrendingUp className="w-4 h-4 text-emerald-400" />
+                      <span>主要議論トピックと発言頻度</span>
+                    </h4>
                   </div>
 
-                  {/* Age Group Sentiment Cards */}
-                  <div className="space-y-3">
-                    <h3 className="text-sm font-bold text-slate-200 flex items-center gap-2">
-                      <span>📊</span>
-                      <span>年齢層別 政策関心・賛否エビデンス（EBPM基礎データ）</span>
-                    </h3>
+                  <div className="space-y-2.5">
+                    {analytics.topicTrends.map((topic, i) => (
+                      <div
+                        key={i}
+                        className="bg-slate-900 border border-slate-800 rounded-xl p-3.5 space-y-2"
+                      >
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="font-semibold text-xs sm:text-sm text-white">
+                            {topic.topic}
+                          </span>
+                          <span className="text-xs font-mono text-emerald-400 font-bold shrink-0">
+                            {topic.frequency} 回言及
+                          </span>
+                        </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {analytics.ebpm_citizen_data?.age_demographics.map((demo, idx) => (
-                        <div key={idx} className="bg-slate-800/80 border border-slate-700/80 rounded-2xl p-4 space-y-2.5">
-                          <div className="flex items-center justify-between border-b border-slate-700/60 pb-2">
-                            <span className="font-extrabold text-sm text-white">{demo.group}</span>
-                            <span className="text-xs font-bold text-emerald-400 bg-emerald-950 border border-emerald-500/30 px-2.5 py-0.5 rounded-full">
-                              賛同率 {demo.support_ratio}%
+                        {/* 感情・合意メーター */}
+                        <div className="space-y-1">
+                          <div className="w-full h-2 bg-slate-800 rounded-full overflow-hidden flex">
+                            <div
+                              className="bg-emerald-500 h-full"
+                              style={{ width: `${topic.sentimentRatio.positive}%` }}
+                              title={`前向き: ${topic.sentimentRatio.positive}%`}
+                            />
+                            <div
+                              className="bg-slate-600 h-full"
+                              style={{ width: `${topic.sentimentRatio.neutral}%` }}
+                              title={`中立: ${topic.sentimentRatio.neutral}%`}
+                            />
+                            <div
+                              className="bg-rose-500 h-full"
+                              style={{ width: `${topic.sentimentRatio.negative}%` }}
+                              title={`懸念: ${topic.sentimentRatio.negative}%`}
+                            />
+                          </div>
+                          <div className="flex items-center justify-between text-[10px] text-slate-400">
+                            <span>前向き {topic.sentimentRatio.positive}%</span>
+                            <span>中立 {topic.sentimentRatio.neutral}%</span>
+                            <span>懸念 {topic.sentimentRatio.negative}%</span>
+                          </div>
+                        </div>
+
+                        {/* ホットキーワード */}
+                        <div className="flex items-center gap-1.5 flex-wrap pt-1">
+                          <span className="text-[10px] text-slate-500">キーワード:</span>
+                          {topic.hotKeywords.map((kw, kwIdx) => (
+                            <span
+                              key={kwIdx}
+                              className="px-2 py-0.5 rounded bg-slate-800 border border-slate-700/80 text-slate-300 text-[10px]"
+                            >
+                              {kw}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* タブ 2: 会派・政党スタンス */}
+              {activeTab === 'party' && (
+                <div className="space-y-4">
+                  <h4 className="text-xs sm:text-sm font-bold text-white flex items-center gap-1.5">
+                    <Building2 className="w-4 h-4 text-emerald-400" />
+                    <span>各会派の重点政策と議会スタンス</span>
+                  </h4>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    {analytics.partyAnalytics.map((party, i) => (
+                      <div
+                        key={i}
+                        className="bg-slate-900 border border-slate-800 rounded-xl p-3.5 space-y-2.5"
+                      >
+                        <div className="flex items-center justify-between border-b border-slate-800 pb-2">
+                          <div>
+                            <span className="font-bold text-xs sm:text-sm text-white block">
+                              {party.partyName}
+                            </span>
+                            <span className="text-[10px] text-slate-400">
+                              所属議員: {party.membersCount}名
                             </span>
                           </div>
-                          <div className="text-xs text-slate-300">
-                            <span className="text-slate-400 font-bold block mb-0.5">最重視イシュー:</span>
-                            <span className="text-white font-bold">{demo.top_issue}</span>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* AI Policy Proposal Recommendations for Politicians */}
-                  <div className="bg-slate-800/90 border border-slate-700 rounded-2xl p-4 space-y-3">
-                    <h3 className="text-sm font-bold text-slate-100 flex items-center gap-2">
-                      <span>🤖</span>
-                      <span>AI推奨：次回定例会での議員質疑・政策提案（TOP 2）</span>
-                    </h3>
-
-                    {analytics.ebpm_citizen_data?.ebpm_ai_recommendations.map((rec) => (
-                      <div key={rec.rank} className="bg-slate-950 rounded-xl p-3.5 border border-slate-800 space-y-1.5 text-xs">
-                        <div className="text-emerald-400 font-bold flex items-center gap-2">
-                          <span className="w-5 h-5 rounded-full bg-emerald-500 text-slate-950 font-black text-[11px] flex items-center justify-center">
-                            {rec.rank}
+                          <span className="px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[10px] font-medium">
+                            {party.topCategory}
                           </span>
-                          <span>{rec.title}</span>
                         </div>
-                        <p className="text-slate-300 leading-relaxed font-medium pl-7">
-                          👉 {rec.action}
+
+                        <p className="text-xs text-slate-300 leading-relaxed">
+                          {party.aiStanceSummary}
                         </p>
                       </div>
                     ))}
@@ -346,208 +372,67 @@ export default function AnalyticsDashboardModal({ assembly, onClose }: Analytics
                 </div>
               )}
 
-              {/* Tab 1: Data Cycle & Multi-Region Expansion Roadmap */}
-              {activeTab === 'cycle' && (
-                <div className="space-y-6">
-                  {/* Two-Way Data Cycle Diagram Story */}
-                  <div className="space-y-3">
-                    <h3 className="text-sm font-bold text-slate-100 flex items-center gap-2">
-                      <span>🔄</span>
-                      <span>双方向データの循環ストーリー（市民の声 ➔ 政策予算化への4ステップ）</span>
-                    </h3>
-
-                    <div className="grid grid-cols-1 md:grid-cols-4 gap-3 text-xs">
-                      <div className="bg-slate-800/90 border border-emerald-500/30 rounded-2xl p-3.5 space-y-2 flex flex-col justify-between">
-                        <div className="space-y-1">
-                          <span className="bg-emerald-500 text-slate-950 font-black text-[10px] px-2 py-0.5 rounded">STEP 1</span>
-                          <h4 className="font-bold text-white text-sm">💬 市民リアクション</h4>
-                          <p className="text-slate-300 leading-relaxed text-[11px]">
-                            超翻訳チャットで「👍 賛成」「👎 懸念」「💬 パブコメ」を1タップ投稿。
-                          </p>
-                        </div>
-                        <div className="text-emerald-400 text-right font-black text-lg">➔</div>
-                      </div>
-
-                      <div className="bg-slate-800/90 border border-teal-500/30 rounded-2xl p-3.5 space-y-2 flex flex-col justify-between">
-                        <div className="space-y-1">
-                          <span className="bg-teal-400 text-slate-950 font-black text-[10px] px-2 py-0.5 rounded">STEP 2</span>
-                          <h4 className="font-bold text-white text-sm">📊 議員ダッシュボード</h4>
-                          <p className="text-slate-300 leading-relaxed text-[11px]">
-                            年代別支持率や優先要望（例: 20代の91%がおむつ補助要望）をEBPM集計。
-                          </p>
-                        </div>
-                        <div className="text-teal-400 text-right font-black text-lg">➔</div>
-                      </div>
-
-                      <div className="bg-slate-800/90 border border-cyan-500/30 rounded-2xl p-3.5 space-y-2 flex flex-col justify-between">
-                        <div className="space-y-1">
-                          <span className="bg-cyan-400 text-slate-950 font-black text-[10px] px-2 py-0.5 rounded">STEP 3</span>
-                          <h4 className="font-bold text-white text-sm">🏛️ 定例会で政策提案</h4>
-                          <p className="text-slate-300 leading-relaxed text-[11px]">
-                            議員がリアルデータをもとに一般質問し、電子クーポン等として3万円予算化！
-                          </p>
-                        </div>
-                        <div className="text-cyan-400 text-right font-black text-lg">➔</div>
-                      </div>
-
-                      <div className="bg-slate-800/90 border border-purple-500/30 rounded-2xl p-3.5 space-y-2 flex flex-col justify-between">
-                        <div className="space-y-1">
-                          <span className="bg-purple-400 text-slate-950 font-black text-[10px] px-2 py-0.5 rounded">STEP 4</span>
-                          <h4 className="font-bold text-white text-sm">🔔 政策決定フィードバック</h4>
-                          <p className="text-slate-300 leading-relaxed text-[11px]">
-                            「あなたの声が予算化されました！」とLINEで通知。市民の参政実感を創出。
-                          </p>
-                        </div>
-                        <div className="text-purple-400 text-right font-black">完成✨</div>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Multi-Region Scalability Roadmap */}
-                  <div className="bg-slate-800/90 border border-slate-700/80 rounded-2xl p-4 space-y-4">
-                    <h3 className="text-sm font-bold text-slate-100 flex items-center gap-2">
-                      <span>🗺️</span>
-                      <span>自治体横展開ロードマップ（都内全62市区町村 ➔ 全国展開）</span>
-                    </h3>
-
-                    <div className="space-y-3 text-xs">
-                      <div className="flex items-start space-x-3 bg-slate-950/80 p-3 rounded-xl border border-slate-800">
-                        <span className="bg-emerald-500 text-slate-950 font-extrabold px-2.5 py-1 rounded-lg text-[11px] shrink-0">
-                          Phase 1 (現在)
-                        </span>
-                        <div className="space-y-0.5">
-                          <h4 className="font-bold text-white">重点モデル自治体でのPoC実証 (町田市・品川区・東京都議会)</h4>
-                          <p className="text-slate-400">
-                            東京都オープンデータカタログAPIと連携し、超翻訳精度およびEBPM議員分析の価値を実証。
-                          </p>
-                        </div>
-                      </div>
-
-                      <div className="flex items-start space-x-3 bg-slate-950/80 p-3 rounded-xl border border-slate-800">
-                        <span className="bg-teal-500 text-slate-950 font-extrabold px-2.5 py-1 rounded-lg text-[11px] shrink-0">
-                          Phase 2 (2026年後半)
-                        </span>
-                        <div className="space-y-0.5">
-                          <h4 className="font-bold text-white">東京都内 全62市区町村へのフルカバー横展開</h4>
-                          <p className="text-slate-400">
-                            東京都オープンデータカタログの標準CSVフォーマットを活用し、都内全域の議事録を自動クローリング対応。
-                          </p>
-                        </div>
-                      </div>
-
-                      <div className="flex items-start space-x-3 bg-slate-950/80 p-3 rounded-xl border border-slate-800">
-                        <span className="bg-blue-500 text-white font-extrabold px-2.5 py-1 rounded-lg text-[11px] shrink-0">
-                          Phase 3 (2027年)
-                        </span>
-                        <div className="space-y-0.5">
-                          <h4 className="font-bold text-white">全国1,700自治体への水平展開（スマートシティ・自治体DX標準化）</h4>
-                          <p className="text-slate-400">
-                            デジタル庁の「自治体DX標準仕様」および全国自治体オープンデータ共通基盤と連携し、全国版へスケール。
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Tab 2: Party Analytics */}
-              {activeTab === 'party' && (
-                <div className="space-y-4">
-                  <h3 className="text-sm font-bold text-slate-200 flex items-center gap-2">
-                    <span>🏛️</span>
-                    <span>政党ごとの主要政策・テーマスタンス（AIサマリー）</span>
-                  </h3>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {analytics.party_analytics.map((party, idx) => (
-                      <div
-                        key={idx}
-                        className="bg-slate-800/80 border border-slate-700/80 rounded-2xl p-4 space-y-3 shadow-lg"
-                      >
-                        <div className="flex items-center justify-between border-b border-slate-700/60 pb-2.5">
-                          <div>
-                            <h4 className="font-extrabold text-base text-white">{party.party_name}</h4>
-                            <span className="text-[11px] text-slate-400">議員数: {party.members_count}名</span>
-                          </div>
-                          <span className="px-2.5 py-1 rounded-full bg-blue-500/20 border border-blue-400/30 text-blue-300 text-xs font-bold">
-                            推し: {party.top_category}
-                          </span>
-                        </div>
-
-                        <div className="bg-slate-950/60 rounded-xl p-3 text-xs text-slate-300 leading-relaxed border border-slate-800">
-                          <span className="text-emerald-400 font-bold block mb-1">🤖 AI政策サマリー:</span>
-                          {party.ai_stance_summary}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Tab 3: Member Scorecards */}
+              {/* タブ 3: 発言・答弁評価 */}
               {activeTab === 'member' && (
                 <div className="space-y-4">
-                  <h3 className="text-sm font-bold text-slate-200 flex items-center gap-2">
-                    <span>👤</span>
-                    <span>議員・答弁者の発言熱量スコア & AIプロファイル</span>
-                  </h3>
+                  <h4 className="text-xs sm:text-sm font-bold text-white flex items-center gap-1.5">
+                    <Users className="w-4 h-4 text-emerald-400" />
+                    <span>主要発言者の活動スコア</span>
+                  </h4>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {analytics.member_scorecards.map((member) => (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    {analytics.memberScorecards.map((member) => (
                       <div
                         key={member.id}
-                        className="bg-slate-800/80 border border-slate-700/80 rounded-2xl p-4 flex flex-col justify-between shadow-lg space-y-3"
+                        className="bg-slate-900 border border-slate-800 rounded-xl p-3.5 space-y-2.5"
                       >
-                        <div className="flex items-start space-x-3">
-                          <div className="w-12 h-12 rounded-full bg-slate-700 border border-slate-600 flex items-center justify-center text-2xl shrink-0 shadow-md">
-                            {getAvatarIcon(member.avatar_type)}
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <span className="font-bold text-xs sm:text-sm text-white block">
+                              {member.name}
+                            </span>
+                            <span className="text-[10px] text-slate-400">
+                              {member.title} • {member.party}
+                            </span>
                           </div>
-                          <div className="flex-1">
-                            <div className="flex items-center justify-between">
-                              <h4 className="font-bold text-base text-white">{member.name}</h4>
-                              <span className="px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 font-extrabold text-xs border border-amber-500/30">
-                                🔥 発言熱量 {member.activity_score}点
-                              </span>
-                            </div>
-                            <div className="flex items-center space-x-2 text-xs text-slate-400 mt-0.5">
-                              <span>{member.title}</span>
-                              <span>•</span>
-                              <span className="text-slate-300 font-medium">{member.party}</span>
-                            </div>
+                          <div className="flex items-center gap-1 px-2 py-1 rounded-lg bg-slate-800 border border-slate-700 text-emerald-400 text-xs font-bold font-mono">
+                            <Activity className="w-3 h-3" />
+                            <span>{member.activityScore}点</span>
                           </div>
                         </div>
 
-                        <div className="text-xs text-slate-300 leading-relaxed bg-slate-900/90 p-3 rounded-xl border border-slate-700/50">
-                          <span className="text-blue-400 font-bold block mb-1">💡 AI発言スタイル評価:</span>
-                          {member.ai_eval}
-                        </div>
+                        <p className="text-xs text-slate-300 leading-relaxed bg-slate-950 p-2.5 rounded-lg border border-slate-800">
+                          {member.aiEval}
+                        </p>
                       </div>
                     ))}
                   </div>
                 </div>
               )}
 
-              {/* Tab 4: Public Sentiment */}
+              {/* タブ 4: 市民世論フィードバック */}
               {activeTab === 'public' && (
                 <div className="space-y-4">
-                  <h3 className="text-sm font-bold text-slate-200 flex items-center gap-2">
-                    <span>🗳️</span>
-                    <span>市民世論・パブリックコメント投票集計</span>
-                  </h3>
+                  <h4 className="text-xs sm:text-sm font-bold text-white flex items-center gap-1.5">
+                    <Vote className="w-4 h-4 text-emerald-400" />
+                    <span>市民フィードバック集計</span>
+                  </h4>
 
-                  <div className="bg-slate-800/80 border border-slate-700/80 rounded-2xl p-4 space-y-3 shadow-lg">
-                    <div className="flex items-center justify-between text-xs font-bold">
-                      <span className="text-white">全議題の市民賛否メーター</span>
-                      <span className="text-emerald-400">賛成率: 88% / 懸念率: 12%</span>
+                  <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 space-y-3">
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="text-white font-medium">主要議題への賛否比率</span>
+                      <span className="text-emerald-400 font-semibold font-mono">
+                        賛成 88% / 懸念 12%
+                      </span>
                     </div>
 
-                    <div className="w-full h-4 bg-rose-500/80 rounded-full overflow-hidden flex">
-                      <div className="bg-emerald-500 h-full rounded-l-full" style={{ width: '88%' }} />
+                    <div className="w-full h-3 bg-rose-500/70 rounded-full overflow-hidden flex">
+                      <div className="bg-emerald-500 h-full" style={{ width: '88%' }} />
                     </div>
 
                     <p className="text-xs text-slate-400">
-                      市民投票総数: <strong>1,420票</strong>（おむつ代補助・給食無償化への賛同が最多）
+                      総投票数: <strong className="text-white font-mono">1,420件</strong>
+                      （子育て支援・給食無償化に関する賛成が最も高い割合を占めています）
                     </p>
                   </div>
                 </div>
@@ -556,12 +441,12 @@ export default function AnalyticsDashboardModal({ assembly, onClose }: Analytics
           )}
         </div>
 
-        {/* Modal Footer */}
-        <div className="bg-slate-950/90 border-t border-slate-800 px-6 py-3.5 flex items-center justify-between text-xs text-slate-400">
-          <span>分析モデル: GijiRaku NLP Politician Profiler v2.6 (B2G EBPM Suite)</span>
+        {/* モーダルフッター */}
+        <div className="bg-slate-900 border-t border-slate-800 px-4 py-3 sm:px-6 sm:py-3 flex items-center justify-between text-[11px] text-slate-400 shrink-0">
+          <span>GijiRaku EBPM Analytics Module v2.0</span>
           <button
             onClick={onClose}
-            className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-bold transition-all"
+            className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-white font-medium transition-colors"
           >
             閉じる
           </button>
