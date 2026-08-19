@@ -11,7 +11,6 @@ import {
   ChevronUp,
   ThumbsUp,
   ThumbsDown,
-  MessageCircle,
   ExternalLink,
   Bot,
   Sparkles,
@@ -31,10 +30,17 @@ export interface AiChainStep {
   readonly status?: string;
 }
 
+export interface StructuredSummary {
+  readonly whatChanges: string;
+  readonly targetAudience: string;
+  readonly currentStage: string;
+}
+
 interface Message {
   readonly id: string;
   readonly sender: 'user' | 'assistant';
   readonly plainText: string;
+  readonly structuredSummary?: StructuredSummary;
   readonly speaker?: string;
   readonly speakerTitle?: string;
   readonly date?: string;
@@ -70,8 +76,6 @@ export default function LineChatModal({
   const [inputQuestion, setInputQuestion] = useState('');
   const [isSending, setIsSending] = useState(false);
   const [userVotes, setUserVotes] = useState<Record<string, 'agree' | 'disagree'>>({});
-  const [openComments, setOpenComments] = useState<Record<string, boolean>>({});
-  const [commentInputs, setCommentInputs] = useState<Record<string, string>>({});
   const [ebpmToast, setEbpmToast] = useState<string | null>(null);
   const chatBottomRef = useRef<HTMLDivElement>(null);
 
@@ -110,8 +114,17 @@ export default function LineChatModal({
         id: 'msg-2',
         sender: 'assistant',
         plainText: isTokyo
-          ? `💡 何が変わる？\n・第2子以降の保育料 ➔ 完全無料化を検討\n・おむつ代 ➔ 負担軽減・定額支給を推進\n\n📌 あなたへの影響\n・対象：都内にお住まいの子育て世帯\n・予算：所得制限撤廃の方向で重点審議中\n\n🟡 現在の進捗・段階\n・2026年当初予算案を審議中（決定後にスタート予定）`
-          : `💡 何が変わる？\n・${assembly.hotTopic} ➔ 住民支援および導入案を推進\n\n📌 あなたへの影響\n・対象：${assembly.name}にお住まいのご家庭・事業者\n・予算：令和8年度当初予算案に重点計上\n\n🟡 現在の進捗・段階\n・2026年第1回定例会にて審議中`,
+          ? `第2子以降の保育料完全無償化およびおむつ代負担軽減の方向で審議が行われています。`
+          : `${assembly.name}における「${assembly.hotTopic}」について重点審議が行われています。`,
+        structuredSummary: {
+          whatChanges: isTokyo
+            ? '第2子以降の保育料完全無償化・おむつ代負担軽減を推進'
+            : `${assembly.hotTopic}の導入・住民支援策を重点推進`,
+          targetAudience: isTokyo
+            ? '都内にお住まいの子育て世帯（特に第2子以降がいるご家庭）'
+            : `${assembly.name}にお住まいのご家庭および関係事業者・住民の皆様`,
+          currentStage: '2026年 当初予算案を審議中（決定後に運用スタート予定）',
+        },
         speaker: isTokyo ? '小池 百合子' : assembly.mayorName,
         speakerTitle: isTokyo ? '東京都知事' : '首長答弁',
         date: '2026年 第1回定例会 本会議',
@@ -136,7 +149,12 @@ export default function LineChatModal({
       initialMsgs.push({
         id: 'msg-theme-reply',
         sender: 'assistant',
-        plainText: `💡 「${initialTheme}」に関するポイント\n・対象手続きのオンライン化・申請ワンストップ化を推進\n・手続きスピードの短縮と自己負担軽減が主要な議論点です\n\n🟡 現在の進捗・段階\n・予算特別委員会にて具体仕様を審議中`,
+        plainText: `「${initialTheme}」に関する手続きのオンライン完結化および申請スピードの短縮を推進しています。`,
+        structuredSummary: {
+          whatChanges: `「${initialTheme}」対象手続きのスマホ完結・ワンストップ化を推進`,
+          targetAudience: '対象手続きを行う区民・市民の皆様',
+          currentStage: '予算特別委員会にて具体仕様および実施ロードマップを審議中',
+        },
         speaker: '議会事務局 / 担当委員会',
         speakerTitle: '予算特別委員会',
         date: '2026年 委員会審査',
@@ -198,37 +216,6 @@ export default function LineChatModal({
     }).catch(() => {});
 
     triggerEbpmFeedbackNotification(type === 'agree' ? '賛成の声' : '懸念の声', newCount);
-  };
-
-  const toggleCommentBox = (id: string) => {
-    setOpenComments((prev) => ({ ...prev, [id]: !prev[id] }));
-  };
-
-  const handleAddComment = (id: string) => {
-    const text = commentInputs[id]?.trim();
-    if (!text) return;
-
-    setMessages((prev) =>
-      prev.map((msg) => {
-        if (msg.id !== id) return msg;
-        return {
-          ...msg,
-          comments: [...(msg.comments || []), { user: '市民（あなた）', text }],
-        };
-      })
-    );
-    setCommentInputs((prev) => ({ ...prev, [id]: '' }));
-
-    const newCount = incrementEbpmReactionCount();
-
-    const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000';
-    fetch(`${apiBase}/api/assemblies/${assembly.id}/messages/${id}/opinion`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ opinion_type: 'agree', comment_text: text }),
-    }).catch(() => {});
-
-    triggerEbpmFeedbackNotification('意見投稿', newCount);
   };
 
   const handleSendQuestion = async (e: React.FormEvent) => {
@@ -371,7 +358,6 @@ export default function LineChatModal({
             const isQuoteExpanded = expandedQuotes[msg.id];
             const isChainExpanded = expandedChains[msg.id];
             const hasVoted = userVotes[msg.id];
-            const isCommentOpen = openComments[msg.id];
             const chainSteps = msg.aiChainSteps || DEFAULT_CHAIN_STEPS;
 
             if (isUser) {
@@ -402,65 +388,55 @@ export default function LineChatModal({
                     </div>
                   )}
 
-                  {/* 要約本文カード */}
-                  <div className="bg-slate-900 border border-slate-800 rounded-2xl rounded-tl-sm p-3.5 text-xs sm:text-sm text-slate-200 leading-relaxed space-y-3">
-                    <div className="whitespace-pre-wrap">{msg.plainText}</div>
-
-                    {/* AI Processing Chain 表示アコーディオン */}
-                    <div className="pt-2 border-t border-slate-800/80">
-                      <div className="flex items-center justify-between">
-                        <button
-                          onClick={() => toggleChain(msg.id)}
-                          className="text-[11px] font-medium text-slate-300 hover:text-emerald-400 flex items-center gap-1.5 transition-colors"
-                        >
+                  {/* 要約本文カード (4大主要ブロック構成) */}
+                  <div className="bg-slate-900 border border-slate-800 rounded-2xl rounded-tl-sm p-4 sm:p-5 text-xs sm:text-sm text-slate-200 leading-relaxed space-y-3.5 shadow-md">
+                    
+                    {/* 【ブロック1】何が変わる？ */}
+                    <div className="space-y-1">
+                      <div className="flex items-center justify-between text-[11px] font-bold text-emerald-400">
+                        <span className="flex items-center gap-1.5">
                           <Sparkles className="w-3.5 h-3.5 text-emerald-400" />
-                          <span>根拠・検証プロセス {isChainExpanded ? 'を閉じる' : 'を確認'}</span>
-                          {isChainExpanded ? (
-                            <ChevronUp className="w-3 h-3 text-slate-400" />
-                          ) : (
-                            <ChevronDown className="w-3 h-3 text-slate-400" />
-                          )}
-                        </button>
+                          <span>何が変わる？</span>
+                        </span>
                         <span className="text-[10px] px-2 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700 font-medium">
                           原文検証済み
                         </span>
                       </div>
-
-                      {isChainExpanded && (
-                        <div className="mt-2.5 p-3 bg-slate-950 rounded-xl border border-slate-800 space-y-2 text-xs animate-fade-in">
-                          <p className="text-[11px] text-slate-400 font-semibold mb-1">
-                            処理ステップ: 公式データ連携 ➔ 情報抽出 ➔ 要約生成 ➔ 原文照合
-                          </p>
-                          {chainSteps.map((step) => (
-                            <div key={step.step_number} className="flex items-start gap-2 text-[11px]">
-                              <span className="w-4 h-4 rounded-full bg-slate-800 text-emerald-400 border border-slate-700 flex items-center justify-center font-bold text-[9px] shrink-0 mt-0.5">
-                                {step.step_number}
-                              </span>
-                              <div>
-                                <span className="font-semibold text-slate-200">{step.title}</span>
-                                <p className="text-slate-400 text-[10.5px] leading-tight">{step.detail}</p>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      )}
+                      <div className="text-sm sm:text-base font-bold text-white leading-snug">
+                        {msg.structuredSummary ? msg.structuredSummary.whatChanges : msg.plainText}
+                      </div>
                     </div>
 
-                    {/* 公式議事録 原文引用アコーディオン & 原典直通リンク */}
+                    {/* 【ブロック2 & 3】誰に関係する？ × いまどの段階？ */}
+                    {msg.structuredSummary && (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-2 border-t border-slate-800/80">
+                        <div className="bg-slate-950 p-2.5 rounded-xl border border-slate-800/80 space-y-1">
+                          <div className="text-[10.5px] font-semibold text-slate-400">誰に関係する？</div>
+                          <div className="text-xs font-semibold text-slate-200 leading-tight">
+                            {msg.structuredSummary.targetAudience}
+                          </div>
+                        </div>
+                        <div className="bg-slate-950 p-2.5 rounded-xl border border-slate-800/80 space-y-1">
+                          <div className="text-[10.5px] font-semibold text-slate-400">いまどの段階？</div>
+                          <div className="text-xs font-semibold text-amber-300 flex items-center gap-1.5 leading-tight">
+                            <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse shrink-0" />
+                            <span>{msg.structuredSummary.currentStage}</span>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* 【ブロック4】根拠は？ (公式会議録 原文引用 & オープンデータリンク) */}
                     {msg.originalQuote && (
                       <div className="pt-2 border-t border-slate-800/80 space-y-2">
-                        <div className="flex items-center justify-between flex-wrap gap-1">
+                        <div className="flex items-center justify-between flex-wrap gap-1 text-[11px]">
                           <button
                             onClick={() => toggleQuote(msg.id)}
-                            className="text-[11px] font-medium text-slate-400 hover:text-slate-200 flex items-center gap-1 transition-colors"
+                            className="font-medium text-slate-300 hover:text-emerald-400 flex items-center gap-1.5 transition-colors"
                           >
-                            <FileText className="w-3 h-3 text-emerald-400" />
-                            <span>公式会議録の原文を{isQuoteExpanded ? '閉じる' : '確認する'}</span>
-                            {isQuoteExpanded ? (
-                              <ChevronUp className="w-3 h-3" />
-                            ) : (
-                              <ChevronDown className="w-3 h-3" />
-                            )}
+                            <FileText className="w-3.5 h-3.5 text-emerald-400" />
+                            <span>根拠：公式会議録の原文を{isQuoteExpanded ? '閉じる' : '確認する'}</span>
+                            {isQuoteExpanded ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
                           </button>
 
                           <a
@@ -469,22 +445,23 @@ export default function LineChatModal({
                             rel="noreferrer"
                             className="text-[10.5px] text-emerald-400 hover:text-emerald-300 flex items-center gap-1 font-medium underline underline-offset-2"
                           >
-                            <span>東京都オープンデータカタログ原典</span>
+                            <span>東京都オープンデータ原典</span>
                             <ExternalLink className="w-3 h-3" />
                           </a>
                         </div>
 
                         {isQuoteExpanded && (
-                          <div className="mt-2 p-2.5 bg-slate-950 rounded-xl border border-slate-800/80 text-xs text-slate-300 font-serif leading-relaxed italic animate-fade-in">
+                          <div className="mt-2 p-3 bg-slate-950 rounded-xl border border-slate-800/80 text-xs text-slate-300 font-serif leading-relaxed italic animate-fade-in">
                             {msg.originalQuote}
                           </div>
                         )}
                       </div>
                     )}
 
-                    {/* 市民フィードバック（賛成・懸念・コメント） */}
+                    {/* 補助情報: 市民の反応 (賛成・懸念) & 検証ステップ */}
                     <div className="pt-2 border-t border-slate-800/80 flex items-center justify-between gap-2 flex-wrap text-xs">
-                      <div className="flex items-center gap-1.5">
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10.5px] text-slate-400">市民の反応:</span>
                         <button
                           onClick={() => handleVote(msg.id, 'agree')}
                           className={`px-2.5 py-1 rounded-lg text-xs font-medium border flex items-center gap-1 transition-colors ${
@@ -520,51 +497,34 @@ export default function LineChatModal({
                       </div>
 
                       <button
-                        onClick={() => toggleCommentBox(msg.id)}
-                        className="text-[11px] text-slate-400 hover:text-slate-200 flex items-center gap-1"
+                        onClick={() => toggleChain(msg.id)}
+                        className="text-[10.5px] font-medium text-slate-400 hover:text-slate-200 flex items-center gap-1 transition-colors ml-auto"
                       >
-                        <MessageCircle className="w-3 h-3" />
-                        <span>意見 ({msg.comments?.length || 0})</span>
+                        <span>AI検証プロセス</span>
+                        {isChainExpanded ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
                       </button>
                     </div>
 
-                    {/* 市民コメントリスト */}
-                    {msg.comments && msg.comments.length > 0 && (
-                      <div className="space-y-1.5 pt-1">
-                        {msg.comments.map((c, idx) => (
-                          <div
-                            key={idx}
-                            className="bg-slate-950/80 p-2 rounded-lg border border-slate-800/80 text-[11px] text-slate-300"
-                          >
-                            <span className="font-semibold text-slate-200">{c.user}: </span>
-                            <span>{c.text}</span>
+                    {/* AI Processing Chain アコーディオン展開 */}
+                    {isChainExpanded && (
+                      <div className="p-3 bg-slate-950 rounded-xl border border-slate-800 space-y-2 text-xs animate-fade-in">
+                        <p className="text-[11px] text-slate-400 font-semibold mb-1">
+                          処理ステップ: 公式データ連携 ➔ 情報抽出 ➔ 構造化要約 ➔ 原文照合
+                        </p>
+                        {chainSteps.map((step) => (
+                          <div key={step.step_number} className="flex items-start gap-2 text-[11px]">
+                            <span className="w-4 h-4 rounded-full bg-slate-800 text-emerald-400 border border-slate-700 flex items-center justify-center font-bold text-[9px] shrink-0 mt-0.5">
+                              {step.step_number}
+                            </span>
+                            <div>
+                              <span className="font-semibold text-slate-200">{step.title}</span>
+                              <p className="text-slate-400 text-[10.5px] leading-tight">{step.detail}</p>
+                            </div>
                           </div>
                         ))}
                       </div>
                     )}
-
-                    {/* コメント入力ボックス */}
-                    {isCommentOpen && (
-                      <div className="pt-2 flex items-center gap-1.5">
-                        <input
-                          type="text"
-                          value={commentInputs[msg.id] || ''}
-                          onChange={(e) =>
-                            setCommentInputs((prev) => ({ ...prev, [msg.id]: e.target.value }))
-                          }
-                          placeholder="この議案への意見を入力..."
-                          className="flex-1 px-3 py-1.5 bg-slate-950 border border-slate-800 rounded-lg text-xs text-white placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
-                        />
-                        <button
-                          onClick={() => handleAddComment(msg.id)}
-                          className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-semibold shrink-0"
-                        >
-                          投稿
-                        </button>
-                      </div>
-                    )}
                   </div>
-
                   <span className="text-[10px] text-slate-500 pl-1">{msg.timestamp}</span>
                 </div>
               </div>
