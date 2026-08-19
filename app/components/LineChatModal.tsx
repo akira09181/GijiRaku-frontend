@@ -47,11 +47,14 @@ export interface PolicyArguments {
 }
 
 export interface SpeakerUtterance {
-  readonly roleName: string;
-  readonly roleTitle: string;
+  readonly speakerName: string;
+  readonly speakerRole: string;
+  readonly partyName?: string;
+  readonly committeeName?: string;
   readonly stanceLabel: '推進' | '慎重' | '拡大提案' | '課題提起' | string;
-  readonly summaryText: string;
+  readonly summaryQuote: string;
   readonly avatarColor?: string;
+  readonly sourceExcerpt?: string;
 }
 
 export interface StructuredSummary {
@@ -175,24 +178,30 @@ export default function LineChatModal({
         },
         speakerUtterances: [
           {
-            roleName: isTokyo ? '小池 百合子' : assembly.mayorName || '首長',
-            roleTitle: isTokyo ? '東京都知事' : '首長提案',
+            speakerName: isTokyo ? '小池 百合子' : assembly.mayorName || '吉野 区長',
+            speakerRole: isTokyo ? '東京都知事' : '首長提案',
+            partyName: '無所属',
+            committeeName: '本会議・首長答弁',
             stanceLabel: '推進',
-            summaryText: '子育て世帯の負担を軽くするため、所得制限のない支援を前に進めたい',
+            summaryQuote: '子育て世帯の負担を軽くするため、所得制限のない支援を前に進めたい',
             avatarColor: 'emerald',
           },
           {
-            roleName: '議員A',
-            roleTitle: '予算特別委員会',
+            speakerName: '山田 太郎',
+            speakerRole: '都議会議員',
+            partyName: '都民ファーストの会',
+            committeeName: '予算特別委員会',
             stanceLabel: '慎重',
-            summaryText: '制度を長く続けるために、年間の予算・財源をどう確保するか慎重に確認が必要です',
+            summaryQuote: '制度を長く続けるために、毎年の予算・財源をどう確保するか慎重に確認が必要です',
             avatarColor: 'amber',
           },
           {
-            roleName: '議員B',
-            roleTitle: '文教子育て委員会',
+            speakerName: '佐藤 花子',
+            speakerRole: '都議会議員',
+            partyName: '日本共産党',
+            committeeName: '文教子育て委員会',
             stanceLabel: '拡大提案',
-            summaryText: '第2子以降だけでなく、病児保育の受け入れ枠拡充もあわせて検討すべきです',
+            summaryQuote: '第2子以降だけでなく、病児保育の受け入れ枠拡充もあわせて検討すべきです',
             avatarColor: 'sky',
           },
         ],
@@ -245,17 +254,21 @@ export default function LineChatModal({
         },
         speakerUtterances: [
           {
-            roleName: 'デジタル推進部長',
-            roleTitle: '行政担当者',
+            speakerName: '高橋 健一',
+            speakerRole: '行政担当者',
+            partyName: 'デジタル推進部',
+            committeeName: '行政DX推進課',
             stanceLabel: '推進',
-            summaryText: '窓口に並ばずにスマホで手続きが完結できるよう、オンライン申請を順次拡大します',
+            summaryQuote: '窓口に並ばずにスマホで手続きが完結できるよう、オンライン申請を順次拡大します',
             avatarColor: 'emerald',
           },
           {
-            roleName: '議員C',
-            roleTitle: '総務委員会',
+            speakerName: '鈴木 次郎',
+            speakerRole: '区議会議員',
+            partyName: '自由民主党',
+            committeeName: '総務委員会',
             stanceLabel: '課題提起',
-            summaryText: 'スマホをお持ちでない高齢者の方への代理窓口・手厚いサポート体制も必要です',
+            summaryQuote: 'スマホをお持ちでない高齢者の方への代理窓口や手厚いサポート体制も必要です',
             avatarColor: 'purple',
           },
         ],
@@ -570,7 +583,7 @@ export default function LineChatModal({
                       </div>
                     )}
 
-                    {/* 【主要ブロック】この議論で、誰が何を言った？ (発言の要旨アバター吹き出し) */}
+                    {/* 【主要ブロック】この議論で、誰が何を言った？ (氏名・所属会派・発言の要旨アバター吹き出し) */}
                     {msg.speakerUtterances && msg.speakerUtterances.length > 0 && (
                       <div className="pt-3 border-t border-slate-800/80 space-y-2.5">
                         <div className="flex items-center justify-between">
@@ -583,7 +596,7 @@ export default function LineChatModal({
                           </span>
                         </div>
 
-                        <div className="space-y-2">
+                        <div className="space-y-2.5">
                           {msg.speakerUtterances.map((utt, idx) => {
                             const stanceStyle =
                               utt.stanceLabel === '推進'
@@ -604,23 +617,25 @@ export default function LineChatModal({
                                 : 'bg-purple-600 text-white';
 
                             return (
-                              <div key={idx} className="flex items-start gap-2 text-xs">
+                              <div key={idx} className="flex items-start gap-2.5 text-xs">
                                 {/* 丸型簡易アバター */}
-                                <div className={`w-7 h-7 rounded-full ${avatarBg} font-bold text-[10px] flex items-center justify-center shrink-0 shadow-sm mt-0.5`}>
-                                  {utt.roleName.slice(0, 2)}
+                                <div className={`w-8 h-8 rounded-full ${avatarBg} font-bold text-[11px] flex items-center justify-center shrink-0 shadow-sm mt-0.5`}>
+                                  {utt.speakerName.slice(0, 2)}
                                 </div>
 
-                                {/* 吹き出し要旨 */}
+                                {/* 発言者詳細 ＋ 吹き出し */}
                                 <div className="flex-1 space-y-1">
-                                  <div className="flex items-center gap-1.5 text-[11px]">
-                                    <span className="font-bold text-slate-200">{utt.roleName}</span>
-                                    <span className="text-slate-400 text-[10px]">({utt.roleTitle})</span>
+                                  <div className="flex items-center gap-1.5 flex-wrap text-[11px]">
+                                    <span className="font-bold text-white text-xs">{utt.speakerName}</span>
+                                    <span className="text-slate-400 text-[10.5px]">
+                                      {utt.partyName ? `${utt.partyName} / ` : ''}{utt.committeeName || utt.speakerRole}
+                                    </span>
                                     <span className={`px-1.5 py-0.2 rounded text-[9.5px] font-semibold border ${stanceStyle}`}>
                                       {utt.stanceLabel}
                                     </span>
                                   </div>
                                   <div className="bg-slate-950 border border-slate-800/90 p-2.5 rounded-2xl rounded-tl-xs text-slate-200 leading-relaxed font-normal">
-                                    💬「{utt.summaryText}」
+                                    💬「{utt.summaryQuote}」
                                   </div>
                                 </div>
                               </div>
