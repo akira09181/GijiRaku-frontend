@@ -98,9 +98,9 @@ export default function LineChatModal({
       {
         id: 'msg-1',
         sender: 'assistant',
-        plainText: `こんにちは！${assembly.name}の公式議事録オープンデータをわかりやすくご案内します。\n気になる政策や予算について質問してください。`,
-        speaker: `${assembly.name} 議会ナビゲーター`,
-        speakerTitle: 'オープンデータ連携',
+        plainText: `こんにちは！${assembly.name}の会議録データをわかりやすく構造化してお届けします。\n知りたいテーマや疑問があればご質問ください。`,
+        speaker: `${assembly.name} 議会案内`,
+        speakerTitle: '公式データ連携',
         date: '最新の定例会より',
         timestamp: '10:00',
         sourceUrl: 'https://catalog.data.metro.tokyo.lg.jp/',
@@ -110,10 +110,10 @@ export default function LineChatModal({
         id: 'msg-2',
         sender: 'assistant',
         plainText: isTokyo
-          ? `【注目の議論】\n東京都全域での「第2子以降の保育料無償化」や「おむつ代補助」の予算案について議論が行われました。`
-          : `【注目の議論】\n${assembly.name}における「${assembly.hotTopic}」に関する質疑応答が活発に行われています。`,
+          ? `💡 何が変わる？\n・第2子以降の保育料 ➔ 完全無料化を検討\n・おむつ代 ➔ 負担軽減・定額支給を推進\n\n📌 あなたへの影響\n・対象：都内にお住まいの子育て世帯\n・予算：所得制限撤廃の方向で重点審議中\n\n🟡 現在の進捗・段階\n・2026年当初予算案を審議中（決定後にスタート予定）`
+          : `💡 何が変わる？\n・${assembly.hotTopic} ➔ 住民支援および導入案を推進\n\n📌 あなたへの影響\n・対象：${assembly.name}にお住まいのご家庭・事業者\n・予算：令和8年度当初予算案に重点計上\n\n🟡 現在の進捗・段階\n・2026年第1回定例会にて審議中`,
         speaker: isTokyo ? '小池 百合子' : assembly.mayorName,
-        speakerTitle: isTokyo ? '東京都知事' : '区長/市長',
+        speakerTitle: isTokyo ? '東京都知事' : '首長答弁',
         date: '2026年 第1回定例会 本会議',
         originalQuote: isTokyo
           ? '「次代を担う子どもたちの健やかな育成を社会全体で後押しすべく、所得制限のない幼児教育・保育の負担軽減策を拡充し、切れ目のない子育て支援を推進してまいります。」'
@@ -123,9 +123,6 @@ export default function LineChatModal({
         disagreeCount: 3,
         sourceUrl: 'https://catalog.data.metro.tokyo.lg.jp/dataset/t000021d0000000010',
         aiChainSteps: DEFAULT_CHAIN_STEPS,
-        comments: [
-          { user: '区民A', text: '手続きがスマホ完結になるのはとても助かります。' },
-        ],
       },
     ];
 
@@ -139,7 +136,7 @@ export default function LineChatModal({
       initialMsgs.push({
         id: 'msg-theme-reply',
         sender: 'assistant',
-        plainText: `「${initialTheme}」に関する最新の議事録を検索しました。\n本テーマでは、支援対象の拡充や申請プロセスの簡素化について重点的な質疑が行われています。`,
+        plainText: `💡 「${initialTheme}」に関するポイント\n・対象手続きのオンライン化・申請ワンストップ化を推進\n・手続きスピードの短縮と自己負担軽減が主要な議論点です\n\n🟡 現在の進捗・段階\n・予算特別委員会にて具体仕様を審議中`,
         speaker: '議会事務局 / 担当委員会',
         speakerTitle: '予算特別委員会',
         date: '2026年 委員会審査',

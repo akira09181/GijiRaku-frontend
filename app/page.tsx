@@ -258,7 +258,7 @@ export default function Home() {
       <section className="px-4 pb-12 max-w-4xl w-full mx-auto space-y-4">
         <div className="flex items-center justify-between">
           <h3 className="text-sm font-bold text-white flex items-center gap-2">
-            <span>注目されている議論</span>
+            <span>あなたの生活に関係する議論</span>
             <span className="px-2 py-0.5 rounded-full text-[11px] font-normal bg-slate-800 text-slate-300 border border-slate-700">
               {activeAssemblies.length}地域
             </span>
