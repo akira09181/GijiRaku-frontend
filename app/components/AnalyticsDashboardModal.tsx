@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
@@ -8,7 +8,6 @@ import {
   Users,
   Building2,
   Activity,
-  FileText,
   Vote,
   Layers,
   CheckCircle2,
@@ -22,6 +21,8 @@ import {
   PartyPolicyStance,
   MemberScorecard,
 } from '../types/analytics';
+
+import { getEbpmReactionCount } from '../utils/ebpmStore';
 
 interface AnalyticsDashboardModalProps {
   readonly assembly: Assembly;
@@ -43,17 +44,34 @@ export default function AnalyticsDashboardModal({
   const [activeTab, setActiveTab] = useState<TabType>('overview');
   const [loading, setLoading] = useState(true);
   const [analytics, setAnalytics] = useState<AssemblyAnalytics | null>(null);
+  const [reactionCount, setReactionCount] = useState<number>(37);
+  const [isCountUpdated, setIsCountUpdated] = useState(false);
 
   useEffect(() => {
-    setMounted(true);
+    queueMicrotask(() => {
+      setMounted(true);
+      setReactionCount(getEbpmReactionCount());
+    });
+
+    const handleCountUpdate = (e: Event) => {
+      const customEvt = e as CustomEvent<{ count: number }>;
+      if (customEvt.detail?.count) {
+        setReactionCount(customEvt.detail.count);
+        setIsCountUpdated(true);
+      }
+    };
+
+    window.addEventListener('ebpm_count_updated', handleCountUpdate);
+
     document.body.style.overflow = 'hidden';
     return () => {
       document.body.style.overflow = 'unset';
+      window.removeEventListener('ebpm_count_updated', handleCountUpdate);
     };
   }, []);
 
   useEffect(() => {
-    setLoading(true);
+    queueMicrotask(() => setLoading(true));
     const timer = setTimeout(() => {
       const isTokyo = assembly.id === 'tokyo-metropolitan';
 
@@ -176,7 +194,7 @@ export default function AnalyticsDashboardModal({
             <div className="min-w-0">
               <div className="flex items-center gap-2">
                 <h3 className="font-bold text-sm sm:text-base text-white truncate">
-                  {assembly.name} EBPM政策分析
+                  マチボイス EBPM政策分析 ({assembly.name})
                 </h3>
                 <span className="px-2 py-0.5 rounded text-[10px] bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-semibold shrink-0">
                   EBPM Suite
@@ -410,30 +428,104 @@ export default function AnalyticsDashboardModal({
                 </div>
               )}
 
-              {/* タブ 4: 市民世論フィードバック */}
+              {/* タブ 4: 市民世論フィードバック (EBPM双方向連動) */}
               {activeTab === 'public' && (
                 <div className="space-y-4">
-                  <h4 className="text-xs sm:text-sm font-bold text-white flex items-center gap-1.5">
-                    <Vote className="w-4 h-4 text-emerald-400" />
-                    <span>市民フィードバック集計</span>
-                  </h4>
+                  <div className="flex items-center justify-between">
+                    <h4 className="text-xs sm:text-sm font-bold text-white flex items-center gap-1.5">
+                      <Vote className="w-4 h-4 text-emerald-400" />
+                      <span>リアルタイム市民フィードバック & EBPM政策提言</span>
+                    </h4>
+                    <span className="px-2 py-0.5 rounded text-[10px] bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-mono font-medium">
+                      Live EBPM Sync Active
+                    </span>
+                  </div>
 
+                  {/* 実証目標KPIカード */}
+                  <div className="bg-gradient-to-r from-emerald-950/40 to-slate-900 border border-emerald-500/30 rounded-xl p-4 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-emerald-400 flex items-center gap-1">
+                        <Award className="w-3.5 h-3.5" />
+                        ソーシャルインパクト目標KPI (PoC検証設定)
+                      </span>
+                      <span className="text-xs text-slate-300 font-bold font-mono">
+                        目標: 情報到達時間 30分 ➔ 3分 (90%短縮)
+                      </span>
+                    </div>
+                    <p className="text-[11.5px] text-slate-300 leading-relaxed">
+                      PoCでは、都民が必要な政策情報に到達する時間を30分から3分へ短縮することを目標に検証。LINE風超翻訳とオープンデータ連動で認知・理解・反応の循環を検証します。
+                    </p>
+                  </div>
+
+                  {/* 市民フィードバックの実数集計 */}
                   <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 space-y-3">
                     <div className="flex items-center justify-between text-xs">
-                      <span className="text-white font-medium">主要議題への賛否比率</span>
-                      <span className="text-emerald-400 font-semibold font-mono">
-                        賛成 88% / 懸念 12%
+                      <span className="text-white font-medium">病児保育・給食無償化に関する市民リアクション</span>
+                      <span className="text-emerald-400 font-bold font-mono">
+                        リアルタイム集計中
                       </span>
                     </div>
 
-                    <div className="w-full h-3 bg-rose-500/70 rounded-full overflow-hidden flex">
-                      <div className="bg-emerald-500 h-full" style={{ width: '88%' }} />
+                    <div className="flex items-center justify-between p-3 bg-slate-950 rounded-xl border border-slate-800">
+                      <div>
+                        <span className="text-xs font-bold text-white block">病児保育のLINE即時予約・受け入れ枠拡大</span>
+                        <span className="text-[10.5px] text-slate-400">市民画面でのワンタップ「困っている / 賛成」の集計件数</span>
+                      </div>
+                      <div className="text-right">
+                        <span className={`text-xl font-extrabold text-emerald-400 font-mono transition-all ${isCountUpdated ? 'text-emerald-300 scale-110' : ''}`}>
+                          {reactionCount}件
+                        </span>
+                        <span className="text-[10px] text-emerald-300 block font-medium">
+                          {isCountUpdated ? '✨ +1 リアルタイム反映済' : '市民反応データを即時連携'}
+                        </span>
+                      </div>
                     </div>
+                  </div>
 
-                    <p className="text-xs text-slate-400">
-                      総投票数: <strong className="text-white font-mono">1,420件</strong>
-                      （子育て支援・給食無償化に関する賛成が最も高い割合を占めています）
-                    </p>
+                  {/* 年代別ニーズグラフ */}
+                  <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 space-y-3">
+                    <h5 className="text-xs font-bold text-slate-200">年代別民意・最重点テーマ</h5>
+                    <div className="space-y-2">
+                      {[
+                        { group: '10代・20代 (若者層)', ratio: 91, issue: '病児保育即時LINE予約・おむつデジタルクーポン' },
+                        { group: '30代 (子育て層)', ratio: 88, issue: '給食費全額無償化継続・学童受入拡大' },
+                        { group: '40代・50代 (現役層)', ratio: 82, issue: '多摩モノレール延伸・行政手続きスマホ完結' },
+                        { group: '60代以上 (シニア層)', ratio: 79, issue: '対面サポート窓口併設・エアコン購入助成' },
+                      ].map((item, idx) => (
+                        <div key={idx} className="space-y-1 text-xs">
+                          <div className="flex items-center justify-between text-[11px]">
+                            <span className="text-slate-300 font-semibold">{item.group}</span>
+                            <span className="text-emerald-400 font-mono font-bold">賛同率 {item.ratio}%</span>
+                          </div>
+                          <div className="w-full h-2 bg-slate-800 rounded-full overflow-hidden">
+                            <div className="bg-emerald-500 h-full" style={{ width: `${item.ratio}%` }} />
+                          </div>
+                          <p className="text-[10.5px] text-slate-400">最重要ニーズ: {item.issue}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* 議員向け EBPM AI 自発提言カード */}
+                  <div className="space-y-2">
+                    <h5 className="text-xs font-bold text-slate-200 flex items-center gap-1">
+                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                      <span>議員向け 次回定例会 優先EBPMAI提案</span>
+                    </h5>
+
+                    <div className="bg-slate-900 border border-emerald-500/30 rounded-xl p-3.5 space-y-2">
+                      <div className="flex items-center gap-2">
+                        <span className="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 text-[10px] font-bold">
+                          優先度 1位
+                        </span>
+                        <span className="font-bold text-xs text-white">
+                          若者・子育て世代の91%が即時要望: 『病児保育のLINE即時予約・枠拡大』
+                        </span>
+                      </div>
+                      <p className="text-xs text-slate-300 leading-relaxed">
+                        市民からのワンタップFBが急増中。主動的に定例会にて広域予約システム共通化の予算枠拡大提言を推奨します。
+                      </p>
+                    </div>
                   </div>
                 </div>
               )}
@@ -443,7 +535,7 @@ export default function AnalyticsDashboardModal({
 
         {/* モーダルフッター */}
         <div className="bg-slate-900 border-t border-slate-800 px-4 py-3 sm:px-6 sm:py-3 flex items-center justify-between text-[11px] text-slate-400 shrink-0">
-          <span>GijiRaku EBPM Analytics Module v2.0</span>
+          <span>MachiVoice EBPM Analytics Module v2.0</span>
           <button
             onClick={onClose}
             className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-white font-medium transition-colors"

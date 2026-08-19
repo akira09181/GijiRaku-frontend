@@ -1,12 +1,13 @@
 'use client';
 
 import React, { useEffect, useRef, useState, useMemo } from 'react';
-import { MapPin, Search, Layers, MessageSquare, Compass, CheckCircle2 } from 'lucide-react';
+import { Search, MessageSquare, Compass, CheckCircle2 } from 'lucide-react';
 import { Assembly } from '../types/assembly';
 
 // Leaflet types
 declare global {
   interface Window {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     L: any;
     selectGijiAssembly?: (id: string) => void;
   }
@@ -30,7 +31,9 @@ export default function AssemblyMap({
   onSelectAssembly,
 }: AssemblyMapProps) {
   const mapContainerRef = useRef<HTMLDivElement>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const mapInstanceRef = useRef<any>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const markersRef = useRef<{ [key: string]: any }>({});
   const [mapLoaded, setMapLoaded] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
@@ -65,7 +68,7 @@ export default function AssemblyMap({
       script.onload = () => setMapLoaded(true);
       document.head.appendChild(script);
     } else {
-      setMapLoaded(true);
+      queueMicrotask(() => setMapLoaded(true));
     }
   }, []);
 
@@ -84,13 +87,13 @@ export default function AssemblyMap({
     L.control.zoom({ position: 'bottomleft' }).addTo(map);
 
     const tileLayers: Record<string, string> = {
-      dark: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
       streets: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
-      satellite: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{n}',
+      satellite: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+      dark: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
     };
 
     const tileLayer = L.tileLayer(tileLayers[mapStyle], {
-      attribution: '&copy; OpenStreetMap contributors, CartoDB',
+      attribution: '&copy; OpenStreetMap contributors, Esri, CartoDB',
       maxZoom: 18,
     }).addTo(map);
 
@@ -107,7 +110,7 @@ export default function AssemblyMap({
       map.remove();
       mapInstanceRef.current = null;
     };
-  }, [mapLoaded]);
+  }, [mapLoaded, mapStyle]);
 
   // タイルレイヤースタイル切り替え
   useEffect(() => {
@@ -117,13 +120,13 @@ export default function AssemblyMap({
 
     map.removeLayer(tileLayer);
     const tileLayers: Record<string, string> = {
-      dark: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
       streets: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
-      satellite: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{n}',
+      satellite: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+      dark: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
     };
 
     const newLayer = L.tileLayer(tileLayers[mapStyle], {
-      attribution: '&copy; OpenStreetMap contributors, CartoDB',
+      attribution: '&copy; OpenStreetMap contributors, Esri, CartoDB',
       maxZoom: 18,
     }).addTo(map);
 
@@ -149,7 +152,7 @@ export default function AssemblyMap({
     const L = window.L;
 
     // 既存マーカークリア
-    Object.values(markersRef.current).forEach((marker: any) => map.removeLayer(marker));
+    Object.values(markersRef.current).forEach((marker: unknown) => map.removeLayer(marker));
     markersRef.current = {};
 
     filteredAssemblies.forEach((assembly) => {
@@ -159,31 +162,28 @@ export default function AssemblyMap({
       // プロフェッショナルなピンUI
       const iconHtml = `
         <div onclick="if(window.selectGijiAssembly) window.selectGijiAssembly('${assembly.id}')" style="pointer-events: auto; cursor: pointer;" class="custom-marker-pin group transition-transform duration-150 ${
-          isSelected ? 'scale-110 z-50' : 'hover:scale-105'
+          isSelected ? 'scale-105 z-50' : 'hover:scale-102'
         }">
-          <div class="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl shadow-lg border text-xs font-semibold whitespace-nowrap backdrop-blur-md ${
+          <div class="flex items-center gap-2 px-3 py-1.5 rounded-xl shadow-md border text-xs font-semibold whitespace-nowrap ${
             isSelected
-              ? 'bg-slate-900 border-emerald-400 text-white ring-2 ring-emerald-400/40 shadow-emerald-500/20'
+              ? 'bg-slate-900 border-emerald-500 text-white shadow-emerald-950/40'
               : isTokyoMet
-              ? 'bg-slate-900/95 border-amber-400 text-amber-300 shadow-amber-500/20'
-              : 'bg-slate-900/95 border-slate-700 text-slate-100 hover:border-emerald-500/60'
+              ? 'bg-slate-900/95 border-amber-500/70 text-slate-100 hover:border-amber-400'
+              : 'bg-slate-900/95 border-slate-700/80 text-slate-100 hover:border-slate-500'
           }">
-            <span class="w-5 h-5 rounded-lg ${
-              isTokyoMet ? 'bg-amber-400/20 text-amber-300' : 'bg-emerald-500/20 text-emerald-400'
-            } flex items-center justify-center font-bold text-[10px]">
+            <span class="w-4 h-4 rounded-md ${
+              isTokyoMet ? 'bg-amber-500/20 text-amber-300' : 'bg-emerald-500/20 text-emerald-400'
+            } flex items-center justify-center font-bold text-[10px] shrink-0">
               ${isTokyoMet ? '都' : '区'}
             </span>
             <div class="flex flex-col text-left leading-tight">
-              <span class="font-bold flex items-center gap-1">
+              <span class="font-bold text-xs text-white">
                 ${assembly.name}
               </span>
-              <span class="text-[9px] text-slate-400 font-normal truncate max-w-[100px]">
+              <span class="text-[10px] text-slate-400 font-normal truncate max-w-[110px]">
                 ${assembly.hotTopic}
               </span>
             </div>
-            <span class="ml-1 bg-emerald-500/20 text-emerald-300 text-[9px] px-1.5 py-0.5 rounded font-medium">
-              対話
-            </span>
           </div>
         </div>
       `;
@@ -231,16 +231,6 @@ export default function AssemblyMap({
           {/* レイヤー切替 */}
           <div className="flex items-center bg-slate-900 p-0.5 rounded-xl border border-slate-800 text-[11px] shrink-0">
             <button
-              onClick={() => setMapStyle('dark')}
-              className={`px-2 py-1 rounded-lg font-medium transition-all ${
-                mapStyle === 'dark'
-                  ? 'bg-slate-800 text-white font-semibold shadow-sm'
-                  : 'text-slate-400 hover:text-slate-200'
-              }`}
-            >
-              ダーク
-            </button>
-            <button
               onClick={() => setMapStyle('streets')}
               className={`px-2 py-1 rounded-lg font-medium transition-all ${
                 mapStyle === 'streets'
@@ -249,6 +239,26 @@ export default function AssemblyMap({
               }`}
             >
               標準
+            </button>
+            <button
+              onClick={() => setMapStyle('satellite')}
+              className={`px-2 py-1 rounded-lg font-medium transition-all ${
+                mapStyle === 'satellite'
+                  ? 'bg-slate-800 text-white font-semibold shadow-sm'
+                  : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              航空写真
+            </button>
+            <button
+              onClick={() => setMapStyle('dark')}
+              className={`px-2 py-1 rounded-lg font-medium transition-all ${
+                mapStyle === 'dark'
+                  ? 'bg-slate-800 text-white font-semibold shadow-sm'
+                  : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              ダーク
             </button>
           </div>
 
