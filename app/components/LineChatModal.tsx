@@ -179,7 +179,7 @@ export default function LineChatModal({
         speakerUtterances: [
           {
             speakerName: isTokyo ? '小池 百合子' : assembly.mayorName || '吉野 区長',
-            speakerRole: isTokyo ? '東京都知事' : '首長提案',
+            speakerRole: isTokyo ? '東京都知事' : '首長答弁',
             partyName: '無所属',
             committeeName: '本会議・首長答弁',
             stanceLabel: '推進',
@@ -205,8 +205,8 @@ export default function LineChatModal({
             avatarColor: 'sky',
           },
         ],
-        speaker: isTokyo ? '小池 百合子' : assembly.mayorName,
-        speakerTitle: isTokyo ? '東京都知事' : '首長答弁',
+        speaker: '議会定例会 3分解説',
+        speakerTitle: `${assembly.name} 会議録オープンデータ分析`,
         date: '2026年 第1回定例会 本会議',
         originalQuote: isTokyo
           ? '「次代を担う子どもたちの健やかな育成を社会全体で後押しすべく、所得制限のない幼児教育・保育の負担軽減策を拡充し、切れ目のない子育て支援を推進してまいります。」'
@@ -271,9 +271,18 @@ export default function LineChatModal({
             summaryQuote: 'スマホをお持ちでない高齢者の方への代理窓口や手厚いサポート体制も必要です',
             avatarColor: 'purple',
           },
+          {
+            speakerName: '木村 さくら',
+            speakerRole: '区議会議員',
+            partyName: '立憲民主党',
+            committeeName: '市民福祉委員会',
+            stanceLabel: '拡大提案',
+            summaryQuote: 'オンライン化と同時に、障害をお持ちの方へのアクセシビリティ対応も必須とすべきです',
+            avatarColor: 'sky',
+          },
         ],
-        speaker: '議会事務局 / 担当委員会',
-        speakerTitle: '予算特別委員会',
+        speaker: 'テーマ別要点解説',
+        speakerTitle: `${assembly.name} 委員会審査分析`,
         date: '2026年 委員会審査',
         originalQuote: '「市民の皆様からのご要望を踏まえ、オンラインでのワンストップ申請窓口の整備と支給スピードの短縮に努めてまいります。」',
         timestamp: '10:03',
