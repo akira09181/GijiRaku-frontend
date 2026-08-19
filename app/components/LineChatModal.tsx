@@ -34,6 +34,7 @@ export interface StructuredSummary {
   readonly whatChanges: string;
   readonly targetAudience: string;
   readonly currentStage: string;
+  readonly budgetInfo?: string;
 }
 
 interface Message {
@@ -114,16 +115,17 @@ export default function LineChatModal({
         id: 'msg-2',
         sender: 'assistant',
         plainText: isTokyo
-          ? `第2子以降の保育料完全無償化およびおむつ代負担軽減の方向で審議が行われています。`
-          : `${assembly.name}における「${assembly.hotTopic}」について重点審議が行われています。`,
+          ? `第2子以降の保育料を無料にする案が進んでいます。おむつ代を定額で支援する制度も検討されています。`
+          : `${assembly.name}における「${assembly.hotTopic}」について支援策が進んでいます。`,
         structuredSummary: {
           whatChanges: isTokyo
-            ? '第2子以降の保育料完全無償化・おむつ代負担軽減を推進'
-            : `${assembly.hotTopic}の導入・住民支援策を重点推進`,
+            ? '第2子以降の保育料を無料にする案が進んでいます。おむつ代を定額で支援する制度も検討されています。'
+            : `${assembly.name}において「${assembly.hotTopic}」を推進し、区民・市民の生活負担を減らす案が検討されています。`,
           targetAudience: isTokyo
-            ? '都内にお住まいの子育て世帯（特に第2子以降がいるご家庭）'
-            : `${assembly.name}にお住まいのご家庭および関係事業者・住民の皆様`,
+            ? '都内にお住まいの子育て世帯（特に小中学生や乳幼児のいるご家庭）'
+            : `${assembly.name}にお住まいの子育て世帯・ご家庭および関係住民の皆様`,
           currentStage: '2026年 当初予算案を審議中（決定後に運用スタート予定）',
+          budgetInfo: '所得制限なしの重点事業として予算計上（都の重点施策）',
         },
         speaker: isTokyo ? '小池 百合子' : assembly.mayorName,
         speakerTitle: isTokyo ? '東京都知事' : '首長答弁',
@@ -149,11 +151,12 @@ export default function LineChatModal({
       initialMsgs.push({
         id: 'msg-theme-reply',
         sender: 'assistant',
-        plainText: `「${initialTheme}」に関する手続きのオンライン完結化および申請スピードの短縮を推進しています。`,
+        plainText: `「${initialTheme}」に関する手続きをスマホで完結できるよう改善する案が進んでいます。`,
         structuredSummary: {
-          whatChanges: `「${initialTheme}」対象手続きのスマホ完結・ワンストップ化を推進`,
-          targetAudience: '対象手続きを行う区民・市民の皆様',
+          whatChanges: `「${initialTheme}」に関する申請手続きをスマホ完結・ワンストップ化する案が進んでいます。`,
+          targetAudience: `${assembly.name}にお住まいで対象手続きを行う区民・市民の皆様`,
           currentStage: '予算特別委員会にて具体仕様および実施ロードマップを審議中',
+          budgetInfo: 'システム構築およびオンライン申請運用予算を令和8年度に計上',
         },
         speaker: '議会事務局 / 担当委員会',
         speakerTitle: '予算特別委員会',
@@ -407,20 +410,26 @@ export default function LineChatModal({
                       </div>
                     </div>
 
-                    {/* 【ブロック2 & 3】誰に関係する？ × いまどの段階？ */}
+                    {/* 【ブロック2, 3, 4】誰に関係する？ × いまどの段階？ × お金・予算は？ */}
                     {msg.structuredSummary && (
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-2 border-t border-slate-800/80">
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 pt-2 border-t border-slate-800/80">
                         <div className="bg-slate-950 p-2.5 rounded-xl border border-slate-800/80 space-y-1">
-                          <div className="text-[10.5px] font-semibold text-slate-400">誰に関係する？</div>
+                          <div className="text-[10.5px] font-semibold text-slate-400">📌 誰に関係する？</div>
                           <div className="text-xs font-semibold text-slate-200 leading-tight">
                             {msg.structuredSummary.targetAudience}
                           </div>
                         </div>
                         <div className="bg-slate-950 p-2.5 rounded-xl border border-slate-800/80 space-y-1">
-                          <div className="text-[10.5px] font-semibold text-slate-400">いまどの段階？</div>
+                          <div className="text-[10.5px] font-semibold text-slate-400">🟡 いまどの段階？</div>
                           <div className="text-xs font-semibold text-amber-300 flex items-center gap-1.5 leading-tight">
                             <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse shrink-0" />
                             <span>{msg.structuredSummary.currentStage}</span>
+                          </div>
+                        </div>
+                        <div className="bg-slate-950 p-2.5 rounded-xl border border-slate-800/80 space-y-1">
+                          <div className="text-[10.5px] font-semibold text-slate-400">💰 お金・予算は？</div>
+                          <div className="text-xs font-semibold text-slate-300 leading-tight">
+                            {msg.structuredSummary.budgetInfo || '令和8年度当初予算案に重点計上'}
                           </div>
                         </div>
                       </div>
