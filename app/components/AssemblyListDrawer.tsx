@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { Building, ChevronRight, Info, CheckCircle2 } from 'lucide-react';
+import { Building, ChevronRight, Info } from 'lucide-react';
 import { Assembly } from '../types/assembly';
 
 interface AssemblyListDrawerProps {
@@ -67,13 +67,12 @@ export default function AssemblyListDrawer({
                 {assembly.hotTopic}
               </div>
 
-              <div className="pt-2 border-t border-slate-800/80 flex items-center justify-between text-[10px] sm:text-[11px] text-slate-400">
-                <span className="flex items-center gap-1 text-slate-400">
-                  <CheckCircle2 className="w-3 h-3 text-emerald-400" />
-                  <span>議事録 {assembly.totalMinutesCount.toLocaleString()}件</span>
+              <div className="pt-2 border-t border-slate-800/80 flex items-center justify-between text-[11px] text-slate-400">
+                <span className="text-slate-400 truncate max-w-[140px]">
+                  {assembly.mayorName} 首長
                 </span>
-                <span className="text-emerald-400 font-medium flex items-center gap-0.5">
-                  <span>対話</span>
+                <span className="text-emerald-400 font-medium flex items-center gap-0.5 shrink-0">
+                  <span>見る</span>
                   <ChevronRight className="w-3 h-3" />
                 </span>
               </div>
