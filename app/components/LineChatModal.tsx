@@ -47,14 +47,19 @@ export interface PolicyArguments {
 }
 
 export interface SpeakerUtterance {
+  readonly id?: string;
   readonly speakerName: string;
   readonly speakerRole: string;
   readonly partyName?: string;
   readonly committeeName?: string;
   readonly stanceLabel: '推進' | '慎重' | '拡大提案' | '課題提起' | string;
   readonly summaryQuote: string;
+  readonly fullSummary?: string;
   readonly avatarColor?: string;
   readonly sourceExcerpt?: string;
+  readonly meetingName?: string;
+  readonly meetingDate?: string;
+  readonly sourceUrl?: string;
 }
 
 export interface StructuredSummary {
@@ -109,6 +114,9 @@ const getDynamicSpeakerUtterances = (assembly: Assembly, theme?: string): Speake
         committeeName: '本会議・区長方針表明',
         stanceLabel: '推進',
         summaryQuote: '給食費の完全無償化とおむつ定額支給を軸に、品川区の子育て世代を全面的にバックアップします。',
+        fullSummary: '令和8年度当初予算におきまして、品川区立小中学校の給食費全額公費負担を継続計上するとともに、0歳児から2歳児のおむつ配付助成を拡大実施いたします。',
+        sourceExcerpt: '「本区におきましては、次世代を担う子どもたちの成長とご家庭の経済的負担軽減を最優先課題と位置付け、小中学校給食費の全額無償化を恒久的に継続するとともに、乳幼児紙おむつ等の定期便配付事業を強力に推進してまいります。」',
+        meetingName: '令和8年 第1回定例会 本会議区政表明',
         avatarColor: 'emerald',
       },
       {
@@ -118,6 +126,9 @@ const getDynamicSpeakerUtterances = (assembly: Assembly, theme?: string): Speake
         committeeName: '文教委員会',
         stanceLabel: '推進',
         summaryQuote: '小中学校の給食費ゼロ継続に加え、病児保育予約の完全デジタル化も早期に完了させるべきです。',
+        fullSummary: '給食費全額無償化の維持を歓迎しつつ、共働き世帯が最も困る病児・病後児保育のLINE予約システムの即時全域展開を求めて質疑を行いました。',
+        sourceExcerpt: '「品川区における給食費無償化の継続方針を高く評価いたします。あわせて保護者の強いニーズである病児保育のオンライン即時予約枠の拡充について具体的進捗を伺います。」',
+        meetingName: '文教委員会 質疑応答',
         avatarColor: 'emerald',
       },
       {
@@ -127,7 +138,22 @@ const getDynamicSpeakerUtterances = (assembly: Assembly, theme?: string): Speake
         committeeName: '予算特別委員会',
         stanceLabel: '慎重',
         summaryQuote: '無償化施策の財源根拠と、将来にわたる持続可能性について予算特別委で精査が必要です。',
+        fullSummary: '給食費無償化および各種手当の増額に対する都補助金縮小リスクを懸念し、品川区独自の単年度財源確保策の検証を行いました。',
+        sourceExcerpt: '「無償化施策の理念には賛同いたしますが、単年度あたり数億円規模となる財源の持続性、並びに将来的な都補助金の変更に伴う影響を精査する必要があります。」',
+        meetingName: '予算特別委員会 総括質疑',
         avatarColor: 'amber',
+      },
+      {
+        speakerName: '田中 けんじ',
+        speakerRole: '区議会議員',
+        partyName: '無所属ネットワーク',
+        committeeName: '福祉健康委員会',
+        stanceLabel: '拡大提案',
+        summaryQuote: '区立学校だけでなく私立小中・フリースクールに通う区民児童への支援格差も解消すべきです。',
+        fullSummary: '区立学校に通う児童だけでなく、区内に居住し私立小中学校や特別支援校、フリースクールに通学する児童への公平な支援措置を提案しました。',
+        sourceExcerpt: '「公立小中学校のみならず、区内に在住し多様な学びの場を選択している全児童・生徒に対する支援の公平性観点から助成範囲の拡充を求めます。」',
+        meetingName: '福祉健康委員会 審議',
+        avatarColor: 'sky',
       },
     ];
   }
@@ -141,6 +167,9 @@ const getDynamicSpeakerUtterances = (assembly: Assembly, theme?: string): Speake
         committeeName: '本会議・市政方針',
         stanceLabel: '推進',
         summaryQuote: '多摩モノレール町田延伸事業と併せ、0歳〜2歳児へのおむつ電子クーポン助成を強力に推進します。',
+        fullSummary: '多摩都市モノレール町田延伸の都市計画決定手続きを進めるとともに、子育て世帯へデジタル決済ポイントで直接おむつ代を助成する新制度を開始します。',
+        sourceExcerpt: '「次年度予算におきまして、電子ポイントを活用した紙おむつ購入費助成事業を新規計上し、併せて多摩都市モノレール町田方面延伸の早期事業化に全力を尽くします。」',
+        meetingName: '令和8年 第1回定例会 市政方針演説',
         avatarColor: 'emerald',
       },
       {
@@ -150,6 +179,9 @@ const getDynamicSpeakerUtterances = (assembly: Assembly, theme?: string): Speake
         committeeName: '文教社会委員会',
         stanceLabel: '拡大提案',
         summaryQuote: 'おむつ助成をクーポンだけでなくアプリ決済対応にし、中学校給食の全員喫食も前倒しすべきです。',
+        fullSummary: '紙のクーポンの使いづらさを指摘しスマホアプリ決済対応を求めるとともに、中学校全員給食の早期実現を促しました。',
+        sourceExcerpt: '「子育て中の保護者が使いやすいようスマホアプリ決済との連動を強く求めます。また中学校給食の全員喫食化についても前倒しで運用を開始すべきです。」',
+        meetingName: '文教社会委員会 質疑',
         avatarColor: 'sky',
       },
       {
@@ -159,7 +191,22 @@ const getDynamicSpeakerUtterances = (assembly: Assembly, theme?: string): Speake
         committeeName: '建設常任委員会',
         stanceLabel: '慎重',
         summaryQuote: '多摩都市モノレールの着工時期と周辺まちづくり事業の年間予算バランスを検証します。',
+        fullSummary: 'モノレール延伸に伴う市負担額および町田駅周辺デッキ整備の事業計画と市債残高への影響について慎重な審査を実施しました。',
+        sourceExcerpt: '「モノレール導入空間の確保とペデストリアンデッキ着工に係る市負担額の膨らみについて、将来世代の財政負担とならないよう精査が求められます。」',
+        meetingName: '建設常任委員会 審査',
         avatarColor: 'amber',
+      },
+      {
+        speakerName: '渡辺 まゆみ',
+        speakerRole: '市議会議員',
+        partyName: '町田市議会共産党',
+        committeeName: '福祉委員会',
+        stanceLabel: '課題提起',
+        summaryQuote: '学童保育の待機児童問題と指導員の処遇改善について追加対策を要望します。',
+        fullSummary: '学童保育（放課後児童クラブ）の受け入れ枠不足および指導員の人手不足・処遇改善に向けた市独自の助成策を求めました。',
+        sourceExcerpt: '「指導員の確保と待遇改善なしに放課後児童クラブの待機児童ゼロは達成できません。市独自の賃金上乗せ助成を速やかに実施してください。」',
+        meetingName: '福祉委員会 質疑',
+        avatarColor: 'purple',
       },
     ];
   }
@@ -173,6 +220,9 @@ const getDynamicSpeakerUtterances = (assembly: Assembly, theme?: string): Speake
         committeeName: '本会議・区政方針',
         stanceLabel: '推進',
         summaryQuote: '繁華街の防犯安全強化と並行し、認可外保育助成およびLINEによる住民票デジタル申請を進めます。',
+        fullSummary: '歌舞伎町・新宿駅周辺の防犯対策を強化しつつ、区民が役所に来ずにスマホ完結で証明書を取得できるデジタルトランスフォーメーションを推進します。',
+        sourceExcerpt: '「新宿区の安全安心なまちづくりと区民利便性の向上に向け、LINEを活用した住民票および税証明の即時申請・受取システムを全区民へ公開いたします。」',
+        meetingName: '令和8年 第1回定例会 区政表明',
         avatarColor: 'emerald',
       },
       {
@@ -182,6 +232,9 @@ const getDynamicSpeakerUtterances = (assembly: Assembly, theme?: string): Speake
         committeeName: '総務区民委員会',
         stanceLabel: '推進',
         summaryQuote: '各種証明書のスマホ申請対応により窓口混雑を解消し、24時間申請を全手続きへ拡張すべきです。',
+        fullSummary: 'オンライン申請の対象手続きを住民票だけでなく子育て手当・保育園入園申請へ拡大することを提言しました。',
+        sourceExcerpt: '「役所窓口での長時間の待ち時間を削減するため、スマホ手続きの対象を子育て・福祉関連申請へ全面展開するよう求めます。」',
+        meetingName: '総務区民委員会 審議',
         avatarColor: 'emerald',
       },
       {
@@ -191,6 +244,9 @@ const getDynamicSpeakerUtterances = (assembly: Assembly, theme?: string): Speake
         committeeName: '防災・まちづくり委員会',
         stanceLabel: '課題提起',
         summaryQuote: 'デジタル化が進む中で、スマホ操作に不安のある高齢区民へのフォロー窓口設置が不可欠です。',
+        fullSummary: '行政手続きのオンライン化が進む一方、高齢者や障害者などデジタル弱者を取り残さないための対面サポート窓口の併設を要望しました。',
+        sourceExcerpt: '「スマホ申請への移行と並行して、デジタル操作に不慣れな高齢区民の皆様への丁寧な対面補助体制を各地域センターへ配置してください。」',
+        meetingName: '防災・まちづくり委員会 質疑',
         avatarColor: 'purple',
       },
     ];
@@ -205,6 +261,9 @@ const getDynamicSpeakerUtterances = (assembly: Assembly, theme?: string): Speake
         committeeName: '本会議・施策方針',
         stanceLabel: '推進',
         summaryQuote: 'スタートアップ育成特区とスマートシティ渋谷を両輪に、行政手続きのスマート認証化を加速します。',
+        fullSummary: 'グローバルスタートアップ拠点形成とシブヤスマートシティ构想に基づき、区民サービスおよび教育DXの先進事例を全国へ発信します。',
+        sourceExcerpt: '「100年に一度の再開発が進む渋谷において、行政手続きの完全オンライン化とスタートアップ実証実験の場を創出してまいります。」',
+        meetingName: '令和8年 第1回定例会 施策方針',
         avatarColor: 'emerald',
       },
       {
@@ -214,6 +273,9 @@ const getDynamicSpeakerUtterances = (assembly: Assembly, theme?: string): Speake
         committeeName: '文教委員会',
         stanceLabel: '拡大提案',
         summaryQuote: '放課後クラブのオンライン申込化やシブヤフォント活用など、子育て教育DXをさらに深めるべきです。',
+        fullSummary: '渋谷区独自の教育テクノロジー活用と放課後クラブのデジタル化による保護者の負担軽減を提案しました。',
+        sourceExcerpt: '「放課後クラブのオンライン申込化とシブヤフォント活用を通じたインクルーシブ教育のさらなる進化を要望いたします。」',
+        meetingName: '文教委員会 質疑',
         avatarColor: 'sky',
       },
       {
@@ -223,6 +285,9 @@ const getDynamicSpeakerUtterances = (assembly: Assembly, theme?: string): Speake
         committeeName: '都市再開発特別委員会',
         stanceLabel: '慎重',
         summaryQuote: '100年に一度と言われる渋谷駅周辺再開発と安全・治安対策の事業費について継続検証を行います。',
+        fullSummary: '渋谷駅周辺の再開発事業に伴う公共街路整備費用および夜間治安対策予算の費用対効果について検証を求めました。',
+        sourceExcerpt: '「再開発事業における区負担額の増加を抑制し、深夜の安全対策と防災備蓄体制の向上を最優先に図るべきです。」',
+        meetingName: '都市再開発特別委員会 審査',
         avatarColor: 'amber',
       },
     ];
@@ -236,6 +301,9 @@ const getDynamicSpeakerUtterances = (assembly: Assembly, theme?: string): Speake
       committeeName: '本会議・首長答弁',
       stanceLabel: '推進',
       summaryQuote: `「${hotTopic}」に関して、住民の負担軽減と地域の利便性向上を最優先に施策を推進してまいります。`,
+      fullSummary: `令和8年度当初予算案におきまして、「${hotTopic}」に係る事業予算を重点計上し、関係機関と連携の上で早期運用開始を目指します。`,
+      sourceExcerpt: `「ご質問の『${hotTopic}』に関しまして、本区・本市の重要施策として位置付け、速やかな事業着手と効果的な運用を行ってまいります。」`,
+      meetingName: '令和8年 第1回定例会 本会議',
       avatarColor: 'emerald',
     },
     {
@@ -245,6 +313,9 @@ const getDynamicSpeakerUtterances = (assembly: Assembly, theme?: string): Speake
       committeeName: '予算特別委員会',
       stanceLabel: '慎重',
       summaryQuote: `「${hotTopic}」に関する事業の持続可能性と必要な財源措置について詳細な検証を行います。`,
+      fullSummary: `事業に必要な継続的財源の裏付けおよび導入後の運用効率化について予算特別委員会で詳細なチェックを実施しました。`,
+      sourceExcerpt: `「施策の方向性には理解を示しつつも、継続的な財政負担および運用の実行可能性について事前に精査を行う必要があります。」`,
+      meetingName: '予算特別委員会 質疑',
       avatarColor: 'amber',
     },
     {
@@ -254,7 +325,22 @@ const getDynamicSpeakerUtterances = (assembly: Assembly, theme?: string): Speake
       committeeName: '文教・生活福祉委員会',
       stanceLabel: '拡大提案',
       summaryQuote: `「${hotTopic}」の対象範囲をさらに拡大し、支援が必要な世帯へ広く届くよう提案いたします。`,
+      fullSummary: `一部の世帯だけでなく、所得制限撤廃やサポート対象者の拡大により、一人でも多くの住民に届く制度設計を求めました。`,
+      sourceExcerpt: `「所得制限や年齢制限によって対象外となるご家庭をなくし、真に生活者へ届く支援への拡充を強く要望いたします。」`,
+      meetingName: '文教・生活福祉委員会 審議',
       avatarColor: 'sky',
+    },
+    {
+      speakerName: '鈴木 健太',
+      speakerRole: `${assembly.name} 議員`,
+      partyName: isTokyo ? '自由民主党' : '公明党会派',
+      committeeName: '総務・防災委員会',
+      stanceLabel: '課題提起',
+      summaryQuote: `「${hotTopic}」の運用に伴うデジタル弱者への対面フォロー体制の確保が必要です。`,
+      fullSummary: `高齢者や障害をお持ちの方が手続から取り残されないよう、窓口サポートや訪問相談体制の併設を提言しました。`,
+      sourceExcerpt: `「デジタル手続きの推進と同時に、窓口や電話による丁寧なサポート窓口を維持し、誰一人取り残さない行政サービスを構築してください。」`,
+      meetingName: '総務・防災委員会 質疑',
+      avatarColor: 'purple',
     },
   ];
 };
@@ -268,6 +354,7 @@ export default function LineChatModal({
   const [messages, setMessages] = useState<Message[]>([]);
   const [expandedQuotes, setExpandedQuotes] = useState<Record<string, boolean>>({});
   const [expandedChains, setExpandedChains] = useState<Record<string, boolean>>({});
+  const [expandedSpeakerKeys, setExpandedSpeakerKeys] = useState<Record<string, boolean>>({});
   const [inputQuestion, setInputQuestion] = useState('');
   const [isSending, setIsSending] = useState(false);
   const [userVotes, setUserVotes] = useState<Record<string, 'agree' | 'disagree'>>({});
@@ -275,6 +362,10 @@ export default function LineChatModal({
   const [commentInputs, setCommentInputs] = useState<Record<string, string>>({});
   const [ebpmToast, setEbpmToast] = useState<string | null>(null);
   const chatBottomRef = useRef<HTMLDivElement>(null);
+
+  const toggleSpeakerExpand = (key: string) => {
+    setExpandedSpeakerKeys((prev) => ({ ...prev, [key]: !prev[key] }));
+  };
 
   const DEFAULT_CHAIN_STEPS: AiChainStep[] = [
     { step_number: 1, title: '公式データ取得・連携', detail: '東京都オープンデータカタログより該当の議会会議録データを取得', status: 'completed' },
@@ -702,21 +793,24 @@ export default function LineChatModal({
                       </div>
                     )}
 
-                    {/* 【主要ブロック】この議論で、誰が何を言った？ (氏名・所属会派・発言の要旨アバター吹き出し) */}
+                    {/* 【主要ブロック】この議論で、誰が何を言った？ (一覧では軽く ➔ タップで無制限深掘り展開) */}
                     {msg.speakerUtterances && msg.speakerUtterances.length > 0 && (
                       <div className="pt-3 border-t border-slate-800/80 space-y-2.5">
                         <div className="flex items-center justify-between">
                           <div className="text-xs font-bold text-white flex items-center gap-1.5">
                             <Users className="w-4 h-4 text-emerald-400" />
-                            <span>この議論で、誰が何を言った？</span>
+                            <span>この議論で、誰が何を言った？（全{msg.speakerUtterances.length}名の発言）</span>
                           </div>
-                          <span className="text-[10px] px-2 py-0.5 rounded bg-slate-800 text-slate-400 border border-slate-700 font-medium">
-                            発言の要旨
+                          <span className="text-[10px] text-slate-400 font-normal">
+                            タップで原文・抜粋を展開
                           </span>
                         </div>
 
-                        <div className="space-y-2.5">
+                        <div className="space-y-2">
                           {msg.speakerUtterances.map((utt, idx) => {
+                            const itemKey = `${msg.id}-speaker-${idx}`;
+                            const isExpanded = expandedSpeakerKeys[itemKey];
+
                             const stanceStyle =
                               utt.stanceLabel === '推進'
                                 ? 'bg-emerald-950/90 text-emerald-300 border-emerald-700/60'
@@ -736,26 +830,67 @@ export default function LineChatModal({
                                 : 'bg-purple-600 text-white';
 
                             return (
-                              <div key={idx} className="flex items-start gap-2.5 text-xs">
-                                {/* 丸型簡易アバター */}
-                                <div className={`w-8 h-8 rounded-full ${avatarBg} font-bold text-[11px] flex items-center justify-center shrink-0 shadow-sm mt-0.5`}>
-                                  {utt.speakerName.slice(0, 2)}
+                              <div key={idx} className="bg-slate-950/90 border border-slate-800/90 rounded-xl p-3 space-y-2">
+                                {/* 上段: 一覧（アバター ＋ 氏名・所属 ＋ 立場バッジ） */}
+                                <div className="flex items-start gap-2.5 text-xs">
+                                  <div className={`w-8 h-8 rounded-full ${avatarBg} font-bold text-[11px] flex items-center justify-center shrink-0 shadow-sm mt-0.5`}>
+                                    {utt.speakerName.slice(0, 2)}
+                                  </div>
+
+                                  <div className="flex-1 space-y-1">
+                                    <div className="flex items-center gap-1.5 flex-wrap text-[11px]">
+                                      <span className="font-bold text-white text-xs">{utt.speakerName}</span>
+                                      <span className="text-slate-400 text-[10.5px]">
+                                        {utt.partyName ? `${utt.partyName} / ` : ''}{utt.committeeName || utt.speakerRole}
+                                      </span>
+                                      <span className={`px-1.5 py-0.2 rounded text-[9.5px] font-semibold border ${stanceStyle}`}>
+                                        {utt.stanceLabel}
+                                      </span>
+                                    </div>
+                                    <div className="text-slate-200 text-xs font-normal leading-relaxed">
+                                      💬「{utt.summaryQuote}」
+                                    </div>
+                                  </div>
                                 </div>
 
-                                {/* 発言者詳細 ＋ 吹き出し */}
-                                <div className="flex-1 space-y-1">
-                                  <div className="flex items-center gap-1.5 flex-wrap text-[11px]">
-                                    <span className="font-bold text-white text-xs">{utt.speakerName}</span>
-                                    <span className="text-slate-400 text-[10.5px]">
-                                      {utt.partyName ? `${utt.partyName} / ` : ''}{utt.committeeName || utt.speakerRole}
-                                    </span>
-                                    <span className={`px-1.5 py-0.2 rounded text-[9.5px] font-semibold border ${stanceStyle}`}>
-                                      {utt.stanceLabel}
-                                    </span>
-                                  </div>
-                                  <div className="bg-slate-950 border border-slate-800/90 p-2.5 rounded-2xl rounded-tl-xs text-slate-200 leading-relaxed font-normal">
-                                    💬「{utt.summaryQuote}」
-                                  </div>
+                                {/* 下段: 深掘り展開トグルボタン ＆ 展開コンテンツ */}
+                                <div className="pt-1.5 border-t border-slate-900/80 flex flex-col items-end">
+                                  <button
+                                    onClick={() => toggleSpeakerExpand(itemKey)}
+                                    className="text-[11px] text-emerald-400 hover:text-emerald-300 font-semibold flex items-center gap-1 transition-colors py-0.5 px-2 rounded bg-slate-900 border border-slate-800"
+                                  >
+                                    <span>{isExpanded ? '発言の要旨・原文抜粋をたたむ ▴' : '発言の要旨・原文抜粋をみる ▾'}</span>
+                                  </button>
+
+                                  {isExpanded && (
+                                    <div className="w-full mt-2.5 space-y-2 text-xs bg-slate-900/90 border border-slate-800 p-3 rounded-lg text-slate-300 animate-fade-in">
+                                      <div>
+                                        <div className="text-[10px] text-emerald-400 font-bold uppercase tracking-wider mb-0.5">💡 発言の要旨詳細</div>
+                                        <div className="text-slate-200 leading-relaxed font-normal">{utt.fullSummary || utt.summaryQuote}</div>
+                                      </div>
+
+                                      <div>
+                                        <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mb-0.5">💬 公式会議録 原文抜粋</div>
+                                        <div className="bg-slate-950 p-2.5 rounded border border-slate-800/80 text-[11.5px] italic text-slate-300 leading-relaxed">
+                                          {utt.sourceExcerpt || `「${utt.summaryQuote}」`}
+                                        </div>
+                                      </div>
+
+                                      <div className="flex items-center justify-between text-[10.5px] text-slate-400 pt-1.5 border-t border-slate-800/60 flex-wrap gap-2">
+                                        <div>
+                                          📍 審議会議: <span className="text-slate-300 font-medium">{utt.meetingName || '令和8年 第1回定例会 本会議・委員会'}</span>
+                                        </div>
+                                        <a
+                                          href={utt.sourceUrl || msg.sourceUrl || 'https://catalog.data.metro.tokyo.lg.jp/'}
+                                          target="_blank"
+                                          rel="noopener noreferrer"
+                                          className="text-emerald-400 hover:underline flex items-center gap-1 font-semibold"
+                                        >
+                                          <span>公式議事録の原典を確認 ↗</span>
+                                        </a>
+                                      </div>
+                                    </div>
+                                  )}
                                 </div>
                               </div>
                             );
@@ -763,7 +898,7 @@ export default function LineChatModal({
                         </div>
 
                         <p className="text-[10px] text-slate-400 font-normal pt-0.5">
-                          ※上記は議事録をもとにした発言の要旨です。正確な表現は原文をご確認ください。
+                          ※各発言者の右下ボタンをタップすると、公式会議録の原文抜粋および詳細な答弁内容を無制限に展開して閲覧できます。
                         </p>
                       </div>
                     )}
