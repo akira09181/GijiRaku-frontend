@@ -14,6 +14,10 @@ import {
   ExternalLink,
   Bot,
   Sparkles,
+  Calendar,
+  MessageSquare,
+  CheckCircle2,
+  AlertCircle,
 } from 'lucide-react';
 import { Assembly } from '../types/assembly';
 import { incrementEbpmReactionCount } from '../utils/ebpmStore';
@@ -30,11 +34,23 @@ export interface AiChainStep {
   readonly status?: string;
 }
 
+export interface TimelineItem {
+  readonly date: string;
+  readonly event: string;
+  readonly status?: 'completed' | 'active' | 'upcoming';
+}
+
+export interface PolicyArguments {
+  readonly supporting: readonly string[];
+  readonly concerns: readonly string[];
+}
+
 export interface StructuredSummary {
   readonly whatChanges: string;
   readonly targetAudience: string;
   readonly currentStage: string;
   readonly budgetInfo?: string;
+  readonly nextStep?: string;
 }
 
 interface Message {
@@ -42,6 +58,8 @@ interface Message {
   readonly sender: 'user' | 'assistant';
   readonly plainText: string;
   readonly structuredSummary?: StructuredSummary;
+  readonly timeline?: readonly TimelineItem[];
+  readonly policyArguments?: PolicyArguments;
   readonly speaker?: string;
   readonly speakerTitle?: string;
   readonly date?: string;
@@ -126,6 +144,22 @@ export default function LineChatModal({
             : `${assembly.name}にお住まいの子育て世帯・ご家庭および関係住民の皆様`,
           currentStage: '2026年 当初予算案を審議中（決定後に運用スタート予定）',
           budgetInfo: '所得制限なしの重点事業として予算計上（都の重点施策）',
+          nextStep: '予算案可決後、2026年度中の制度開始に向け準備進行予定',
+        },
+        timeline: [
+          { date: '2026-02-20', event: '令和8年度当初予算案 提出', status: 'completed' },
+          { date: '2026-03-05', event: '予算特別委員会で詳細審議', status: 'active' },
+          { date: '2026-03-25', event: '本会議で採決予定（可決後に準備開始）', status: 'upcoming' },
+        ],
+        policyArguments: {
+          supporting: [
+            '子育て世帯の経済的負担を抜本的に軽減できる',
+            '若年世代の定住促進と地域活性化につながる',
+          ],
+          concerns: [
+            '継続的な年間財源の確保に関する検証が必要',
+            '受入枠（保育士・施設容量）の確保が課題',
+          ],
         },
         speaker: isTokyo ? '小池 百合子' : assembly.mayorName,
         speakerTitle: isTokyo ? '東京都知事' : '首長答弁',
@@ -157,6 +191,22 @@ export default function LineChatModal({
           targetAudience: `${assembly.name}にお住まいで対象手続きを行う区民・市民の皆様`,
           currentStage: '予算特別委員会にて具体仕様および実施ロードマップを審議中',
           budgetInfo: 'システム構築およびオンライン申請運用予算を令和8年度に計上',
+          nextStep: '委員会での承認後、本年度中にオンライン申請システム構築を開始',
+        },
+        timeline: [
+          { date: '2026-02-15', event: 'オンライン化基本構想の発表', status: 'completed' },
+          { date: '2026-03-10', event: '委員会審査・システム予算採決', status: 'active' },
+          { date: '2026-10-01', event: 'スマホ完結申請サービスの運用開始予定', status: 'upcoming' },
+        ],
+        policyArguments: {
+          supporting: [
+            '役所窓口の待ち時間をゼロにし、24時間申請を可能にする',
+            'ペーパーレス化による行政コストの削減',
+          ],
+          concerns: [
+            '高齢者やスマホ未保有者へのサポート体制の準備が必要',
+            '個人情報・セキュリティ対策の徹底が求められる',
+          ],
         },
         speaker: '議会事務局 / 担当委員会',
         speakerTitle: '予算特別委員会',
@@ -435,6 +485,58 @@ export default function LineChatModal({
                       </div>
                     )}
 
+                    {/* スケジュール・時間軸 (Timeline) */}
+                    {msg.timeline && msg.timeline.length > 0 && (
+                      <div className="pt-2.5 border-t border-slate-800/80 space-y-1.5">
+                        <div className="text-[11px] font-bold text-slate-300 flex items-center gap-1.5">
+                          <Calendar className="w-3.5 h-3.5 text-emerald-400" />
+                          <span>今後のスケジュール・時系列</span>
+                        </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                          {msg.timeline.map((item, idx) => (
+                            <div key={idx} className="bg-slate-950/80 p-2 rounded-lg border border-slate-800/80 text-[11px]">
+                              <div className="text-[10px] text-emerald-400 font-mono font-semibold">{item.date}</div>
+                              <div className="text-slate-200 font-medium leading-tight mt-0.5">{item.event}</div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* 議会での主な論点 (Supporting vs Concerns) */}
+                    {msg.policyArguments && (
+                      <div className="pt-2.5 border-t border-slate-800/80 space-y-2">
+                        <div className="text-[11px] font-bold text-slate-300 flex items-center gap-1.5">
+                          <MessageSquare className="w-3.5 h-3.5 text-emerald-400" />
+                          <span>議会での主な論点（審議内容）</span>
+                        </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px]">
+                          <div className="bg-emerald-950/40 p-2.5 rounded-xl border border-emerald-800/40 space-y-1">
+                            <div className="text-[10.5px] font-bold text-emerald-400 flex items-center gap-1">
+                              <CheckCircle2 className="w-3 h-3" />
+                              <span>賛成理由・推進側の主な意見</span>
+                            </div>
+                            <ul className="list-disc list-inside space-y-0.5 text-slate-300 text-[10.5px]">
+                              {msg.policyArguments.supporting.map((arg, idx) => (
+                                <li key={idx}>{arg}</li>
+                              ))}
+                            </ul>
+                          </div>
+                          <div className="bg-rose-950/40 p-2.5 rounded-xl border border-rose-800/40 space-y-1">
+                            <div className="text-[10.5px] font-bold text-rose-400 flex items-center gap-1">
+                              <AlertCircle className="w-3 h-3" />
+                              <span>慎重論・懸念される主な点</span>
+                            </div>
+                            <ul className="list-disc list-inside space-y-0.5 text-slate-300 text-[10.5px]">
+                              {msg.policyArguments.concerns.map((arg, idx) => (
+                                <li key={idx}>{arg}</li>
+                              ))}
+                            </ul>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
                     {/* 【ブロック4】根拠は？ (公式会議録 原文引用 & オープンデータリンク) */}
                     {msg.originalQuote && (
                       <div className="pt-2 border-t border-slate-800/80 space-y-2">
@@ -469,41 +571,43 @@ export default function LineChatModal({
 
                     {/* 補助情報: 市民の反応 (賛成・懸念) & 検証ステップ */}
                     <div className="pt-2 border-t border-slate-800/80 flex items-center justify-between gap-2 flex-wrap text-xs">
-                      <div className="flex items-center gap-2">
-                        <span className="text-[10.5px] text-slate-400">市民の反応:</span>
-                        <button
-                          onClick={() => handleVote(msg.id, 'agree')}
-                          className={`px-2.5 py-1 rounded-lg text-xs font-medium border flex items-center gap-1 transition-colors ${
-                            hasVoted === 'agree'
-                              ? 'bg-emerald-600/20 text-emerald-300 border-emerald-500/40'
-                              : 'bg-slate-800 hover:bg-slate-750 text-slate-300 border-slate-700'
-                          }`}
-                        >
-                          <ThumbsUp className="w-3 h-3" />
-                          <span>賛成</span>
-                          {msg.agreeCount !== undefined && (
-                            <span className="text-[10px] text-slate-400 font-mono">
-                              {msg.agreeCount}
-                            </span>
-                          )}
-                        </button>
-                        <button
-                          onClick={() => handleVote(msg.id, 'disagree')}
-                          className={`px-2.5 py-1 rounded-lg text-xs font-medium border flex items-center gap-1 transition-colors ${
-                            hasVoted === 'disagree'
-                              ? 'bg-rose-600/20 text-rose-300 border-rose-500/40'
-                              : 'bg-slate-800 hover:bg-slate-750 text-slate-300 border-slate-700'
-                          }`}
-                        >
-                          <ThumbsDown className="w-3 h-3" />
-                          <span>懸念</span>
-                          {msg.disagreeCount !== undefined && (
-                            <span className="text-[10px] text-slate-400 font-mono">
-                              {msg.disagreeCount}
-                            </span>
-                          )}
-                        </button>
-                      </div>
+                      {(msg.agreeCount !== undefined || msg.disagreeCount !== undefined) && (
+                        <div className="flex items-center gap-2">
+                          <span className="text-[10.5px] text-slate-400">市民の反応:</span>
+                          <button
+                            onClick={() => handleVote(msg.id, 'agree')}
+                            className={`px-2.5 py-1 rounded-lg text-xs font-medium border flex items-center gap-1 transition-colors ${
+                              hasVoted === 'agree'
+                                ? 'bg-emerald-600/20 text-emerald-300 border-emerald-500/40'
+                                : 'bg-slate-800 hover:bg-slate-750 text-slate-300 border-slate-700'
+                            }`}
+                          >
+                            <ThumbsUp className="w-3 h-3" />
+                            <span>賛成</span>
+                            {msg.agreeCount !== undefined && (
+                              <span className="text-[10px] text-slate-400 font-mono">
+                                {msg.agreeCount}
+                              </span>
+                            )}
+                          </button>
+                          <button
+                            onClick={() => handleVote(msg.id, 'disagree')}
+                            className={`px-2.5 py-1 rounded-lg text-xs font-medium border flex items-center gap-1 transition-colors ${
+                              hasVoted === 'disagree'
+                                ? 'bg-rose-600/20 text-rose-300 border-rose-500/40'
+                                : 'bg-slate-800 hover:bg-slate-750 text-slate-300 border-slate-700'
+                            }`}
+                          >
+                            <ThumbsDown className="w-3 h-3" />
+                            <span>懸念</span>
+                            {msg.disagreeCount !== undefined && (
+                              <span className="text-[10px] text-slate-400 font-mono">
+                                {msg.disagreeCount}
+                              </span>
+                            )}
+                          </button>
+                        </div>
+                      )}
 
                       <button
                         onClick={() => toggleChain(msg.id)}
