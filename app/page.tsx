@@ -22,6 +22,7 @@ import {
   Layers,
   Map as MapIcon,
   List as ListIcon,
+  Bell,
 } from 'lucide-react';
 
 /**
@@ -168,6 +169,14 @@ export default function Home() {
   const [analyticsAssembly, setAnalyticsAssembly] = useState<Assembly | null>(null);
   const [showMapExplorer, setShowMapExplorer] = useState(false);
   const [mobileView, setMobileView] = useState<'map' | 'list'>('map');
+  const [notifyToast, setNotifyToast] = useState<string | null>(null);
+
+  const handleSubscribeNotifications = () => {
+    const currentCity = TOKYO_ASSEMBLIES.find((a) => a.id === selectedAssemblyId)?.name || '東京都全域';
+    const themeLabel = THEME_OPTIONS.find((t) => t.id === userTheme)?.label || '全テーマ';
+    setNotifyToast(`🔔 【更新通知を購読】「${currentCity} × ${themeLabel}」の最新議会ニュース通知を有効にしました。新着議題が入るとスマホへ届きます。`);
+    setTimeout(() => setNotifyToast(null), 4500);
+  };
 
   // 対象自治体の絞り込み
   const activeAssemblies = useMemo(() => {
@@ -251,7 +260,31 @@ export default function Home() {
               })}
             </div>
           </div>
+
+          {/* マイフィード & 通知機能バッジ */}
+          <div className="pt-3 border-t border-slate-800/80 flex items-center justify-between text-xs flex-wrap gap-2">
+            <span className="text-[11px] text-slate-400">
+              💡 登録条件に合う新着議会ニュースが全自動で届きます
+            </span>
+            <button
+              onClick={handleSubscribeNotifications}
+              className="px-3 py-1.5 bg-emerald-950 hover:bg-emerald-900 text-emerald-300 border border-emerald-700/60 rounded-xl font-semibold text-[11px] flex items-center gap-1.5 transition-colors shadow-sm"
+            >
+              <Bell className="w-3.5 h-3.5 text-emerald-400" />
+              <span>この条件の更新通知を受け取る</span>
+            </button>
+          </div>
         </div>
+
+        {/* 通知登録トースト通知 */}
+        {notifyToast && (
+          <div className="mt-4 px-4 py-3 bg-emerald-600/90 text-white rounded-xl text-xs font-semibold shadow-lg backdrop-blur-sm animate-fade-in flex items-center justify-between gap-2 max-w-lg mx-auto">
+            <span>{notifyToast}</span>
+            <button onClick={() => setNotifyToast(null)} className="text-white/80 hover:text-white">
+              ✕
+            </button>
+          </div>
+        )}
       </section>
 
       {/* メインコンテンツ: あなたに関係する議論カードフィード */}

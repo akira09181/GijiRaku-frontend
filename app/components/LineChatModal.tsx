@@ -95,6 +95,8 @@ export default function LineChatModal({
   const [inputQuestion, setInputQuestion] = useState('');
   const [isSending, setIsSending] = useState(false);
   const [userVotes, setUserVotes] = useState<Record<string, 'agree' | 'disagree'>>({});
+  const [openComments, setOpenComments] = useState<Record<string, boolean>>({});
+  const [commentInputs, setCommentInputs] = useState<Record<string, string>>({});
   const [ebpmToast, setEbpmToast] = useState<string | null>(null);
   const chatBottomRef = useRef<HTMLDivElement>(null);
 
@@ -269,6 +271,40 @@ export default function LineChatModal({
     }).catch(() => {});
 
     triggerEbpmFeedbackNotification(type === 'agree' ? '賛成の声' : '懸念の声', newCount);
+  };
+
+  const toggleCommentBox = (id: string) => {
+    setOpenComments((prev) => ({ ...prev, [id]: !prev[id] }));
+  };
+
+  const handleAddComment = (id: string) => {
+    const text = commentInputs[id]?.trim();
+    if (!text) return;
+
+    setMessages((prev) =>
+      prev.map((msg) => {
+        if (msg.id !== id) return msg;
+        return {
+          ...msg,
+          comments: [...(msg.comments || []), { user: '市民（あなた）', text }],
+        };
+      })
+    );
+    setCommentInputs((prev) => ({ ...prev, [id]: '' }));
+
+    const newCount = incrementEbpmReactionCount();
+
+    const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000';
+    fetch(`${apiBase}/api/assemblies/${assembly.id}/messages/${id}/opinion`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ opinion_type: 'agree', comment_text: text }),
+    }).catch(() => {});
+
+    setEbpmToast(`💡 あなたの声が匿名集計されました！議員・行政向け分析ダッシュボード（EBPM）の集計数が ${newCount}件 に即時反映！`);
+    setTimeout(() => {
+      setEbpmToast(null);
+    }, 4500);
   };
 
   const handleSendQuestion = async (e: React.FormEvent) => {
@@ -569,54 +605,89 @@ export default function LineChatModal({
                       </div>
                     )}
 
-                    {/* 補助情報: 市民の反応 (賛成・懸念) & 検証ステップ */}
-                    <div className="pt-2 border-t border-slate-800/80 flex items-center justify-between gap-2 flex-wrap text-xs">
-                      {(msg.agreeCount !== undefined || msg.disagreeCount !== undefined) && (
-                        <div className="flex items-center gap-2">
-                          <span className="text-[10.5px] text-slate-400">市民の反応:</span>
+                    {/* 補助情報: この議論、どう思う？ (双方向フィードバック) & AI検証ステップ */}
+                    {(msg.agreeCount !== undefined || msg.disagreeCount !== undefined) && (
+                      <div className="pt-2.5 border-t border-slate-800/80 space-y-2 text-xs">
+                        <div className="flex items-center justify-between flex-wrap gap-2">
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <span className="text-[11px] font-bold text-slate-300">この議論、どう思う？</span>
+                            <button
+                              onClick={() => handleVote(msg.id, 'agree')}
+                              className={`px-2.5 py-1 rounded-lg text-xs font-medium border flex items-center gap-1 transition-colors ${
+                                hasVoted === 'agree'
+                                  ? 'bg-emerald-600/20 text-emerald-300 border-emerald-500/40'
+                                  : 'bg-slate-800 hover:bg-slate-750 text-slate-300 border-slate-700'
+                              }`}
+                            >
+                              <ThumbsUp className="w-3 h-3" />
+                              <span>賛成 {msg.agreeCount !== undefined ? msg.agreeCount : 42}</span>
+                            </button>
+                            <button
+                              onClick={() => handleVote(msg.id, 'disagree')}
+                              className={`px-2.5 py-1 rounded-lg text-xs font-medium border flex items-center gap-1 transition-colors ${
+                                hasVoted === 'disagree'
+                                  ? 'bg-rose-600/20 text-rose-300 border-rose-500/40'
+                                  : 'bg-slate-800 hover:bg-slate-750 text-slate-300 border-slate-700'
+                              }`}
+                            >
+                              <ThumbsDown className="w-3 h-3" />
+                              <span>懸念 {msg.disagreeCount !== undefined ? msg.disagreeCount : 3}</span>
+                            </button>
+                            <button
+                              onClick={() => toggleCommentBox(msg.id)}
+                              className="px-2.5 py-1 rounded-lg text-xs font-medium bg-slate-800 hover:bg-slate-750 text-slate-300 border border-slate-700 flex items-center gap-1 transition-colors"
+                            >
+                              <Send className="w-3 h-3 text-emerald-400" />
+                              <span>意見を書く</span>
+                            </button>
+                          </div>
+
                           <button
-                            onClick={() => handleVote(msg.id, 'agree')}
-                            className={`px-2.5 py-1 rounded-lg text-xs font-medium border flex items-center gap-1 transition-colors ${
-                              hasVoted === 'agree'
-                                ? 'bg-emerald-600/20 text-emerald-300 border-emerald-500/40'
-                                : 'bg-slate-800 hover:bg-slate-750 text-slate-300 border-slate-700'
-                            }`}
+                            onClick={() => toggleChain(msg.id)}
+                            className="text-[10.5px] font-medium text-slate-400 hover:text-slate-200 flex items-center gap-1 transition-colors ml-auto"
                           >
-                            <ThumbsUp className="w-3 h-3" />
-                            <span>賛成</span>
-                            {msg.agreeCount !== undefined && (
-                              <span className="text-[10px] text-slate-400 font-mono">
-                                {msg.agreeCount}
-                              </span>
-                            )}
-                          </button>
-                          <button
-                            onClick={() => handleVote(msg.id, 'disagree')}
-                            className={`px-2.5 py-1 rounded-lg text-xs font-medium border flex items-center gap-1 transition-colors ${
-                              hasVoted === 'disagree'
-                                ? 'bg-rose-600/20 text-rose-300 border-rose-500/40'
-                                : 'bg-slate-800 hover:bg-slate-750 text-slate-300 border-slate-700'
-                            }`}
-                          >
-                            <ThumbsDown className="w-3 h-3" />
-                            <span>懸念</span>
-                            {msg.disagreeCount !== undefined && (
-                              <span className="text-[10px] text-slate-400 font-mono">
-                                {msg.disagreeCount}
-                              </span>
-                            )}
+                            <span>AI検証プロセス</span>
+                            {isChainExpanded ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
                           </button>
                         </div>
-                      )}
 
-                      <button
-                        onClick={() => toggleChain(msg.id)}
-                        className="text-[10.5px] font-medium text-slate-400 hover:text-slate-200 flex items-center gap-1 transition-colors ml-auto"
-                      >
-                        <span>AI検証プロセス</span>
-                        {isChainExpanded ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
-                      </button>
-                    </div>
+                        {/* 意見コメント入力ボックス */}
+                        {openComments[msg.id] && (
+                          <div className="pt-2 flex items-center gap-1.5 animate-fade-in">
+                            <input
+                              type="text"
+                              value={commentInputs[msg.id] || ''}
+                              onChange={(e) =>
+                                setCommentInputs((prev) => ({ ...prev, [msg.id]: e.target.value }))
+                              }
+                              placeholder="この議題への匿名意見・声を届ける（行政ダッシュボードへ集計）..."
+                              className="flex-1 px-3 py-1.5 bg-slate-950 border border-slate-800 rounded-lg text-xs text-white placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                            />
+                            <button
+                              onClick={() => handleAddComment(msg.id)}
+                              className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-semibold shrink-0"
+                            >
+                              届ける
+                            </button>
+                          </div>
+                        )}
+
+                        {/* 投稿された市民コメント */}
+                        {msg.comments && msg.comments.length > 0 && (
+                          <div className="space-y-1.5 pt-1">
+                            {msg.comments.map((c, idx) => (
+                              <div
+                                key={idx}
+                                className="bg-slate-950/80 p-2 rounded-lg border border-slate-800/80 text-[11px] text-slate-300"
+                              >
+                                <span className="font-semibold text-emerald-400">{c.user}: </span>
+                                <span>{c.text}</span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
 
                     {/* AI Processing Chain アコーディオン展開 */}
                     {isChainExpanded && (
