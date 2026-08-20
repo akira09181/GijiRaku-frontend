@@ -643,9 +643,9 @@ export default function LineChatModal({
     incrementEbpmReactionCount();
 
     if (newVote === null) {
-      setEbpmToast(`ℹ️ 「${speakerName}」の発言へのリアクションを取り消しました`);
+      setEbpmToast(`ℹ️ 「${speakerName}」議員の発言へのリアクションを取り消しました`);
     } else if (currentVote !== null) {
-      setEbpmToast(`👍 あなたの「${speakerName}」の発言へのリアクションを【${typeLabel}】に変更しました！（集計 ${nextCounts[type]}件）`);
+      setEbpmToast(`👍 「${speakerName}」議員の発言へのリアクションを【${typeLabel}】に変更しました！（集計: ${nextCounts[type]}件）`);
     } else {
       triggerEbpmFeedbackNotification(speakerName, typeLabel, nextCounts[type]);
     }
@@ -677,8 +677,7 @@ export default function LineChatModal({
     }));
     setUtteranceCommentInputs((prev) => ({ ...prev, [uttKey]: '' }));
 
-    const newCount = incrementEbpmReactionCount();
-    setEbpmToast(`💡 【EBPM連動】「${speakerName}議員の発言」へ市民意見『${text}』が集計されました！行政向け分析ダッシュボード(累積${newCount}件)に即時反映！`);
+    setEbpmToast(`💬 「${speakerName}」議員の発言にご意見を届けました！`);
     setTimeout(() => setEbpmToast(null), 4500);
 
     try {
@@ -850,7 +849,7 @@ export default function LineChatModal({
   };
 
   const triggerEbpmFeedbackNotification = (speakerName: string, typeStr: string, updatedCount: number) => {
-    setEbpmToast(`👍 あなたの「${speakerName}」の発言へのリアクション【${typeStr}】が送信されました！（集計 ${updatedCount}件）`);
+    setEbpmToast(`👍 「${speakerName}」議員の発言に【${typeStr}】を届けました！（集計: ${updatedCount}件）`);
     setTimeout(() => {
       setEbpmToast(null);
     }, 4000);
