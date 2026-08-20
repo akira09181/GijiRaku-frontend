@@ -16,12 +16,12 @@ export default function Header({
   onOpenAnalytics,
 }: HeaderProps) {
   const [theme, setTheme] = useState<'dark' | 'light'>(() => {
-    if (typeof window === 'undefined') return 'dark';
+    if (typeof window === 'undefined') return 'light';
     try {
       const storedTheme = localStorage.getItem('gijiraku_theme') as 'dark' | 'light' | null;
-      return storedTheme || 'dark';
+      return storedTheme || 'light';
     } catch {
-      return 'dark';
+      return 'light';
     }
   });
 
