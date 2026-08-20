@@ -21,7 +21,7 @@ import {
   Users,
 } from 'lucide-react';
 import { Assembly } from '../types/assembly';
-import { incrementEbpmReactionCount } from '../utils/ebpmStore';
+import { incrementEbpmReactionCount, decrementEbpmReactionCount } from '../utils/ebpmStore';
 
 interface Comment {
   readonly user: string;
@@ -640,13 +640,14 @@ export default function LineChatModal({
     }
 
     const typeLabel = type === 'agree' ? '👍 賛成' : type === 'concern' ? '⚠️ 気になる' : '💡 参考';
-    incrementEbpmReactionCount();
 
     if (newVote === null) {
-      setEbpmToast(`ℹ️ 「${speakerName}」議員の発言へのリアクションを取り消しました`);
+      decrementEbpmReactionCount();
+      setEbpmToast(`ℹ️ 「${speakerName}」議員の発言へのリアクションを取り消しました（集計: ${nextCounts[type]}件）`);
     } else if (currentVote !== null) {
       setEbpmToast(`👍 「${speakerName}」議員の発言へのリアクションを【${typeLabel}】に変更しました！（集計: ${nextCounts[type]}件）`);
     } else {
+      incrementEbpmReactionCount();
       triggerEbpmFeedbackNotification(speakerName, typeLabel, nextCounts[type]);
     }
     setTimeout(() => setEbpmToast(null), 4000);

@@ -22,3 +22,12 @@ export function incrementEbpmReactionCount(): number {
   window.dispatchEvent(new CustomEvent('ebpm_count_updated', { detail: { count: next } }));
   return next;
 }
+
+export function decrementEbpmReactionCount(): number {
+  if (typeof window === 'undefined') return DEFAULT_COUNT;
+  const current = getEbpmReactionCount();
+  const next = Math.max(DEFAULT_COUNT, current - 1);
+  localStorage.setItem(STORAGE_KEY, next.toString());
+  window.dispatchEvent(new CustomEvent('ebpm_count_updated', { detail: { count: next } }));
+  return next;
+}
