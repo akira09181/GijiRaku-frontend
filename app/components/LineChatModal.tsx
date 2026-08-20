@@ -390,16 +390,26 @@ export default function LineChatModal({
     setExpandedSpeakerKeys((prev) => ({ ...prev, [key]: !prev[key] }));
   };
 
-  const [utteranceVotes, setUtteranceVotes] = useState<Record<string, 'agree' | 'concern' | 'helpful'>>(() => {
+  const [utteranceVotes, setUtteranceVotes] = useState<Record<string, 'agree' | 'concern' | 'helpful' | null>>(() => {
     if (typeof window === 'undefined') return {};
     try {
-      const stored = localStorage.getItem('gijiraku_voted_statements');
+      const stored = localStorage.getItem('gijiraku_voted_statements_v2');
       return stored ? JSON.parse(stored) : {};
     } catch {
       return {};
     }
   });
-  const [utteranceCounts, setUtteranceCounts] = useState<Record<string, { agree: number; concern: number; helpful: number }>>({});
+
+  const [utteranceCounts, setUtteranceCounts] = useState<Record<string, { agree: number; concern: number; helpful: number }>>(() => {
+    if (typeof window === 'undefined') return {};
+    try {
+      const stored = localStorage.getItem('gijiraku_statement_counts_v2');
+      return stored ? JSON.parse(stored) : {};
+    } catch {
+      return {};
+    }
+  });
+
   const [openUtteranceComments, setOpenUtteranceComments] = useState<Record<string, boolean>>({});
   const [utteranceCommentInputs, setUtteranceCommentInputs] = useState<Record<string, string>>({});
   const [utteranceCommentsList, setUtteranceCommentsList] = useState<Record<string, Array<{ user: string; text: string }>>>({});
@@ -410,30 +420,49 @@ export default function LineChatModal({
     type: 'agree' | 'concern' | 'helpful',
     defaultCounts: { agree: number; concern: number; helpful: number }
   ) => {
-    if (utteranceVotes[uttKey]) return;
+    const currentVote = utteranceVotes[uttKey] || null;
+    const currentCounts = utteranceCounts[uttKey] || { ...defaultCounts };
 
-    const nextVotes = { ...utteranceVotes, [uttKey]: type };
+    let newVote: 'agree' | 'concern' | 'helpful' | null = type;
+    const nextCounts = { ...currentCounts };
+
+    if (currentVote === type) {
+      // Untoggle reaction
+      newVote = null;
+      nextCounts[type] = Math.max(0, nextCounts[type] - 1);
+    } else if (currentVote !== null) {
+      // Switch reaction from currentVote -> type
+      nextCounts[currentVote] = Math.max(0, nextCounts[currentVote] - 1);
+      nextCounts[type] = nextCounts[type] + 1;
+    } else {
+      // First reaction
+      nextCounts[type] = nextCounts[type] + 1;
+    }
+
+    const nextVotes = { ...utteranceVotes, [uttKey]: newVote };
     setUtteranceVotes(nextVotes);
+
+    const nextAllCounts = { ...utteranceCounts, [uttKey]: nextCounts };
+    setUtteranceCounts(nextAllCounts);
+
     try {
-      localStorage.setItem('gijiraku_voted_statements', JSON.stringify(nextVotes));
+      localStorage.setItem('gijiraku_voted_statements_v2', JSON.stringify(nextVotes));
+      localStorage.setItem('gijiraku_statement_counts_v2', JSON.stringify(nextAllCounts));
     } catch {
       // ignore
     }
 
-    setUtteranceCounts((prev) => {
-      const current = prev[uttKey] || defaultCounts;
-      return {
-        ...prev,
-        [uttKey]: {
-          ...current,
-          [type]: current[type] + 1,
-        },
-      };
-    });
+    const typeLabel = type === 'agree' ? '👍 賛成' : type === 'concern' ? '⚠️ 気になる' : '💡 参考';
+    const newGlobalCount = incrementEbpmReactionCount();
 
-    const newCount = incrementEbpmReactionCount();
-    const typeLabel = type === 'agree' ? '👍 賛成' : type === 'concern' ? '⚠️ 気になる' : '💡 参考になった';
-    triggerEbpmFeedbackNotification(`『${speakerName}』の発言へのリアクション（${typeLabel}）`, newCount);
+    if (newVote === null) {
+      setEbpmToast(`ℹ️ 「${speakerName}」の発言へのリアクションを取り消しました`);
+    } else if (currentVote !== null) {
+      setEbpmToast(`👍 あなたの「${speakerName}」の発言へのリアクションを【${typeLabel}】に変更しました！（集計 ${nextCounts[type]}件）`);
+    } else {
+      triggerEbpmFeedbackNotification(`あなたの「${speakerName}」の発言へのリアクション（${typeLabel}）`, newGlobalCount);
+    }
+    setTimeout(() => setEbpmToast(null), 4000);
 
     try {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
