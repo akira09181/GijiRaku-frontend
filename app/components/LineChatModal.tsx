@@ -995,7 +995,7 @@ export default function LineChatModal({
   return createPortal(
     <div className="fixed inset-0 z-50 flex items-center justify-center sm:p-4 bg-black/70 backdrop-blur-sm animate-fade-in">
       {/* モーダルコンテナ（モバイルでは全画面、PCではカード） */}
-      <div className="w-full h-full sm:h-[88vh] sm:max-w-2xl bg-slate-950 sm:rounded-3xl border border-slate-800 shadow-2xl flex flex-col overflow-hidden relative">
+      <div className="w-full h-full sm:h-[88vh] sm:max-w-2xl dark:bg-slate-950 dark:border-slate-800 dark:text-slate-100 bg-white border-slate-200 text-slate-900 sm:rounded-3xl border shadow-2xl flex flex-col overflow-hidden relative">
         {/* EBPMリアルタイム連動トーストバナー */}
         {ebpmToast && (
           <div className="absolute top-14 left-4 right-4 z-50 bg-emerald-500 text-slate-950 px-4 py-2.5 rounded-xl font-bold text-xs shadow-lg flex items-center justify-between animate-bounce">
@@ -1005,22 +1005,22 @@ export default function LineChatModal({
         )}
 
         {/* ヘッダー */}
-        <div className="bg-slate-900 border-b border-slate-800 px-4 py-3 sm:px-5 sm:py-3.5 flex items-center justify-between shrink-0">
+        <div className="dark:bg-slate-900 dark:border-slate-800 bg-slate-100 border-slate-200 border-b px-4 py-3 sm:px-5 sm:py-3.5 flex items-center justify-between shrink-0">
           <div className="flex items-center gap-2.5 min-w-0">
-            <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-slate-800 border border-slate-700 flex items-center justify-center text-emerald-400 shrink-0">
+            <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl dark:bg-slate-800 dark:border-slate-700 bg-white border-slate-300 border flex items-center justify-center text-emerald-600 dark:text-emerald-400 shrink-0">
               <Building2 className="w-4 h-4" />
             </div>
             <div className="min-w-0">
               <div className="flex items-center gap-1.5">
-                <h3 className="font-bold text-sm sm:text-base text-white truncate">
+                <h3 className="font-bold text-sm sm:text-base dark:text-white text-slate-900 truncate">
                   マチボイス ({assembly.name})
                 </h3>
-                <span className="px-2 py-0.5 rounded-full text-[10px] bg-slate-800 text-emerald-400 border border-slate-700 font-medium shrink-0 flex items-center gap-1">
-                  <Sparkles className="w-3 h-3 text-emerald-400" />
+                <span className="px-2 py-0.5 rounded-full text-[10px] dark:bg-slate-800 dark:text-emerald-400 dark:border-slate-700 bg-emerald-50 text-emerald-700 border-emerald-300 border font-medium shrink-0 flex items-center gap-1">
+                  <Sparkles className="w-3 h-3 text-emerald-600 dark:text-emerald-400" />
                   公式データ連携
                 </span>
               </div>
-              <p className="text-[11px] text-slate-400 truncate">
+              <p className="text-[11px] dark:text-slate-400 text-slate-500 truncate">
                 公式議事録・発言データの要約・質問アシスタント
               </p>
             </div>
@@ -1028,7 +1028,7 @@ export default function LineChatModal({
 
           <button
             onClick={onClose}
-            className="w-8 h-8 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white flex items-center justify-center transition-colors"
+            className="w-8 h-8 rounded-xl dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-400 text-slate-500 hover:bg-slate-200 bg-slate-200/60 flex items-center justify-center transition-colors"
             aria-label="閉じる"
           >
             <X className="w-4 h-4" />
@@ -1036,15 +1036,15 @@ export default function LineChatModal({
         </div>
 
         {/* クイック質問チップ（横スクロール） */}
-        <div className="bg-slate-900/60 border-b border-slate-800/50 px-3 py-2 flex items-center gap-1.5 overflow-x-auto scrollbar-none shrink-0">
-          <span className="text-[11px] text-slate-400 font-medium shrink-0 pl-1">
+        <div className="dark:bg-slate-900/60 dark:border-slate-800/50 bg-slate-50 border-slate-200 border-b px-3 py-2 flex items-center gap-1.5 overflow-x-auto scrollbar-none shrink-0">
+          <span className="text-[11px] dark:text-slate-400 text-slate-500 font-medium shrink-0 pl-1">
             よくある質問:
           </span>
           {quickPrompts.map((prompt, i) => (
             <button
               key={i}
               onClick={() => setInputQuestion(prompt)}
-              className="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 text-xs rounded-lg whitespace-nowrap shrink-0 transition-colors"
+              className="px-2.5 py-1 dark:bg-slate-800 dark:hover:bg-slate-700 dark:border-slate-700 dark:text-slate-200 bg-white hover:bg-slate-100 border-slate-300 text-slate-700 border text-xs rounded-lg whitespace-nowrap shrink-0 transition-colors shadow-2xs"
             >
               {prompt}
             </button>
@@ -1052,7 +1052,7 @@ export default function LineChatModal({
         </div>
 
         {/* チャットメッセージログ（スクロール領域） */}
-        <div ref={chatContainerRef} className="flex-1 overflow-y-auto p-4 space-y-4 bg-slate-950">
+        <div ref={chatContainerRef} className="flex-1 overflow-y-auto p-4 space-y-4 dark:bg-slate-950 bg-slate-50/80">
           {messages.map((msg) => {
             const isUser = msg.sender === 'user';
             const isQuoteExpanded = expandedQuotes[msg.id];
@@ -1089,43 +1089,43 @@ export default function LineChatModal({
                   )}
 
                   {/* 要約本文カード (4大主要ブロック構成) */}
-                  <div className="bg-slate-900 border border-slate-800 rounded-2xl rounded-tl-sm p-4 sm:p-5 text-xs sm:text-sm text-slate-200 leading-relaxed space-y-3.5 shadow-md">
+                  <div className="dark:bg-slate-900 dark:border-slate-800 bg-white border-slate-200 border rounded-2xl rounded-tl-sm p-4 sm:p-5 text-xs sm:text-sm dark:text-slate-200 text-slate-800 leading-relaxed space-y-3.5 shadow-md">
                     
                     {/* 【ブロック1】何が変わる？ */}
                     <div className="space-y-1">
-                      <div className="flex items-center justify-between text-[11px] font-bold text-emerald-400">
+                      <div className="flex items-center justify-between text-[11px] font-bold text-emerald-600 dark:text-emerald-400">
                         <span className="flex items-center gap-1.5">
-                          <Sparkles className="w-3.5 h-3.5 text-emerald-400" />
+                          <Sparkles className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
                           <span>何が変わる？</span>
                         </span>
-                        <span className="text-[10px] px-2 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700 font-medium">
+                        <span className="text-[10px] px-2 py-0.5 rounded dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700 bg-slate-100 text-slate-700 border-slate-300 border font-medium">
                           原文検証済み
                         </span>
                       </div>
-                      <div className="text-sm sm:text-base font-bold text-white leading-snug">
+                      <div className="text-sm sm:text-base font-bold dark:text-white text-slate-900 leading-snug">
                         {msg.structuredSummary ? msg.structuredSummary.whatChanges : msg.plainText}
                       </div>
                     </div>
 
                     {/* 【ブロック2, 3, 4】誰に関係する？ × いまどの段階？ × お金・予算は？ */}
                     {msg.structuredSummary && (
-                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 pt-2 border-t border-slate-800/80">
-                        <div className="bg-slate-950 p-2.5 rounded-xl border border-slate-800/80 space-y-1">
-                          <div className="text-[10.5px] font-semibold text-slate-400">📌 誰に関係する？</div>
-                          <div className="text-xs font-semibold text-slate-200 leading-tight">
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 pt-2 border-t dark:border-slate-800/80 border-slate-200">
+                        <div className="dark:bg-slate-950 dark:border-slate-800/80 bg-slate-50 border-slate-200 border p-2.5 rounded-xl space-y-1">
+                          <div className="text-[10.5px] font-semibold dark:text-slate-400 text-slate-500">📌 誰に関係する？</div>
+                          <div className="text-xs font-semibold dark:text-slate-200 text-slate-800 leading-tight">
                             {msg.structuredSummary.targetAudience}
                           </div>
                         </div>
-                        <div className="bg-slate-950 p-2.5 rounded-xl border border-slate-800/80 space-y-1">
-                          <div className="text-[10.5px] font-semibold text-slate-400">🟡 いまどの段階？</div>
-                          <div className="text-xs font-semibold text-amber-300 flex items-center gap-1.5 leading-tight">
+                        <div className="dark:bg-slate-950 dark:border-slate-800/80 bg-slate-50 border-slate-200 border p-2.5 rounded-xl space-y-1">
+                          <div className="text-[10.5px] font-semibold dark:text-slate-400 text-slate-500">🟡 いまどの段階？</div>
+                          <div className="text-xs font-semibold text-amber-600 dark:text-amber-300 flex items-center gap-1.5 leading-tight">
                             <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse shrink-0" />
                             <span>{msg.structuredSummary.currentStage}</span>
                           </div>
                         </div>
-                        <div className="bg-slate-950 p-2.5 rounded-xl border border-slate-800/80 space-y-1">
-                          <div className="text-[10.5px] font-semibold text-slate-400">💰 お金・予算は？</div>
-                          <div className="text-xs font-semibold text-slate-300 leading-tight">
+                        <div className="dark:bg-slate-950 dark:border-slate-800/80 bg-slate-50 border-slate-200 border p-2.5 rounded-xl space-y-1">
+                          <div className="text-[10.5px] font-semibold dark:text-slate-400 text-slate-500">💰 お金・予算は？</div>
+                          <div className="text-xs font-semibold dark:text-slate-300 text-slate-700 leading-tight">
                             {msg.structuredSummary.budgetInfo || '令和8年度当初予算案に重点計上'}
                           </div>
                         </div>
@@ -1134,13 +1134,13 @@ export default function LineChatModal({
 
                     {/* 【主要ブロック】この議論で、誰が何を言った？ (一覧では軽く ➔ タップで無制限深掘り展開) */}
                     {msg.speakerUtterances && msg.speakerUtterances.length > 0 && (
-                      <div className="pt-3 border-t border-slate-800/80 space-y-2.5">
+                      <div className="pt-3 border-t dark:border-slate-800/80 border-slate-200 space-y-2.5">
                         <div className="flex items-center justify-between">
-                          <div className="text-xs font-bold text-white flex items-center gap-1.5">
-                            <Users className="w-4 h-4 text-emerald-400" />
+                          <div className="text-xs font-bold dark:text-white text-slate-900 flex items-center gap-1.5">
+                            <Users className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
                             <span>この議論で、誰が何を言った？（全{msg.speakerUtterances.length}名の発言）</span>
                           </div>
-                          <span className="text-[10px] text-slate-400 font-normal">
+                          <span className="text-[10px] dark:text-slate-400 text-slate-500 font-normal">
                             タップで原文・抜粋を展開
                           </span>
                         </div>
@@ -1152,7 +1152,7 @@ export default function LineChatModal({
 
                             const stanceStyle =
                               utt.stanceLabel === '推進'
-                                ? 'bg-emerald-950/90 text-emerald-300 border-emerald-700/60'
+                                ? 'bg-emerald-950/90 text-emerald-300 border-emerald-700/60 dark:bg-emerald-950/90 dark:text-emerald-300'
                                 : utt.stanceLabel === '条件付き賛成'
                                 ? 'bg-teal-950/90 text-teal-300 border-teal-700/60'
                                 : utt.stanceLabel === '慎重'
@@ -1180,7 +1180,7 @@ export default function LineChatModal({
                                 : 'bg-purple-600 text-white';
 
                             return (
-                              <div key={idx} className="bg-slate-950/90 border border-slate-800/90 rounded-xl p-3 space-y-2">
+                              <div key={idx} className="dark:bg-slate-950/90 dark:border-slate-800/90 bg-slate-50 border-slate-200 border rounded-xl p-3 space-y-2">
                                 {/* 上段: 一覧（アバター ＋ 氏名・所属 ＋ 2種バッジ: 発言上の立場 ✕ 採決結果） */}
                                 <div className="flex items-start gap-2.5 text-xs">
                                   <div className={`w-8 h-8 rounded-full ${avatarBg} font-bold text-[11px] flex items-center justify-center shrink-0 shadow-sm mt-0.5`}>
@@ -1189,8 +1189,8 @@ export default function LineChatModal({
 
                                   <div className="flex-1 space-y-1">
                                     <div className="flex items-center gap-1.5 flex-wrap text-[11px]">
-                                      <span className="font-bold text-white text-xs">{utt.speakerName}</span>
-                                      <span className="text-slate-400 text-[10.5px]">
+                                      <span className="font-bold dark:text-white text-slate-900 text-xs">{utt.speakerName}</span>
+                                      <span className="dark:text-slate-400 text-slate-500 text-[10.5px]">
                                         {utt.partyName ? `${utt.partyName} / ` : ''}{utt.committeeName || utt.speakerRole}
                                       </span>
                                       {/* 発言上の立場 */}
@@ -1204,14 +1204,14 @@ export default function LineChatModal({
                                         </span>
                                       )}
                                     </div>
-                                    <div className="text-slate-200 text-xs font-normal leading-relaxed">
+                                    <div className="dark:text-slate-200 text-slate-800 text-xs font-normal leading-relaxed">
                                       💬「{utt.summaryQuote}」
                                     </div>
                                   </div>
                                  </div>
 
                                  {/* 下段: 発言単位の市民リアクションバー (👍 賛成 / ⚠️ 気になる / 💡 参考 / 💬 理由・意見) */}
-                                 <div className="pt-2 border-t border-slate-900/80 space-y-2">
+                                 <div className="pt-2 border-t dark:border-slate-900/80 border-slate-200 space-y-2">
                                    {(() => {
                                      const defaultCounts = {
                                        agree: utt.agreeCount ?? 42,
@@ -1229,14 +1229,14 @@ export default function LineChatModal({
                                        <div className="space-y-2">
                                          <div className="flex flex-wrap items-center justify-between gap-1.5 text-[11px]">
                                            <div className="flex items-center gap-1.5 flex-wrap">
-                                             <span className="text-[10px] text-slate-400 font-medium shrink-0">この発言への反応:</span>
+                                             <span className="text-[10px] dark:text-slate-400 text-slate-500 font-medium shrink-0">この発言への反応:</span>
 
                                              <button
                                                onClick={() => handleUtteranceVote(itemKey, utt.speakerName, 'agree', defaultCounts)}
                                                className={`px-2 py-0.8 rounded-lg font-semibold border flex items-center gap-1 transition-all ${
                                                  uttUserVote === 'agree'
                                                    ? 'bg-emerald-600 text-white border-emerald-500 shadow-sm'
-                                                   : 'bg-slate-900 hover:bg-slate-800 text-slate-300 border-slate-800'
+                                                   : 'dark:bg-slate-900 dark:hover:bg-slate-800 dark:text-slate-300 dark:border-slate-800 bg-white hover:bg-slate-100 text-slate-700 border-slate-300'
                                                }`}
                                              >
                                                <span>👍 賛成</span>
@@ -1248,7 +1248,7 @@ export default function LineChatModal({
                                                className={`px-2 py-0.8 rounded-lg font-semibold border flex items-center gap-1 transition-all ${
                                                  uttUserVote === 'concern'
                                                    ? 'bg-amber-600 text-white border-amber-500 shadow-sm'
-                                                   : 'bg-slate-900 hover:bg-slate-800 text-slate-300 border-slate-800'
+                                                   : 'dark:bg-slate-900 dark:hover:bg-slate-800 dark:text-slate-300 dark:border-slate-800 bg-white hover:bg-slate-100 text-slate-700 border-slate-300'
                                                }`}
                                              >
                                                <span>⚠️ 気になる</span>
@@ -1260,7 +1260,7 @@ export default function LineChatModal({
                                                className={`px-2 py-0.8 rounded-lg font-semibold border flex items-center gap-1 transition-all ${
                                                  uttUserVote === 'helpful'
                                                    ? 'bg-sky-600 text-white border-sky-500 shadow-sm'
-                                                   : 'bg-slate-900 hover:bg-slate-800 text-slate-300 border-slate-800'
+                                                   : 'dark:bg-slate-900 dark:hover:bg-slate-800 dark:text-slate-300 dark:border-slate-800 bg-white hover:bg-slate-100 text-slate-700 border-slate-300'
                                                }`}
                                              >
                                                <span>💡 参考</span>
@@ -1558,7 +1558,7 @@ export default function LineChatModal({
         </div>
 
         {/* チャット入力フォーム */}
-        <div className="bg-slate-900 border-t border-slate-800 p-3 sm:p-4 shrink-0">
+        <div className="dark:bg-slate-900 dark:border-slate-800 bg-white border-slate-200 border-t p-3 sm:p-4 shrink-0">
           <form onSubmit={handleSendQuestion} className="flex items-center gap-2">
             <input
               type="text"
@@ -1566,12 +1566,12 @@ export default function LineChatModal({
               onChange={(e) => setInputQuestion(e.target.value)}
               placeholder="政策や予算について質問を入力..."
               disabled={isSending}
-              className="flex-1 px-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-xs sm:text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+              className="flex-1 px-4 py-2.5 dark:bg-slate-950 dark:border-slate-800 dark:text-white bg-slate-50 border-slate-300 text-slate-900 border rounded-xl text-xs sm:text-sm placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-emerald-500 transition-colors"
             />
             <button
               type="submit"
               disabled={isSending || !inputQuestion.trim()}
-              className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 disabled:bg-slate-800 text-white rounded-xl text-xs sm:text-sm font-semibold flex items-center gap-1.5 transition-colors shrink-0"
+              className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 disabled:bg-slate-300 dark:disabled:bg-slate-800 text-white rounded-xl text-xs sm:text-sm font-semibold flex items-center gap-1.5 transition-colors shrink-0 shadow-xs"
               aria-label="送信"
             >
               {isSending ? (

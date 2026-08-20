@@ -184,23 +184,23 @@ export default function AnalyticsDashboardModal({
   return createPortal(
     <div className="fixed inset-0 z-50 flex items-center justify-center sm:p-4 bg-black/75 backdrop-blur-sm animate-fade-in">
       {/* モーダル枠 */}
-      <div className="w-full h-full sm:h-[90vh] sm:max-w-4xl bg-slate-950 sm:rounded-3xl border border-slate-800 shadow-2xl flex flex-col overflow-hidden">
+      <div className="w-full h-full sm:h-[90vh] sm:max-w-4xl dark:bg-slate-950 dark:border-slate-800 dark:text-slate-100 bg-white border-slate-200 text-slate-900 sm:rounded-3xl border shadow-2xl flex flex-col overflow-hidden">
         {/* モーダルヘッダー */}
-        <div className="bg-slate-900 border-b border-slate-800/80 px-4 py-3 sm:px-6 sm:py-4 flex items-center justify-between shrink-0">
+        <div className="dark:bg-slate-900 dark:border-slate-800/80 bg-slate-100 border-slate-200 border-b px-4 py-3 sm:px-6 sm:py-4 flex items-center justify-between shrink-0">
           <div className="flex items-center gap-3 min-w-0">
-            <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-slate-800 border border-slate-700 flex items-center justify-center text-emerald-400 shrink-0">
+            <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl dark:bg-slate-800 dark:border-slate-700 bg-white border-slate-300 border flex items-center justify-center text-emerald-600 dark:text-emerald-400 shrink-0">
               <BarChart3 className="w-4 h-4" />
             </div>
             <div className="min-w-0">
               <div className="flex items-center gap-2">
-                <h3 className="font-bold text-sm sm:text-base text-white truncate">
+                <h3 className="font-bold text-sm sm:text-base dark:text-white text-slate-900 truncate">
                   マチボイス EBPM政策分析 ({assembly.name})
                 </h3>
-                <span className="px-2 py-0.5 rounded text-[10px] bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-semibold shrink-0">
+                <span className="px-2 py-0.5 rounded text-[10px] bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 font-semibold shrink-0">
                   EBPM Suite
                 </span>
               </div>
-              <p className="text-[11px] text-slate-400 truncate">
+              <p className="text-[11px] dark:text-slate-400 text-slate-500 truncate">
                 オープンデータ解析に基づくエビデンス・議会トレンド
               </p>
             </div>
@@ -208,7 +208,7 @@ export default function AnalyticsDashboardModal({
 
           <button
             onClick={onClose}
-            className="w-8 h-8 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white flex items-center justify-center transition-colors"
+            className="w-8 h-8 rounded-xl dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-400 text-slate-500 hover:bg-slate-200 bg-slate-200/60 flex items-center justify-center transition-colors"
             aria-label="閉じる"
           >
             <X className="w-4 h-4" />
@@ -216,7 +216,7 @@ export default function AnalyticsDashboardModal({
         </div>
 
         {/* ナビゲーションタブ */}
-        <div className="bg-slate-900/60 border-b border-slate-800/60 px-4 sm:px-6 flex items-center gap-2 overflow-x-auto scrollbar-none shrink-0">
+        <div className="dark:bg-slate-900/60 dark:border-slate-800/60 bg-slate-50 border-slate-200 border-b px-4 sm:px-6 flex items-center gap-2 overflow-x-auto scrollbar-none shrink-0">
           {[
             { id: 'overview', label: '政策トピック概況', icon: <Layers className="w-3.5 h-3.5" /> },
             { id: 'party', label: '会派・政党スタンス', icon: <Building2 className="w-3.5 h-3.5" /> },
@@ -230,8 +230,8 @@ export default function AnalyticsDashboardModal({
                 onClick={() => setActiveTab(tab.id as TabType)}
                 className={`py-2.5 px-3 border-b-2 text-xs font-semibold flex items-center gap-1.5 whitespace-nowrap transition-colors ${
                   isActive
-                    ? 'border-emerald-500 text-emerald-400'
-                    : 'border-transparent text-slate-400 hover:text-slate-200'
+                    ? 'border-emerald-500 text-emerald-600 dark:text-emerald-400'
+                    : 'border-transparent dark:text-slate-400 dark:hover:text-slate-200 text-slate-500 hover:text-slate-800'
                 }`}
               >
                 {tab.icon}
@@ -242,9 +242,9 @@ export default function AnalyticsDashboardModal({
         </div>
 
         {/* タブコンテンツ */}
-        <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-5 bg-slate-950">
+        <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-5 dark:bg-slate-950 bg-slate-50/80">
           {loading || !analytics ? (
-            <div className="flex flex-col items-center justify-center py-20 text-slate-400 gap-3">
+            <div className="flex flex-col items-center justify-center py-20 dark:text-slate-400 text-slate-500 gap-3">
               <div className="w-6 h-6 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin" />
               <span className="text-xs">オープンデータを解析中...</span>
             </div>
@@ -252,11 +252,11 @@ export default function AnalyticsDashboardModal({
             <>
               {/* サマリー数値カード */}
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                <div className="bg-slate-900 border border-slate-800 rounded-xl p-3 sm:p-4">
-                  <span className="text-[11px] text-slate-400 block mb-1">解析対象 発言数</span>
-                  <div className="text-base sm:text-xl font-bold text-white">
+                <div className="dark:bg-slate-900 dark:border-slate-800 bg-white border-slate-200 border rounded-xl p-3 sm:p-4 shadow-xs">
+                  <span className="text-[11px] dark:text-slate-400 text-slate-500 block mb-1">解析対象 発言数</span>
+                  <div className="text-base sm:text-xl font-bold dark:text-white text-slate-900">
                     {analytics.totalSpeechesAnalyzed.toLocaleString()}
-                    <span className="text-xs font-normal text-slate-400 ml-1">件</span>
+                    <span className="text-xs font-normal dark:text-slate-400 text-slate-500 ml-1">件</span>
                   </div>
                 </div>
 
