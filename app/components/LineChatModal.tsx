@@ -640,14 +640,14 @@ export default function LineChatModal({
     }
 
     const typeLabel = type === 'agree' ? '👍 賛成' : type === 'concern' ? '⚠️ 気になる' : '💡 参考';
-    const newGlobalCount = incrementEbpmReactionCount();
+    incrementEbpmReactionCount();
 
     if (newVote === null) {
       setEbpmToast(`ℹ️ 「${speakerName}」の発言へのリアクションを取り消しました`);
     } else if (currentVote !== null) {
       setEbpmToast(`👍 あなたの「${speakerName}」の発言へのリアクションを【${typeLabel}】に変更しました！（集計 ${nextCounts[type]}件）`);
     } else {
-      triggerEbpmFeedbackNotification(`あなたの「${speakerName}」の発言へのリアクション（${typeLabel}）`, newGlobalCount);
+      triggerEbpmFeedbackNotification(speakerName, typeLabel, nextCounts[type]);
     }
     setTimeout(() => setEbpmToast(null), 4000);
 
@@ -824,8 +824,21 @@ export default function LineChatModal({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [assembly, initialTheme]);
 
+  const chatContainerRef = useRef<HTMLDivElement>(null);
+  const isInitialMount = useRef(true);
+
   useEffect(() => {
-    chatBottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+    if (isInitialMount.current) {
+      isInitialMount.current = false;
+      if (chatContainerRef.current) {
+        chatContainerRef.current.scrollTop = 0;
+      }
+      return;
+    }
+
+    if (messages.length > 2) {
+      chatBottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }
   }, [messages]);
 
   const toggleQuote = (id: string) => {
@@ -836,11 +849,11 @@ export default function LineChatModal({
     setExpandedChains((prev) => ({ ...prev, [id]: !prev[id] }));
   };
 
-  const triggerEbpmFeedbackNotification = (typeStr: string, newCount: number) => {
-    setEbpmToast(`💡 あなたの「${typeStr}」が送信されました！議員ダッシュボードの反応数が ${newCount - 1}件 ➔ ${newCount}件 に即時反映！`);
+  const triggerEbpmFeedbackNotification = (speakerName: string, typeStr: string, updatedCount: number) => {
+    setEbpmToast(`👍 あなたの「${speakerName}」の発言へのリアクション【${typeStr}】が送信されました！（集計 ${updatedCount}件）`);
     setTimeout(() => {
       setEbpmToast(null);
-    }, 4500);
+    }, 4000);
   };
 
   const handleVote = (id: string, type: 'agree' | 'disagree') => {
@@ -1039,7 +1052,7 @@ export default function LineChatModal({
         </div>
 
         {/* チャットメッセージログ（スクロール領域） */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-slate-950">
+        <div ref={chatContainerRef} className="flex-1 overflow-y-auto p-4 space-y-4 bg-slate-950">
           {messages.map((msg) => {
             const isUser = msg.sender === 'user';
             const isQuoteExpanded = expandedQuotes[msg.id];
