@@ -15,28 +15,28 @@ interface HeaderProps {
 export default function Header({
   onOpenAnalytics,
 }: HeaderProps) {
-  const [theme, setTheme] = useState<'dark' | 'light'>('dark');
+  const [theme, setTheme] = useState<'dark' | 'light'>(() => {
+    if (typeof window === 'undefined') return 'dark';
+    try {
+      const storedTheme = localStorage.getItem('gijiraku_theme') as 'dark' | 'light' | null;
+      return storedTheme || 'dark';
+    } catch {
+      return 'dark';
+    }
+  });
 
   useEffect(() => {
-    const storedTheme = localStorage.getItem('gijiraku_theme') as 'dark' | 'light' | null;
-    const initialTheme = storedTheme || 'dark';
-    setTheme(initialTheme);
-    if (initialTheme === 'dark') {
+    if (theme === 'dark') {
       document.documentElement.classList.add('dark');
     } else {
       document.documentElement.classList.remove('dark');
     }
-  }, []);
+  }, [theme]);
 
   const toggleTheme = () => {
     const nextTheme = theme === 'dark' ? 'light' : 'dark';
     setTheme(nextTheme);
     localStorage.setItem('gijiraku_theme', nextTheme);
-    if (nextTheme === 'dark') {
-      document.documentElement.classList.add('dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-    }
     window.dispatchEvent(new CustomEvent('theme_changed', { detail: { theme: nextTheme } }));
   };
 
