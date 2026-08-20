@@ -390,15 +390,36 @@ export default function LineChatModal({
     setExpandedSpeakerKeys((prev) => ({ ...prev, [key]: !prev[key] }));
   };
 
-  const [utteranceVotes, setUtteranceVotes] = useState<Record<string, 'agree' | 'concern' | 'helpful'>>({});
+  const [utteranceVotes, setUtteranceVotes] = useState<Record<string, 'agree' | 'concern' | 'helpful'>>(() => {
+    if (typeof window === 'undefined') return {};
+    try {
+      const stored = localStorage.getItem('gijiraku_voted_statements');
+      return stored ? JSON.parse(stored) : {};
+    } catch {
+      return {};
+    }
+  });
   const [utteranceCounts, setUtteranceCounts] = useState<Record<string, { agree: number; concern: number; helpful: number }>>({});
   const [openUtteranceComments, setOpenUtteranceComments] = useState<Record<string, boolean>>({});
   const [utteranceCommentInputs, setUtteranceCommentInputs] = useState<Record<string, string>>({});
   const [utteranceCommentsList, setUtteranceCommentsList] = useState<Record<string, Array<{ user: string; text: string }>>>({});
 
-  const handleUtteranceVote = (uttKey: string, speakerName: string, type: 'agree' | 'concern' | 'helpful', defaultCounts: { agree: number; concern: number; helpful: number }) => {
+  const handleUtteranceVote = async (
+    uttKey: string,
+    speakerName: string,
+    type: 'agree' | 'concern' | 'helpful',
+    defaultCounts: { agree: number; concern: number; helpful: number }
+  ) => {
     if (utteranceVotes[uttKey]) return;
-    setUtteranceVotes((prev) => ({ ...prev, [uttKey]: type }));
+
+    const nextVotes = { ...utteranceVotes, [uttKey]: type };
+    setUtteranceVotes(nextVotes);
+    try {
+      localStorage.setItem('gijiraku_voted_statements', JSON.stringify(nextVotes));
+    } catch {
+      // ignore
+    }
+
     setUtteranceCounts((prev) => {
       const current = prev[uttKey] || defaultCounts;
       return {
@@ -413,13 +434,24 @@ export default function LineChatModal({
     const newCount = incrementEbpmReactionCount();
     const typeLabel = type === 'agree' ? '👍 賛成' : type === 'concern' ? '⚠️ 気になる' : '💡 参考になった';
     triggerEbpmFeedbackNotification(`『${speakerName}』の発言へのリアクション（${typeLabel}）`, newCount);
+
+    try {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+      await fetch(`${apiUrl}/api/statements/${encodeURIComponent(uttKey)}/reaction`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reaction_type: type, speaker_name: speakerName }),
+      });
+    } catch {
+      // Clean fallback if backend is sleeping
+    }
   };
 
   const toggleUtteranceCommentBox = (uttKey: string) => {
     setOpenUtteranceComments((prev) => ({ ...prev, [uttKey]: !prev[uttKey] }));
   };
 
-  const handleAddUtteranceComment = (uttKey: string, speakerName: string) => {
+  const handleAddUtteranceComment = async (uttKey: string, speakerName: string) => {
     const text = utteranceCommentInputs[uttKey]?.trim();
     if (!text) return;
 
@@ -432,6 +464,17 @@ export default function LineChatModal({
     const newCount = incrementEbpmReactionCount();
     setEbpmToast(`💡 【EBPM連動】「${speakerName}議員の発言」へ市民意見『${text}』が集計されました！行政向け分析ダッシュボード(累積${newCount}件)に即時反映！`);
     setTimeout(() => setEbpmToast(null), 4500);
+
+    try {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+      await fetch(`${apiUrl}/api/statements/${encodeURIComponent(uttKey)}/comment`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user_label: '市民（あなた）', comment_text: text, speaker_name: speakerName }),
+      });
+    } catch {
+      // Clean fallback
+    }
   };
 
   const DEFAULT_CHAIN_STEPS: AiChainStep[] = [
