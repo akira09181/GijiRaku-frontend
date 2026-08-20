@@ -52,7 +52,8 @@ export interface SpeakerUtterance {
   readonly speakerRole: string;
   readonly partyName?: string;
   readonly committeeName?: string;
-  readonly stanceLabel: '推進' | '慎重' | '拡大提案' | '課題提起' | string;
+  readonly stanceLabel: '推進' | '慎重' | '拡大提案' | '課題提起' | '条件付き賛成' | string;
+  readonly voteRecord?: '賛成' | '反対' | '棄権' | '未採決' | string;
   readonly summaryQuote: string;
   readonly fullSummary?: string;
   readonly avatarColor?: string;
@@ -60,6 +61,10 @@ export interface SpeakerUtterance {
   readonly meetingName?: string;
   readonly meetingDate?: string;
   readonly sourceUrl?: string;
+  readonly agreeCount?: number;
+  readonly concernCount?: number;
+  readonly helpfulCount?: number;
+  readonly citizenComments?: readonly { user: string; text: string; tag?: string }[];
 }
 
 export interface StructuredSummary {
@@ -383,6 +388,50 @@ export default function LineChatModal({
 
   const toggleSpeakerExpand = (key: string) => {
     setExpandedSpeakerKeys((prev) => ({ ...prev, [key]: !prev[key] }));
+  };
+
+  const [utteranceVotes, setUtteranceVotes] = useState<Record<string, 'agree' | 'concern' | 'helpful'>>({});
+  const [utteranceCounts, setUtteranceCounts] = useState<Record<string, { agree: number; concern: number; helpful: number }>>({});
+  const [openUtteranceComments, setOpenUtteranceComments] = useState<Record<string, boolean>>({});
+  const [utteranceCommentInputs, setUtteranceCommentInputs] = useState<Record<string, string>>({});
+  const [utteranceCommentsList, setUtteranceCommentsList] = useState<Record<string, Array<{ user: string; text: string }>>>({});
+
+  const handleUtteranceVote = (uttKey: string, speakerName: string, type: 'agree' | 'concern' | 'helpful', defaultCounts: { agree: number; concern: number; helpful: number }) => {
+    if (utteranceVotes[uttKey]) return;
+    setUtteranceVotes((prev) => ({ ...prev, [uttKey]: type }));
+    setUtteranceCounts((prev) => {
+      const current = prev[uttKey] || defaultCounts;
+      return {
+        ...prev,
+        [uttKey]: {
+          ...current,
+          [type]: current[type] + 1,
+        },
+      };
+    });
+
+    const newCount = incrementEbpmReactionCount();
+    const typeLabel = type === 'agree' ? '👍 賛成' : type === 'concern' ? '⚠️ 気になる' : '💡 参考になった';
+    triggerEbpmFeedbackNotification(`『${speakerName}』の発言へのリアクション（${typeLabel}）`, newCount);
+  };
+
+  const toggleUtteranceCommentBox = (uttKey: string) => {
+    setOpenUtteranceComments((prev) => ({ ...prev, [uttKey]: !prev[uttKey] }));
+  };
+
+  const handleAddUtteranceComment = (uttKey: string, speakerName: string) => {
+    const text = utteranceCommentInputs[uttKey]?.trim();
+    if (!text) return;
+
+    setUtteranceCommentsList((prev) => ({
+      ...prev,
+      [uttKey]: [...(prev[uttKey] || []), { user: '市民（あなた）', text }],
+    }));
+    setUtteranceCommentInputs((prev) => ({ ...prev, [uttKey]: '' }));
+
+    const newCount = incrementEbpmReactionCount();
+    setEbpmToast(`💡 【EBPM連動】「${speakerName}議員の発言」へ市民意見『${text}』が集計されました！行政向け分析ダッシュボード(累積${newCount}件)に即時反映！`);
+    setTimeout(() => setEbpmToast(null), 4500);
   };
 
   const DEFAULT_CHAIN_STEPS: AiChainStep[] = [
@@ -887,16 +936,118 @@ export default function LineChatModal({
                                       💬「{utt.summaryQuote}」
                                     </div>
                                   </div>
-                                </div>
+                                 </div>
 
-                                {/* 下段: 深掘り展開トグルボタン ＆ 展開コンテンツ */}
-                                <div className="pt-1.5 border-t border-slate-900/80 flex flex-col items-end">
-                                  <button
-                                    onClick={() => toggleSpeakerExpand(itemKey)}
-                                    className="text-[11px] text-emerald-400 hover:text-emerald-300 font-semibold flex items-center gap-1 transition-colors py-0.5 px-2 rounded bg-slate-900 border border-slate-800"
-                                  >
-                                    <span>{isExpanded ? '発言の要旨・原文抜粋をたたむ ▴' : '発言の要旨・原文抜粋をみる ▾'}</span>
-                                  </button>
+                                 {/* 下段: 発言単位の市民リアクションバー (👍 賛成 / ⚠️ 気になる / 💡 参考 / 💬 理由・意見) */}
+                                 <div className="pt-2 border-t border-slate-900/80 space-y-2">
+                                   {(() => {
+                                     const defaultCounts = {
+                                       agree: utt.agreeCount ?? 42,
+                                       concern: utt.concernCount ?? 8,
+                                       helpful: utt.helpfulCount ?? 15,
+                                     };
+                                     const counts = utteranceCounts[itemKey] || defaultCounts;
+                                     const uttUserVote = utteranceVotes[itemKey];
+                                     const isCommentOpen = openUtteranceComments[itemKey];
+                                     const userComments = utteranceCommentsList[itemKey] || [];
+                                     const initialComments = utt.citizenComments || [];
+                                     const allComments = [...initialComments, ...userComments];
+
+                                     return (
+                                       <div className="space-y-2">
+                                         <div className="flex flex-wrap items-center justify-between gap-1.5 text-[11px]">
+                                           <div className="flex items-center gap-1.5 flex-wrap">
+                                             <span className="text-[10px] text-slate-400 font-medium shrink-0">この発言への反応:</span>
+
+                                             <button
+                                               onClick={() => handleUtteranceVote(itemKey, utt.speakerName, 'agree', defaultCounts)}
+                                               className={`px-2 py-0.8 rounded-lg font-semibold border flex items-center gap-1 transition-all ${
+                                                 uttUserVote === 'agree'
+                                                   ? 'bg-emerald-600 text-white border-emerald-500 shadow-sm'
+                                                   : 'bg-slate-900 hover:bg-slate-800 text-slate-300 border-slate-800'
+                                               }`}
+                                             >
+                                               <span>👍 賛成</span>
+                                               <span className="text-[10px] opacity-90 font-mono">({counts.agree})</span>
+                                             </button>
+
+                                             <button
+                                               onClick={() => handleUtteranceVote(itemKey, utt.speakerName, 'concern', defaultCounts)}
+                                               className={`px-2 py-0.8 rounded-lg font-semibold border flex items-center gap-1 transition-all ${
+                                                 uttUserVote === 'concern'
+                                                   ? 'bg-amber-600 text-white border-amber-500 shadow-sm'
+                                                   : 'bg-slate-900 hover:bg-slate-800 text-slate-300 border-slate-800'
+                                               }`}
+                                             >
+                                               <span>⚠️ 気になる</span>
+                                               <span className="text-[10px] opacity-90 font-mono">({counts.concern})</span>
+                                             </button>
+
+                                             <button
+                                               onClick={() => handleUtteranceVote(itemKey, utt.speakerName, 'helpful', defaultCounts)}
+                                               className={`px-2 py-0.8 rounded-lg font-semibold border flex items-center gap-1 transition-all ${
+                                                 uttUserVote === 'helpful'
+                                                   ? 'bg-sky-600 text-white border-sky-500 shadow-sm'
+                                                   : 'bg-slate-900 hover:bg-slate-800 text-slate-300 border-slate-800'
+                                               }`}
+                                             >
+                                               <span>💡 参考</span>
+                                               <span className="text-[10px] opacity-90 font-mono">({counts.helpful})</span>
+                                             </button>
+
+                                             <button
+                                               onClick={() => toggleUtteranceCommentBox(itemKey)}
+                                               className="px-2 py-0.8 rounded-lg font-semibold border bg-slate-900 hover:bg-slate-800 text-emerald-400 border-emerald-900/60 flex items-center gap-1 transition-colors"
+                                             >
+                                               <MessageSquare className="w-3 h-3" />
+                                               <span>理由・意見</span>
+                                             </button>
+                                           </div>
+
+                                           <button
+                                             onClick={() => toggleSpeakerExpand(itemKey)}
+                                             className="text-[11px] text-emerald-400 hover:text-emerald-300 font-semibold flex items-center gap-1 transition-colors py-0.5 px-2 rounded bg-slate-900 border border-slate-800 shrink-0"
+                                           >
+                                             <span>{isExpanded ? '原文抜粋をたたむ ▴' : '発言の要旨・原文抜粋をみる ▾'}</span>
+                                           </button>
+                                         </div>
+
+                                         {isCommentOpen && (
+                                           <div className="mt-2 pt-2 border-t border-slate-800/80 space-y-2 animate-fade-in">
+                                             <div className="flex gap-2">
+                                               <input
+                                                 type="text"
+                                                 value={utteranceCommentInputs[itemKey] || ''}
+                                                 onChange={(e) => setUtteranceCommentInputs((prev) => ({ ...prev, [itemKey]: e.target.value }))}
+                                                 onKeyDown={(e) => e.key === 'Enter' && handleAddUtteranceComment(itemKey, utt.speakerName)}
+                                                 placeholder={`「${utt.speakerName}議員の発言」への匿名理由・意見（例: 財源の説明をもっと開示してほしい）`}
+                                                 className="flex-1 bg-slate-900 border border-slate-700/80 rounded-lg px-2.5 py-1.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500"
+                                               />
+                                               <button
+                                                 onClick={() => handleAddUtteranceComment(itemKey, utt.speakerName)}
+                                                 className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg font-bold text-xs shrink-0 transition-colors"
+                                               >
+                                                 送信 (EBPMへ反映)
+                                               </button>
+                                             </div>
+
+                                             {allComments.length > 0 && (
+                                               <div className="space-y-1 pt-1">
+                                                 <div className="text-[10px] text-slate-400 font-semibold">集計された市民の理由・コメント:</div>
+                                                 {allComments.map((c, cIdx) => (
+                                                   <div key={cIdx} className="bg-slate-900/90 border border-slate-800/80 p-2 rounded-lg text-xs flex items-start gap-1.5">
+                                                     <span className="text-emerald-400 font-bold shrink-0">💬 {c.user}:</span>
+                                                     <span className="text-slate-200 font-normal leading-relaxed">{c.text}</span>
+                                                   </div>
+                                                 ))}
+                                               </div>
+                                             )}
+                                           </div>
+                                         )}
+                                       </div>
+                                     );
+                                   })()}
+                                 </div>
 
                                   {isExpanded && (
                                     <div className="w-full mt-2.5 space-y-2 text-xs bg-slate-900/90 border border-slate-800 p-3 rounded-lg text-slate-300 animate-fade-in">
@@ -928,9 +1079,8 @@ export default function LineChatModal({
                                     </div>
                                   )}
                                 </div>
-                              </div>
-                            );
-                          })}
+                              );
+                            })}
                         </div>
 
                         <p className="text-[10px] text-slate-400 font-normal pt-0.5">
