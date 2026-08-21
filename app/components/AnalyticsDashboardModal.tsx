@@ -260,25 +260,25 @@ export default function AnalyticsDashboardModal({
                   </div>
                 </div>
 
-                <div className="bg-slate-900 border border-slate-800 rounded-xl p-3 sm:p-4">
-                  <span className="text-[11px] text-slate-400 block mb-1">EBPM準備度</span>
-                  <div className="text-base sm:text-xl font-bold text-emerald-400">
+                <div className="dark:bg-slate-900 dark:border-slate-800 bg-white border-slate-200 border rounded-xl p-3 sm:p-4 shadow-xs">
+                  <span className="text-[11px] dark:text-slate-400 text-slate-500 block mb-1">EBPM準備度</span>
+                  <div className="text-base sm:text-xl font-bold text-emerald-600 dark:text-emerald-400">
                     {analytics.ebpmDataReadinessScore}
-                    <span className="text-xs font-normal text-slate-400 ml-1">/ 100点</span>
+                    <span className="text-xs font-normal dark:text-slate-400 text-slate-500 ml-1">/ 100点</span>
                   </div>
                 </div>
 
-                <div className="bg-slate-900 border border-slate-800 rounded-xl p-3 sm:p-4">
-                  <span className="text-[11px] text-slate-400 block mb-1">政策トピック数</span>
-                  <div className="text-base sm:text-xl font-bold text-white">
+                <div className="dark:bg-slate-900 dark:border-slate-800 bg-white border-slate-200 border rounded-xl p-3 sm:p-4 shadow-xs">
+                  <span className="text-[11px] dark:text-slate-400 text-slate-500 block mb-1">政策トピック数</span>
+                  <div className="text-base sm:text-xl font-bold dark:text-white text-slate-900">
                     {analytics.topicTrends.length}
-                    <span className="text-xs font-normal text-slate-400 ml-1">分野</span>
+                    <span className="text-xs font-normal dark:text-slate-400 text-slate-500 ml-1">分野</span>
                   </div>
                 </div>
 
-                <div className="bg-slate-900 border border-slate-800 rounded-xl p-3 sm:p-4">
-                  <span className="text-[11px] text-slate-400 block mb-1">市民賛同スコア</span>
-                  <div className="text-base sm:text-xl font-bold text-emerald-400">
+                <div className="dark:bg-slate-900 dark:border-slate-800 bg-white border-slate-200 border rounded-xl p-3 sm:p-4 shadow-xs">
+                  <span className="text-[11px] dark:text-slate-400 text-slate-500 block mb-1">市民賛同スコア</span>
+                  <div className="text-base sm:text-xl font-bold text-emerald-600 dark:text-emerald-400">
                     {analytics.publicSentimentScore}%
                   </div>
                 </div>
@@ -288,8 +288,8 @@ export default function AnalyticsDashboardModal({
               {activeTab === 'overview' && (
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
-                    <h4 className="text-xs sm:text-sm font-bold text-white flex items-center gap-1.5">
-                      <TrendingUp className="w-4 h-4 text-emerald-400" />
+                    <h4 className="text-xs sm:text-sm font-bold dark:text-white text-slate-900 flex items-center gap-1.5">
+                      <TrendingUp className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
                       <span>主要議論トピックと発言頻度</span>
                     </h4>
                   </div>
@@ -298,27 +298,27 @@ export default function AnalyticsDashboardModal({
                     {analytics.topicTrends.map((topic, i) => (
                       <div
                         key={i}
-                        className="bg-slate-900 border border-slate-800 rounded-xl p-3.5 space-y-2"
+                        className="dark:bg-slate-900 dark:border-slate-800 bg-white border-slate-200 border rounded-xl p-3.5 space-y-2 shadow-xs"
                       >
                         <div className="flex items-center justify-between gap-2">
-                          <span className="font-semibold text-xs sm:text-sm text-white">
+                          <span className="font-semibold text-xs sm:text-sm dark:text-white text-slate-900">
                             {topic.topic}
                           </span>
-                          <span className="text-xs font-mono text-emerald-400 font-bold shrink-0">
+                          <span className="text-xs font-mono text-emerald-600 dark:text-emerald-400 font-bold shrink-0">
                             {topic.frequency} 回言及
                           </span>
                         </div>
 
                         {/* 感情・合意メーター */}
                         <div className="space-y-1">
-                          <div className="w-full h-2 bg-slate-800 rounded-full overflow-hidden flex">
+                          <div className="w-full h-2 dark:bg-slate-800 bg-slate-100 rounded-full overflow-hidden flex">
                             <div
                               className="bg-emerald-500 h-full"
                               style={{ width: `${topic.sentimentRatio.positive}%` }}
                               title={`前向き: ${topic.sentimentRatio.positive}%`}
                             />
                             <div
-                              className="bg-slate-600 h-full"
+                              className="bg-slate-400 dark:bg-slate-600 h-full"
                               style={{ width: `${topic.sentimentRatio.neutral}%` }}
                               title={`中立: ${topic.sentimentRatio.neutral}%`}
                             />
@@ -328,7 +328,7 @@ export default function AnalyticsDashboardModal({
                               title={`懸念: ${topic.sentimentRatio.negative}%`}
                             />
                           </div>
-                          <div className="flex items-center justify-between text-[10px] text-slate-400">
+                          <div className="flex items-center justify-between text-[10px] dark:text-slate-400 text-slate-600">
                             <span>前向き {topic.sentimentRatio.positive}%</span>
                             <span>中立 {topic.sentimentRatio.neutral}%</span>
                             <span>懸念 {topic.sentimentRatio.negative}%</span>
@@ -337,11 +337,11 @@ export default function AnalyticsDashboardModal({
 
                         {/* ホットキーワード */}
                         <div className="flex items-center gap-1.5 flex-wrap pt-1">
-                          <span className="text-[10px] text-slate-500">キーワード:</span>
+                          <span className="text-[10px] dark:text-slate-500 text-slate-500">キーワード:</span>
                           {topic.hotKeywords.map((kw, kwIdx) => (
                             <span
                               key={kwIdx}
-                              className="px-2 py-0.5 rounded bg-slate-800 border border-slate-700/80 text-slate-300 text-[10px]"
+                              className="px-2 py-0.5 rounded dark:bg-slate-800 dark:border-slate-700/80 dark:text-slate-300 bg-slate-100 border-slate-200 border text-slate-700 text-[10px]"
                             >
                               {kw}
                             </span>
@@ -356,8 +356,8 @@ export default function AnalyticsDashboardModal({
               {/* タブ 2: 会派・政党スタンス */}
               {activeTab === 'party' && (
                 <div className="space-y-4">
-                  <h4 className="text-xs sm:text-sm font-bold text-white flex items-center gap-1.5">
-                    <Building2 className="w-4 h-4 text-emerald-400" />
+                  <h4 className="text-xs sm:text-sm font-bold dark:text-white text-slate-900 flex items-center gap-1.5">
+                    <Building2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
                     <span>各会派の重点政策と議会スタンス</span>
                   </h4>
 
@@ -365,23 +365,23 @@ export default function AnalyticsDashboardModal({
                     {analytics.partyAnalytics.map((party, i) => (
                       <div
                         key={i}
-                        className="bg-slate-900 border border-slate-800 rounded-xl p-3.5 space-y-2.5"
+                        className="dark:bg-slate-900 dark:border-slate-800 bg-white border-slate-200 border rounded-xl p-3.5 space-y-2.5 shadow-xs"
                       >
-                        <div className="flex items-center justify-between border-b border-slate-800 pb-2">
+                        <div className="flex items-center justify-between border-b dark:border-slate-800 border-slate-100 pb-2">
                           <div>
-                            <span className="font-bold text-xs sm:text-sm text-white block">
+                            <span className="font-bold text-xs sm:text-sm dark:text-white text-slate-900 block">
                               {party.partyName}
                             </span>
-                            <span className="text-[10px] text-slate-400">
+                            <span className="text-[10px] dark:text-slate-400 text-slate-500">
                               所属議員: {party.membersCount}名
                             </span>
                           </div>
-                          <span className="px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[10px] font-medium">
+                          <span className="px-2 py-0.5 rounded dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/20 bg-emerald-50 text-emerald-800 border-emerald-300 border text-[10px] font-medium">
                             {party.topCategory}
                           </span>
                         </div>
 
-                        <p className="text-xs text-slate-300 leading-relaxed">
+                        <p className="text-xs dark:text-slate-300 text-slate-800 leading-relaxed">
                           {party.aiStanceSummary}
                         </p>
                       </div>
@@ -393,8 +393,8 @@ export default function AnalyticsDashboardModal({
               {/* タブ 3: 発言・答弁評価 */}
               {activeTab === 'member' && (
                 <div className="space-y-4">
-                  <h4 className="text-xs sm:text-sm font-bold text-white flex items-center gap-1.5">
-                    <Users className="w-4 h-4 text-emerald-400" />
+                  <h4 className="text-xs sm:text-sm font-bold dark:text-white text-slate-900 flex items-center gap-1.5">
+                    <Users className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
                     <span>主要発言者の活動スコア</span>
                   </h4>
 
@@ -402,24 +402,24 @@ export default function AnalyticsDashboardModal({
                     {analytics.memberScorecards.map((member) => (
                       <div
                         key={member.id}
-                        className="bg-slate-900 border border-slate-800 rounded-xl p-3.5 space-y-2.5"
+                        className="dark:bg-slate-900 dark:border-slate-800 bg-white border-slate-200 border rounded-xl p-3.5 space-y-2.5 shadow-xs"
                       >
                         <div className="flex items-center justify-between">
                           <div>
-                            <span className="font-bold text-xs sm:text-sm text-white block">
+                            <span className="font-bold text-xs sm:text-sm dark:text-white text-slate-900 block">
                               {member.name}
                             </span>
-                            <span className="text-[10px] text-slate-400">
+                            <span className="text-[10px] dark:text-slate-400 text-slate-500">
                               {member.title} • {member.party}
                             </span>
                           </div>
-                          <div className="flex items-center gap-1 px-2 py-1 rounded-lg bg-slate-800 border border-slate-700 text-emerald-400 text-xs font-bold font-mono">
+                          <div className="flex items-center gap-1 px-2 py-1 rounded-lg dark:bg-slate-800 dark:border-slate-700 dark:text-emerald-400 bg-emerald-50 border-emerald-200 border text-emerald-800 text-xs font-bold font-mono">
                             <Activity className="w-3 h-3" />
                             <span>{member.activityScore}点</span>
                           </div>
                         </div>
 
-                        <p className="text-xs text-slate-300 leading-relaxed bg-slate-950 p-2.5 rounded-lg border border-slate-800">
+                        <p className="text-xs dark:text-slate-300 text-slate-800 leading-relaxed dark:bg-slate-950 bg-slate-50 p-2.5 rounded-lg border dark:border-slate-800 border-slate-200">
                           {member.aiEval}
                         </p>
                       </div>
@@ -432,50 +432,50 @@ export default function AnalyticsDashboardModal({
               {activeTab === 'public' && (
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
-                    <h4 className="text-xs sm:text-sm font-bold text-white flex items-center gap-1.5">
-                      <Vote className="w-4 h-4 text-emerald-400" />
+                    <h4 className="text-xs sm:text-sm font-bold dark:text-white text-slate-900 flex items-center gap-1.5">
+                      <Vote className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
                       <span>リアルタイム市民フィードバック & EBPM政策提言</span>
                     </h4>
-                    <span className="px-2 py-0.5 rounded text-[10px] bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-mono font-medium">
+                    <span className="px-2 py-0.5 rounded text-[10px] dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/20 bg-emerald-50 text-emerald-800 border-emerald-300 border font-mono font-medium">
                       Live EBPM Sync Active
                     </span>
                   </div>
 
                   {/* 実証目標KPIカード */}
-                  <div className="bg-gradient-to-r from-emerald-950/40 to-slate-900 border border-emerald-500/30 rounded-xl p-4 space-y-2">
+                  <div className="dark:bg-gradient-to-r dark:from-emerald-950/40 dark:to-slate-900 dark:border-emerald-500/30 bg-emerald-50/90 border-emerald-200 border rounded-xl p-4 space-y-2">
                     <div className="flex items-center justify-between">
-                      <span className="text-xs font-bold text-emerald-400 flex items-center gap-1">
+                      <span className="text-xs font-bold text-emerald-700 dark:text-emerald-400 flex items-center gap-1">
                         <Award className="w-3.5 h-3.5" />
                         ソーシャルインパクト目標KPI (PoC検証設定)
                       </span>
-                      <span className="text-xs text-slate-300 font-bold font-mono">
+                      <span className="text-xs dark:text-slate-300 text-slate-800 font-bold font-mono">
                         目標: 情報到達時間 30分 ➔ 3分 (90%短縮)
                       </span>
                     </div>
-                    <p className="text-[11.5px] text-slate-300 leading-relaxed">
+                    <p className="text-[11.5px] dark:text-slate-300 text-slate-700 leading-relaxed">
                       PoCでは、都民が必要な政策情報に到達する時間を30分から3分へ短縮することを目標に検証。LINE風超翻訳とオープンデータ連動で認知・理解・反応の循環を検証します。
                     </p>
                   </div>
 
                   {/* 市民フィードバックの実数集計 */}
-                  <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 space-y-3">
+                  <div className="dark:bg-slate-900 dark:border-slate-800 bg-white border-slate-200 border rounded-xl p-4 space-y-3 shadow-xs">
                     <div className="flex items-center justify-between text-xs">
-                      <span className="text-white font-medium">病児保育・給食無償化に関する市民リアクション</span>
-                      <span className="text-emerald-400 font-bold font-mono">
+                      <span className="dark:text-white text-slate-900 font-medium">病児保育・給食無償化に関する市民リアクション</span>
+                      <span className="text-emerald-600 dark:text-emerald-400 font-bold font-mono">
                         リアルタイム集計中
                       </span>
                     </div>
 
-                    <div className="flex items-center justify-between p-3 bg-slate-950 rounded-xl border border-slate-800">
+                    <div className="flex items-center justify-between p-3 dark:bg-slate-950 dark:border-slate-800 bg-slate-50 border-slate-200 border rounded-xl">
                       <div>
-                        <span className="text-xs font-bold text-white block">病児保育のLINE即時予約・受け入れ枠拡大</span>
-                        <span className="text-[10.5px] text-slate-400">市民画面でのワンタップ「困っている / 賛成」の集計件数</span>
+                        <span className="text-xs font-bold dark:text-white text-slate-900 block">病児保育のLINE即時予約・受け入れ枠拡大</span>
+                        <span className="text-[10.5px] dark:text-slate-400 text-slate-500">市民画面でのワンタップ「困っている / 賛成」の集計件数</span>
                       </div>
                       <div className="text-right">
-                        <span className={`text-xl font-extrabold text-emerald-400 font-mono transition-all ${isCountUpdated ? 'text-emerald-300 scale-110' : ''}`}>
+                        <span className={`text-xl font-extrabold text-emerald-600 dark:text-emerald-400 font-mono transition-all ${isCountUpdated ? 'text-emerald-500 scale-110' : ''}`}>
                           {reactionCount}件
                         </span>
-                        <span className="text-[10px] text-emerald-300 block font-medium">
+                        <span className="text-[10px] text-emerald-700 dark:text-emerald-300 block font-medium">
                           {isCountUpdated ? '✨ +1 リアルタイム反映済' : '市民反応データを即時連携'}
                         </span>
                       </div>
@@ -483,8 +483,8 @@ export default function AnalyticsDashboardModal({
                   </div>
 
                   {/* 年代別ニーズグラフ */}
-                  <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 space-y-3">
-                    <h5 className="text-xs font-bold text-slate-200">年代別民意・最重点テーマ</h5>
+                  <div className="dark:bg-slate-900 dark:border-slate-800 bg-white border-slate-200 border rounded-xl p-4 space-y-3 shadow-xs">
+                    <h5 className="text-xs font-bold dark:text-slate-200 text-slate-900">年代別民意・最重点テーマ</h5>
                     <div className="space-y-2">
                       {[
                         { group: '10代・20代 (若者層)', ratio: 91, issue: '病児保育即時LINE予約・おむつデジタルクーポン' },
@@ -494,13 +494,13 @@ export default function AnalyticsDashboardModal({
                       ].map((item, idx) => (
                         <div key={idx} className="space-y-1 text-xs">
                           <div className="flex items-center justify-between text-[11px]">
-                            <span className="text-slate-300 font-semibold">{item.group}</span>
-                            <span className="text-emerald-400 font-mono font-bold">賛同率 {item.ratio}%</span>
+                            <span className="dark:text-slate-300 text-slate-800 font-semibold">{item.group}</span>
+                            <span className="text-emerald-600 dark:text-emerald-400 font-mono font-bold">賛同率 {item.ratio}%</span>
                           </div>
-                          <div className="w-full h-2 bg-slate-800 rounded-full overflow-hidden">
+                          <div className="w-full h-2 dark:bg-slate-800 bg-slate-100 rounded-full overflow-hidden">
                             <div className="bg-emerald-500 h-full" style={{ width: `${item.ratio}%` }} />
                           </div>
-                          <p className="text-[10.5px] text-slate-400">最重要ニーズ: {item.issue}</p>
+                          <p className="text-[10.5px] dark:text-slate-400 text-slate-500">最重要ニーズ: {item.issue}</p>
                         </div>
                       ))}
                     </div>
@@ -508,21 +508,21 @@ export default function AnalyticsDashboardModal({
 
                   {/* 議員向け EBPM AI 自発提言カード */}
                   <div className="space-y-2">
-                    <h5 className="text-xs font-bold text-slate-200 flex items-center gap-1">
-                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                    <h5 className="text-xs font-bold dark:text-slate-200 text-slate-900 flex items-center gap-1">
+                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
                       <span>議員向け 次回定例会 優先EBPMAI提案</span>
                     </h5>
 
-                    <div className="bg-slate-900 border border-emerald-500/30 rounded-xl p-3.5 space-y-2">
+                    <div className="dark:bg-slate-900 dark:border-emerald-500/30 bg-emerald-50/90 border-emerald-300 border rounded-xl p-3.5 space-y-2">
                       <div className="flex items-center gap-2">
-                        <span className="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 text-[10px] font-bold">
+                        <span className="px-2 py-0.5 rounded bg-emerald-600 text-white text-[10px] font-bold shadow-2xs">
                           優先度 1位
                         </span>
-                        <span className="font-bold text-xs text-white">
+                        <span className="font-bold text-xs dark:text-white text-slate-900">
                           若者・子育て世代の91%が即時要望: 『病児保育のLINE即時予約・枠拡大』
                         </span>
                       </div>
-                      <p className="text-xs text-slate-300 leading-relaxed">
+                      <p className="text-xs dark:text-slate-300 text-slate-800 leading-relaxed">
                         市民からのワンタップFBが急増中。主動的に定例会にて広域予約システム共通化の予算枠拡大提言を推奨します。
                       </p>
                     </div>
@@ -534,11 +534,11 @@ export default function AnalyticsDashboardModal({
         </div>
 
         {/* モーダルフッター */}
-        <div className="bg-slate-900 border-t border-slate-800 px-4 py-3 sm:px-6 sm:py-3 flex items-center justify-between text-[11px] text-slate-400 shrink-0">
+        <div className="dark:bg-slate-900 dark:border-slate-800 bg-slate-100 border-slate-200 border-t px-4 py-3 sm:px-6 sm:py-3 flex items-center justify-between text-[11px] dark:text-slate-400 text-slate-600 shrink-0">
           <span>MachiVoice EBPM Analytics Module v2.0</span>
           <button
             onClick={onClose}
-            className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-white font-medium transition-colors"
+            className="px-3 py-1.5 rounded-lg dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-white bg-slate-200 hover:bg-slate-300 text-slate-800 font-medium transition-colors shadow-2xs"
           >
             閉じる
           </button>
