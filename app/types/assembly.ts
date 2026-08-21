@@ -21,4 +21,6 @@ export interface Assembly {
   readonly totalMinutesCount: number;
   readonly hotTopic: string;
   readonly mainIssues: readonly AssemblyIssueStat[];
+  readonly lastMeetingDate?: string;
+  readonly lastUpdatedDate?: string;
 }

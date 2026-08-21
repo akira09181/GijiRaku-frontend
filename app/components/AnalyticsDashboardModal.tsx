@@ -74,12 +74,38 @@ export default function AnalyticsDashboardModal({
     queueMicrotask(() => setLoading(true));
     const timer = setTimeout(() => {
       const isTokyo = assembly.id === 'tokyo-metropolitan';
+      let totalAgree = 0;
+      let totalConcern = 0;
+      let totalHelpful = 0;
+      try {
+        const storedCounts = localStorage.getItem('gijiraku_statement_counts_v2');
+        if (storedCounts) {
+          const countsObj = JSON.parse(storedCounts);
+          Object.values(countsObj).forEach((c: any) => {
+            totalAgree += c.agree || 0;
+            totalConcern += c.concern || 0;
+            totalHelpful += c.helpful || 0;
+          });
+        }
+      } catch (e) {}
+
+      // Fallback base data if no reactions yet (to avoid 0 division)
+      if (totalAgree + totalConcern + totalHelpful === 0) {
+        totalAgree = 78;
+        totalConcern = 14;
+        totalHelpful = 8;
+      }
+      
+      const totalReactions = totalAgree + totalConcern + totalHelpful;
+      const positivePct = Math.round((totalAgree / totalReactions) * 100);
+      const neutralPct = Math.round((totalHelpful / totalReactions) * 100);
+      const negativePct = Math.round((totalConcern / totalReactions) * 100);
 
       const mockTopicTrends: readonly TopicTrend[] = [
         {
           topic: '子育て支援・給食費無償化',
           frequency: 342,
-          sentimentRatio: { positive: 65, neutral: 25, negative: 10 },
+          sentimentRatio: { positive: positivePct, neutral: neutralPct, negative: negativePct },
           hotKeywords: ['第2子無償', '所得制限撤廃', 'おむつ支援'],
         },
         {

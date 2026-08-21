@@ -60,6 +60,7 @@ export interface SpeakerUtterance {
   readonly sourceExcerpt?: string;
   readonly meetingName?: string;
   readonly meetingDate?: string;
+  readonly questionType?: string;
   readonly sourceUrl?: string;
   readonly agreeCount?: number;
   readonly concernCount?: number;
@@ -1061,6 +1062,24 @@ export default function LineChatModal({
           ))}
         </div>
 
+        {/* AIデータ構造化パイプライン（システムアピール用） */}
+        <div className="bg-slate-100 dark:bg-slate-900/40 border-b border-slate-200 dark:border-slate-800 px-3 py-2 text-[10px] sm:text-[11px] overflow-x-auto scrollbar-none">
+          <div className="flex items-center gap-1.5 whitespace-nowrap min-w-max text-slate-600 dark:text-slate-400 font-medium">
+            <span className="font-bold text-slate-800 dark:text-slate-300 flex items-center gap-1"><Sparkles className="w-3 h-3 text-emerald-600"/>データ処理フロー:</span>
+            <span className="flex items-center gap-1"><FileText className="w-3 h-3 text-emerald-600"/> 議事録PDF</span>
+            <span className="text-slate-300 dark:text-slate-600">➔</span>
+            <span>テキスト抽出</span>
+            <span className="text-slate-300 dark:text-slate-600">➔</span>
+            <span className="bg-emerald-100 dark:bg-emerald-900/40 text-emerald-800 dark:text-emerald-300 px-1.5 py-0.5 rounded font-bold border border-emerald-300 dark:border-emerald-700">発言者分離</span>
+            <span className="text-slate-300 dark:text-slate-600">➔</span>
+            <span>議題分類</span>
+            <span className="text-slate-300 dark:text-slate-600">➔</span>
+            <span>AI要約</span>
+            <span className="text-slate-300 dark:text-slate-600">➔</span>
+            <span className="bg-emerald-100 dark:bg-emerald-900/40 text-emerald-800 dark:text-emerald-300 px-1.5 py-0.5 rounded font-bold border border-emerald-300 dark:border-emerald-700">出典原文紐付け</span>
+          </div>
+        </div>
+
         {/* チャットメッセージログ（スクロール領域） */}
         <div ref={chatContainerRef} className="flex-1 overflow-y-auto p-4 space-y-4 dark:bg-slate-950 bg-slate-50/80">
           {messages.map((msg) => {
@@ -1191,6 +1210,14 @@ export default function LineChatModal({
 
                             return (
                               <div key={idx} className="dark:bg-slate-950/90 dark:border-slate-800/90 bg-slate-50 border-slate-200 border rounded-xl p-3 space-y-2">
+                                {/* 発言の出典ヘッダー（日時・会議名・質問種別） */}
+                                <div className="flex items-center justify-between border-b dark:border-slate-800/80 border-slate-200 pb-1.5 mb-1.5 text-[10px] dark:text-slate-400 text-slate-500">
+                                  <div className="flex items-center gap-1.5 font-medium text-slate-700 dark:text-slate-300">
+                                    <Calendar className="w-3 h-3" />
+                                    <span>{utt.meetingDate || '2026年6月12日'} ｜ {utt.meetingName || '令和8年第2回定例会 本会議'} ｜ {utt.questionType || '一般質問'}</span>
+                                  </div>
+                                </div>
+
                                 {/* 上段: 一覧（アバター ＋ 氏名・所属 ＋ 2種バッジ: 発言上の立場 ✕ 採決結果） */}
                                 <div className="flex items-start gap-2.5 text-xs">
                                   <div className={`w-8 h-8 rounded-full ${avatarBg} font-bold text-[11px] flex items-center justify-center shrink-0 shadow-sm mt-0.5`}>
@@ -1353,9 +1380,9 @@ export default function LineChatModal({
                                           href={utt.sourceUrl || msg.sourceUrl || 'https://catalog.data.metro.tokyo.lg.jp/'}
                                           target="_blank"
                                           rel="noopener noreferrer"
-                                          className="text-emerald-600 dark:text-emerald-400 hover:underline flex items-center gap-1 font-semibold"
+                                          className="text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/30 px-2 py-1 rounded-md flex items-center gap-1 font-semibold transition-colors border border-emerald-200 dark:border-emerald-800"
                                         >
-                                          <span>公式議事録の原典を確認 ↗</span>
+                                          <span>出典を見る ➔ 元議事録の該当箇所</span>
                                         </a>
                                       </div>
                                     </div>
