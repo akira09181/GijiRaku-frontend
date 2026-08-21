@@ -1073,17 +1073,17 @@ export default function LineChatModal({
 
             return (
               <div key={msg.id} className="flex items-start gap-2.5 max-w-[92%] sm:max-w-[85%]">
-                <div className="w-7 h-7 rounded-lg bg-slate-800 border border-slate-700 text-emerald-400 flex items-center justify-center shrink-0 mt-0.5">
+                <div className="w-7 h-7 rounded-lg dark:bg-slate-800 dark:border-slate-700 dark:text-emerald-400 bg-emerald-100 border-emerald-300 text-emerald-700 border flex items-center justify-center shrink-0 mt-0.5 shadow-2xs">
                   <Bot className="w-4 h-4" />
                 </div>
                 <div className="flex-1 space-y-1.5">
                   {/* 発言者・日付バッジ */}
                   {msg.speaker && (
-                    <div className="flex items-center gap-1.5 text-[11px] text-slate-400">
-                      <span className="font-semibold text-slate-300">{msg.speaker}</span>
-                      {msg.speakerTitle && <span>({msg.speakerTitle})</span>}
+                    <div className="flex items-center gap-1.5 text-[11px] dark:text-slate-400 text-slate-700 font-semibold">
+                      <span className="font-bold dark:text-slate-200 text-slate-900">{msg.speaker}</span>
+                      {msg.speakerTitle && <span className="dark:text-slate-400 text-slate-600 font-medium">({msg.speakerTitle})</span>}
                       {msg.date && (
-                        <span className="text-slate-500 hidden xs:inline">• {msg.date}</span>
+                        <span className="dark:text-slate-400 text-slate-500 hidden xs:inline">• {msg.date}</span>
                       )}
                     </div>
                   )}
@@ -1152,23 +1152,23 @@ export default function LineChatModal({
 
                             const stanceStyle =
                               utt.stanceLabel === '推進'
-                                ? 'bg-emerald-950/90 text-emerald-300 border-emerald-700/60 dark:bg-emerald-950/90 dark:text-emerald-300'
+                                ? 'dark:bg-emerald-950/90 dark:text-emerald-300 dark:border-emerald-700/60 bg-emerald-100 text-emerald-800 border-emerald-300'
                                 : utt.stanceLabel === '条件付き賛成'
-                                ? 'bg-teal-950/90 text-teal-300 border-teal-700/60'
+                                ? 'dark:bg-teal-950/90 dark:text-teal-300 dark:border-teal-700/60 bg-teal-100 text-teal-800 border-teal-300'
                                 : utt.stanceLabel === '慎重'
-                                ? 'bg-amber-950/90 text-amber-300 border-amber-700/60'
+                                ? 'dark:bg-amber-950/90 dark:text-amber-300 dark:border-amber-700/60 bg-amber-100 text-amber-800 border-amber-300'
                                 : utt.stanceLabel === '拡大提案'
-                                ? 'bg-sky-950/90 text-sky-300 border-sky-700/60'
-                                : 'bg-purple-950/90 text-purple-300 border-purple-700/60';
+                                ? 'dark:bg-sky-950/90 dark:text-sky-300 dark:border-sky-700/60 bg-sky-100 text-sky-800 border-sky-300'
+                                : 'dark:bg-purple-950/90 dark:text-purple-300 dark:border-purple-700/60 bg-purple-100 text-purple-800 border-purple-300';
 
                             const voteStyle =
                               utt.voteRecord === '賛成'
-                                ? 'bg-emerald-900/80 text-emerald-200 border-emerald-600/80'
+                                ? 'dark:bg-emerald-900/80 dark:text-emerald-200 dark:border-emerald-600/80 bg-emerald-100 text-emerald-900 border-emerald-300'
                                 : utt.voteRecord === '反対'
-                                ? 'bg-rose-900/80 text-rose-200 border-rose-600/80'
+                                ? 'dark:bg-rose-900/80 dark:text-rose-200 dark:border-rose-600/80 bg-rose-100 text-rose-900 border-rose-300'
                                 : utt.voteRecord === '棄権'
-                                ? 'bg-slate-800 text-slate-300 border-slate-600'
-                                : 'bg-amber-950/80 text-amber-300 border-amber-700/80';
+                                ? 'dark:bg-slate-800 dark:text-slate-300 dark:border-slate-600 bg-slate-200 text-slate-700 border-slate-300'
+                                : 'dark:bg-amber-950/80 dark:text-amber-300 dark:border-amber-700/80 bg-amber-100 text-amber-900 border-amber-300';
 
                             const avatarBg =
                               utt.avatarColor === 'emerald'
@@ -1269,7 +1269,7 @@ export default function LineChatModal({
 
                                              <button
                                                onClick={() => toggleUtteranceCommentBox(itemKey)}
-                                               className="px-2 py-0.8 rounded-lg font-semibold border bg-slate-900 hover:bg-slate-800 text-emerald-400 border-emerald-900/60 flex items-center gap-1 transition-colors"
+                                               className="px-2 py-0.8 rounded-lg font-semibold border dark:bg-slate-900 dark:hover:bg-slate-800 dark:text-emerald-400 dark:border-emerald-900/60 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border-emerald-300 flex items-center gap-1 transition-colors shadow-2xs"
                                              >
                                                <MessageSquare className="w-3 h-3" />
                                                <span>理由・意見</span>
@@ -1278,14 +1278,14 @@ export default function LineChatModal({
 
                                            <button
                                              onClick={() => toggleSpeakerExpand(itemKey)}
-                                             className="text-[11px] text-emerald-400 hover:text-emerald-300 font-semibold flex items-center gap-1 transition-colors py-0.5 px-2 rounded bg-slate-900 border border-slate-800 shrink-0"
+                                             className="text-[11px] dark:text-emerald-400 dark:hover:text-emerald-300 dark:bg-slate-900 dark:border-slate-800 bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-300 border font-semibold flex items-center gap-1 transition-colors py-0.5 px-2 rounded shrink-0 shadow-2xs"
                                            >
                                              <span>{isExpanded ? '原文抜粋をたたむ ▴' : '発言の要旨・原文抜粋をみる ▾'}</span>
                                            </button>
                                          </div>
 
                                          {isCommentOpen && (
-                                           <div className="mt-2 pt-2 border-t border-slate-800/80 space-y-2 animate-fade-in">
+                                           <div className="mt-2 pt-2 border-t dark:border-slate-800/80 border-slate-200 space-y-2 animate-fade-in">
                                              <div className="flex gap-2">
                                                <input
                                                  type="text"
@@ -1293,11 +1293,11 @@ export default function LineChatModal({
                                                  onChange={(e) => setUtteranceCommentInputs((prev) => ({ ...prev, [itemKey]: e.target.value }))}
                                                  onKeyDown={(e) => e.key === 'Enter' && handleAddUtteranceComment(itemKey, utt.speakerName)}
                                                  placeholder={`「${utt.speakerName}議員の発言」への匿名理由・意見（例: 財源の説明をもっと開示してほしい）`}
-                                                 className="flex-1 bg-slate-900 border border-slate-700/80 rounded-lg px-2.5 py-1.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500"
+                                                 className="flex-1 dark:bg-slate-900 dark:border-slate-700/80 dark:text-white bg-white border-slate-300 text-slate-900 border rounded-lg px-2.5 py-1.5 text-xs placeholder-slate-400 focus:outline-none focus:border-emerald-500 transition-colors"
                                                />
                                                <button
                                                  onClick={() => handleAddUtteranceComment(itemKey, utt.speakerName)}
-                                                 className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg font-bold text-xs shrink-0 transition-colors"
+                                                 className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg font-bold text-xs shrink-0 transition-colors shadow-2xs"
                                                >
                                                  送信 (EBPMへ反映)
                                                </button>
@@ -1305,11 +1305,11 @@ export default function LineChatModal({
 
                                              {allComments.length > 0 && (
                                                <div className="space-y-1 pt-1">
-                                                 <div className="text-[10px] text-slate-400 font-semibold">集計された市民の理由・コメント:</div>
+                                                 <div className="text-[10px] dark:text-slate-400 text-slate-500 font-semibold">集計された市民の理由・コメント:</div>
                                                  {allComments.map((c, cIdx) => (
-                                                   <div key={cIdx} className="bg-slate-900/90 border border-slate-800/80 p-2 rounded-lg text-xs flex items-start gap-1.5">
-                                                     <span className="text-emerald-400 font-bold shrink-0">💬 {c.user}:</span>
-                                                     <span className="text-slate-200 font-normal leading-relaxed">{c.text}</span>
+                                                   <div key={cIdx} className="dark:bg-slate-900/90 dark:border-slate-800/80 bg-slate-100 border-slate-200 border p-2 rounded-lg text-xs flex items-start gap-1.5 text-slate-800">
+                                                     <span className="text-emerald-600 dark:text-emerald-400 font-bold shrink-0">💬 {c.user}:</span>
+                                                     <span className="dark:text-slate-200 text-slate-800 font-normal leading-relaxed">{c.text}</span>
                                                    </div>
                                                  ))}
                                                </div>
@@ -1322,28 +1322,28 @@ export default function LineChatModal({
                                  </div>
 
                                   {isExpanded && (
-                                    <div className="w-full mt-2.5 space-y-2 text-xs bg-slate-900/90 border border-slate-800 p-3 rounded-lg text-slate-300 animate-fade-in">
+                                    <div className="w-full mt-2.5 space-y-2 text-xs dark:bg-slate-900/90 dark:border-slate-800 bg-white border-slate-200 border p-3 rounded-lg dark:text-slate-300 text-slate-800 animate-fade-in shadow-xs">
                                       <div>
-                                        <div className="text-[10px] text-emerald-400 font-bold uppercase tracking-wider mb-0.5">💡 発言の要旨詳細</div>
-                                        <div className="text-slate-200 leading-relaxed font-normal">{utt.fullSummary || utt.summaryQuote}</div>
+                                        <div className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold uppercase tracking-wider mb-0.5">💡 発言の要旨詳細</div>
+                                        <div className="dark:text-slate-200 text-slate-900 leading-relaxed font-normal">{utt.fullSummary || utt.summaryQuote}</div>
                                       </div>
 
                                       <div>
-                                        <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mb-0.5">💬 公式会議録 原文抜粋</div>
-                                        <div className="bg-slate-950 p-2.5 rounded border border-slate-800/80 text-[11.5px] italic text-slate-300 leading-relaxed">
+                                        <div className="text-[10px] dark:text-slate-400 text-slate-500 font-bold uppercase tracking-wider mb-0.5">💬 公式会議録 原文抜粋</div>
+                                        <div className="dark:bg-slate-950 dark:border-slate-800/80 dark:text-slate-300 bg-slate-50 border-slate-200 border p-2.5 rounded text-[11.5px] italic text-slate-800 leading-relaxed">
                                           {utt.sourceExcerpt || `「${utt.summaryQuote}」`}
                                         </div>
                                       </div>
 
-                                      <div className="flex items-center justify-between text-[10.5px] text-slate-400 pt-1.5 border-t border-slate-800/60 flex-wrap gap-2">
+                                      <div className="flex items-center justify-between text-[10.5px] dark:text-slate-400 text-slate-500 pt-1.5 border-t dark:border-slate-800/60 border-slate-200 flex-wrap gap-2">
                                         <div>
-                                          📍 審議会議: <span className="text-slate-300 font-medium">{utt.meetingName || '令和8年 第1回定例会 本会議・委員会'}</span>
+                                          📍 審議会議: <span className="dark:text-slate-300 text-slate-800 font-medium">{utt.meetingName || '令和8年 第1回定例会 本会議・委員会'}</span>
                                         </div>
                                         <a
                                           href={utt.sourceUrl || msg.sourceUrl || 'https://catalog.data.metro.tokyo.lg.jp/'}
                                           target="_blank"
                                           rel="noopener noreferrer"
-                                          className="text-emerald-400 hover:underline flex items-center gap-1 font-semibold"
+                                          className="text-emerald-600 dark:text-emerald-400 hover:underline flex items-center gap-1 font-semibold"
                                         >
                                           <span>公式議事録の原典を確認 ↗</span>
                                         </a>
@@ -1355,7 +1355,7 @@ export default function LineChatModal({
                             })}
                         </div>
 
-                        <p className="text-[10px] text-slate-400 font-normal pt-0.5">
+                        <p className="text-[10px] dark:text-slate-400 text-slate-500 font-normal pt-0.5">
                           ※各発言者の右下ボタンをタップすると、公式会議録の原文抜粋および詳細な答弁内容を無制限に展開して閲覧できます。
                         </p>
                       </div>
@@ -1363,16 +1363,16 @@ export default function LineChatModal({
 
                     {/* スケジュール・時間軸 (Timeline) */}
                     {msg.timeline && msg.timeline.length > 0 && (
-                      <div className="pt-2.5 border-t border-slate-800/80 space-y-1.5">
-                        <div className="text-[11px] font-bold text-slate-300 flex items-center gap-1.5">
-                          <Calendar className="w-3.5 h-3.5 text-emerald-400" />
+                      <div className="pt-2.5 border-t dark:border-slate-800/80 border-slate-200 space-y-1.5">
+                        <div className="text-[11px] font-bold dark:text-slate-300 text-slate-800 flex items-center gap-1.5">
+                          <Calendar className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
                           <span>今後のスケジュール・時系列</span>
                         </div>
                         <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                           {msg.timeline.map((item, idx) => (
-                            <div key={idx} className="bg-slate-950/80 p-2 rounded-lg border border-slate-800/80 text-[11px]">
-                              <div className="text-[10px] text-emerald-400 font-mono font-semibold">{item.date}</div>
-                              <div className="text-slate-200 font-medium leading-tight mt-0.5">{item.event}</div>
+                            <div key={idx} className="dark:bg-slate-950/80 dark:border-slate-800/80 bg-slate-50 border-slate-200 border p-2 rounded-lg text-[11px]">
+                              <div className="text-[10px] text-emerald-600 dark:text-emerald-400 font-mono font-semibold">{item.date}</div>
+                              <div className="dark:text-slate-200 text-slate-800 font-medium leading-tight mt-0.5">{item.event}</div>
                             </div>
                           ))}
                         </div>
@@ -1381,29 +1381,29 @@ export default function LineChatModal({
 
                     {/* 議会での主な論点 (Supporting vs Concerns) */}
                     {msg.policyArguments && (
-                      <div className="pt-2.5 border-t border-slate-800/80 space-y-2">
-                        <div className="text-[11px] font-bold text-slate-300 flex items-center gap-1.5">
-                          <MessageSquare className="w-3.5 h-3.5 text-emerald-400" />
+                      <div className="pt-2.5 border-t dark:border-slate-800/80 border-slate-200 space-y-2">
+                        <div className="text-[11px] font-bold dark:text-slate-300 text-slate-800 flex items-center gap-1.5">
+                          <MessageSquare className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
                           <span>議会での主な論点（審議内容）</span>
                         </div>
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px]">
-                          <div className="bg-emerald-950/40 p-2.5 rounded-xl border border-emerald-800/40 space-y-1">
-                            <div className="text-[10.5px] font-bold text-emerald-400 flex items-center gap-1">
+                          <div className="dark:bg-emerald-950/40 dark:border-emerald-800/40 bg-emerald-50/80 border-emerald-200 border p-2.5 rounded-xl space-y-1">
+                            <div className="text-[10.5px] font-bold text-emerald-700 dark:text-emerald-400 flex items-center gap-1">
                               <CheckCircle2 className="w-3 h-3" />
                               <span>賛成理由・推進側の主な意見</span>
                             </div>
-                            <ul className="list-disc list-inside space-y-0.5 text-slate-300 text-[10.5px]">
+                            <ul className="list-disc list-inside space-y-0.5 dark:text-slate-300 text-slate-800 text-[10.5px]">
                               {msg.policyArguments.supporting.map((arg, idx) => (
                                 <li key={idx}>{arg}</li>
                               ))}
                             </ul>
                           </div>
-                          <div className="bg-rose-950/40 p-2.5 rounded-xl border border-rose-800/40 space-y-1">
-                            <div className="text-[10.5px] font-bold text-rose-400 flex items-center gap-1">
+                          <div className="dark:bg-rose-950/40 dark:border-rose-800/40 bg-rose-50/80 border-rose-200 border p-2.5 rounded-xl space-y-1">
+                            <div className="text-[10.5px] font-bold text-rose-700 dark:text-rose-400 flex items-center gap-1">
                               <AlertCircle className="w-3 h-3" />
                               <span>慎重論・懸念される主な点</span>
                             </div>
-                            <ul className="list-disc list-inside space-y-0.5 text-slate-300 text-[10.5px]">
+                            <ul className="list-disc list-inside space-y-0.5 dark:text-slate-300 text-slate-800 text-[10.5px]">
                               {msg.policyArguments.concerns.map((arg, idx) => (
                                 <li key={idx}>{arg}</li>
                               ))}
@@ -1415,13 +1415,13 @@ export default function LineChatModal({
 
                     {/* 【ブロック4】根拠は？ (公式会議録 原文引用 & オープンデータリンク) */}
                     {msg.originalQuote && (
-                      <div className="pt-2 border-t border-slate-800/80 space-y-2">
+                      <div className="pt-2 border-t dark:border-slate-800/80 border-slate-200 space-y-2">
                         <div className="flex items-center justify-between flex-wrap gap-1 text-[11px]">
                           <button
                             onClick={() => toggleQuote(msg.id)}
-                            className="font-medium text-slate-300 hover:text-emerald-400 flex items-center gap-1.5 transition-colors"
+                            className="font-medium dark:text-slate-300 dark:hover:text-emerald-400 text-slate-700 hover:text-emerald-700 flex items-center gap-1.5 transition-colors"
                           >
-                            <FileText className="w-3.5 h-3.5 text-emerald-400" />
+                            <FileText className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
                             <span>根拠：公式会議録の原文を{isQuoteExpanded ? '閉じる' : '確認する'}</span>
                             {isQuoteExpanded ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
                           </button>
@@ -1430,7 +1430,7 @@ export default function LineChatModal({
                             href={msg.sourceUrl || 'https://catalog.data.metro.tokyo.lg.jp/'}
                             target="_blank"
                             rel="noreferrer"
-                            className="text-[10.5px] text-emerald-400 hover:text-emerald-300 flex items-center gap-1 font-medium underline underline-offset-2"
+                            className="text-[10.5px] text-emerald-600 dark:text-emerald-400 hover:underline flex items-center gap-1 font-medium"
                           >
                             <span>東京都オープンデータ原典</span>
                             <ExternalLink className="w-3 h-3" />
@@ -1438,7 +1438,7 @@ export default function LineChatModal({
                         </div>
 
                         {isQuoteExpanded && (
-                          <div className="mt-2 p-3 bg-slate-950 rounded-xl border border-slate-800/80 text-xs text-slate-300 font-serif leading-relaxed italic animate-fade-in">
+                          <div className="mt-2 p-3 dark:bg-slate-950 dark:border-slate-800/80 dark:text-slate-300 bg-slate-50 border-slate-200 border rounded-xl text-xs text-slate-800 font-serif leading-relaxed italic animate-fade-in">
                             {msg.originalQuote}
                           </div>
                         )}
@@ -1447,16 +1447,16 @@ export default function LineChatModal({
 
                     {/* 補助情報: この議論、どう思う？ (双方向フィードバック) & AI検証ステップ */}
                     {(msg.agreeCount !== undefined || msg.disagreeCount !== undefined) && (
-                      <div className="pt-2.5 border-t border-slate-800/80 space-y-2 text-xs">
+                      <div className="pt-2.5 border-t dark:border-slate-800/80 border-slate-200 space-y-2 text-xs">
                         <div className="flex items-center justify-between flex-wrap gap-2">
                           <div className="flex items-center gap-1.5 flex-wrap">
-                            <span className="text-[11px] font-bold text-slate-300">この議論、どう思う？</span>
+                            <span className="text-[11px] font-bold dark:text-slate-300 text-slate-800">この議論、どう思う？</span>
                             <button
                               onClick={() => handleVote(msg.id, 'agree')}
                               className={`px-2.5 py-1 rounded-lg text-xs font-medium border flex items-center gap-1 transition-colors ${
                                 hasVoted === 'agree'
-                                  ? 'bg-emerald-600/20 text-emerald-300 border-emerald-500/40'
-                                  : 'bg-slate-800 hover:bg-slate-750 text-slate-300 border-slate-700'
+                                  ? 'bg-emerald-600/20 text-emerald-700 dark:text-emerald-300 border-emerald-500/40'
+                                  : 'dark:bg-slate-800 dark:hover:bg-slate-750 dark:text-slate-300 dark:border-slate-700 bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-300'
                               }`}
                             >
                               <ThumbsUp className="w-3 h-3" />
@@ -1466,8 +1466,8 @@ export default function LineChatModal({
                               onClick={() => handleVote(msg.id, 'disagree')}
                               className={`px-2.5 py-1 rounded-lg text-xs font-medium border flex items-center gap-1 transition-colors ${
                                 hasVoted === 'disagree'
-                                  ? 'bg-rose-600/20 text-rose-300 border-rose-500/40'
-                                  : 'bg-slate-800 hover:bg-slate-750 text-slate-300 border-slate-700'
+                                  ? 'bg-rose-600/20 text-rose-700 dark:text-rose-300 border-rose-500/40'
+                                  : 'dark:bg-slate-800 dark:hover:bg-slate-750 dark:text-slate-300 dark:border-slate-700 bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-300'
                               }`}
                             >
                               <ThumbsDown className="w-3 h-3" />
@@ -1475,16 +1475,16 @@ export default function LineChatModal({
                             </button>
                             <button
                               onClick={() => toggleCommentBox(msg.id)}
-                              className="px-2.5 py-1 rounded-lg text-xs font-medium bg-slate-800 hover:bg-slate-750 text-slate-300 border border-slate-700 flex items-center gap-1 transition-colors"
+                              className="px-2.5 py-1 rounded-lg text-xs font-medium dark:bg-slate-800 dark:hover:bg-slate-750 dark:text-slate-300 dark:border-slate-700 bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-300 border flex items-center gap-1 transition-colors"
                             >
-                              <Send className="w-3 h-3 text-emerald-400" />
+                              <Send className="w-3 h-3 text-emerald-600 dark:text-emerald-400" />
                               <span>意見を書く</span>
                             </button>
                           </div>
 
                           <button
                             onClick={() => toggleChain(msg.id)}
-                            className="text-[10.5px] font-medium text-slate-400 hover:text-slate-200 flex items-center gap-1 transition-colors ml-auto"
+                            className="text-[10.5px] font-medium dark:text-slate-400 dark:hover:text-slate-200 text-slate-600 hover:text-slate-900 flex items-center gap-1 transition-colors ml-auto"
                           >
                             <span>AI検証プロセス</span>
                             {isChainExpanded ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
@@ -1501,11 +1501,11 @@ export default function LineChatModal({
                                 setCommentInputs((prev) => ({ ...prev, [msg.id]: e.target.value }))
                               }
                               placeholder="この議題への匿名意見・声を届ける（行政ダッシュボードへ集計）..."
-                              className="flex-1 px-3 py-1.5 bg-slate-950 border border-slate-800 rounded-lg text-xs text-white placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                              className="flex-1 px-3 py-1.5 dark:bg-slate-950 dark:border-slate-800 dark:text-white bg-white border-slate-300 text-slate-900 border rounded-lg text-xs placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-emerald-500 transition-colors"
                             />
                             <button
                               onClick={() => handleAddComment(msg.id)}
-                              className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-semibold shrink-0"
+                              className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-semibold shrink-0 shadow-2xs"
                             >
                               届ける
                             </button>
@@ -1518,9 +1518,9 @@ export default function LineChatModal({
                             {msg.comments.map((c, idx) => (
                               <div
                                 key={idx}
-                                className="bg-slate-950/80 p-2 rounded-lg border border-slate-800/80 text-[11px] text-slate-300"
+                                className="dark:bg-slate-950/80 dark:border-slate-800/80 dark:text-slate-300 bg-slate-100 border-slate-200 border p-2 rounded-lg text-[11px] text-slate-800"
                               >
-                                <span className="font-semibold text-emerald-400">{c.user}: </span>
+                                <span className="font-semibold text-emerald-600 dark:text-emerald-400">{c.user}: </span>
                                 <span>{c.text}</span>
                               </div>
                             ))}
@@ -1531,18 +1531,18 @@ export default function LineChatModal({
 
                     {/* AI Processing Chain アコーディオン展開 */}
                     {isChainExpanded && (
-                      <div className="p-3 bg-slate-950 rounded-xl border border-slate-800 space-y-2 text-xs animate-fade-in">
-                        <p className="text-[11px] text-slate-400 font-semibold mb-1">
+                      <div className="p-3 dark:bg-slate-950 dark:border-slate-800 bg-slate-100 border-slate-200 border rounded-xl space-y-2 text-xs animate-fade-in">
+                        <p className="text-[11px] dark:text-slate-400 text-slate-600 font-semibold mb-1">
                           処理ステップ: 公式データ連携 ➔ 情報抽出 ➔ 構造化要約 ➔ 原文照合
                         </p>
                         {chainSteps.map((step) => (
                           <div key={step.step_number} className="flex items-start gap-2 text-[11px]">
-                            <span className="w-4 h-4 rounded-full bg-slate-800 text-emerald-400 border border-slate-700 flex items-center justify-center font-bold text-[9px] shrink-0 mt-0.5">
+                            <span className="w-4 h-4 rounded-full dark:bg-slate-800 dark:text-emerald-400 dark:border-slate-700 bg-white border-slate-300 text-emerald-700 border flex items-center justify-center font-bold text-[9px] shrink-0 mt-0.5">
                               {step.step_number}
                             </span>
                             <div>
-                              <span className="font-semibold text-slate-200">{step.title}</span>
-                              <p className="text-slate-400 text-[10.5px] leading-tight">{step.detail}</p>
+                              <span className="font-semibold dark:text-slate-200 text-slate-900">{step.title}</span>
+                              <p className="dark:text-slate-400 text-slate-600 text-[10.5px] leading-tight">{step.detail}</p>
                             </div>
                           </div>
                         ))}
