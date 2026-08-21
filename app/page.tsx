@@ -46,8 +46,8 @@ const TOKYO_ASSEMBLIES: readonly Assembly[] = [
       { theme: 'redevelop', label: '多摩モノレール延伸・東京ベイeSG', count: 145 },
       { theme: 'medical', label: '休日夜間こども初期診療拡充', count: 110 },
     ],
-    lastMeetingDate: '2026年6月 第2回定例会 本会議',
-    lastUpdatedDate: '2026/08/21',
+    lastMeetingDate: '2026/6/12｜第2回定例会',
+    lastUpdatedDate: '2026/08/22',
   },
   {
     id: 'shinjuku-ward',
@@ -66,8 +66,8 @@ const TOKYO_ASSEMBLIES: readonly Assembly[] = [
       { theme: 'redevelop', label: '新宿駅西口・東口地下広場再編', count: 95 },
       { theme: 'medical', label: '区立健康センター休日診療', count: 45 },
     ],
-    lastMeetingDate: '2026年6月 第2回定例会 本会議',
-    lastUpdatedDate: '2026/08/21',
+    lastMeetingDate: '2026/6/12｜第2回定例会',
+    lastUpdatedDate: '2026/08/22',
   },
   {
     id: 'machida-city',
@@ -86,8 +86,8 @@ const TOKYO_ASSEMBLIES: readonly Assembly[] = [
       { theme: 'redevelop', label: '多摩都市モノレール町田延伸早期着工', count: 134 },
       { theme: 'medical', label: '南多摩急病医療体制の確保', count: 52 },
     ],
-    lastMeetingDate: '2026年6月 第2回定例会 本会議',
-    lastUpdatedDate: '2026/08/21',
+    lastMeetingDate: '2026/6/12｜第2回定例会',
+    lastUpdatedDate: '2026/08/22',
   },
   {
     id: 'shinagawa-ward',
@@ -106,8 +106,8 @@ const TOKYO_ASSEMBLIES: readonly Assembly[] = [
       { theme: 'redevelop', label: '大井町駅周辺・品川駅西口基盤整備', count: 68 },
       { theme: 'medical', label: '病児・病後児保育の区内全域予約', count: 58 },
     ],
-    lastMeetingDate: '2026年6月 第2回定例会 本会議',
-    lastUpdatedDate: '2026/08/21',
+    lastMeetingDate: '2026/6/12｜第2回定例会',
+    lastUpdatedDate: '2026/08/22',
   },
   {
     id: 'shibuya-ward',
@@ -126,8 +126,8 @@ const TOKYO_ASSEMBLIES: readonly Assembly[] = [
       { theme: 'redevelop', label: '渋谷駅周辺100年に一度の再開発', count: 120 },
       { theme: 'medical', label: '地域医療連携・休日夜間診療所', count: 40 },
     ],
-    lastMeetingDate: '2026年6月 第2回定例会 本会議',
-    lastUpdatedDate: '2026/08/21',
+    lastMeetingDate: '2026/6/12｜第2回定例会',
+    lastUpdatedDate: '2026/08/22',
   },
   {
     id: 'hachioji-city',
@@ -146,8 +146,8 @@ const TOKYO_ASSEMBLIES: readonly Assembly[] = [
       { theme: 'redevelop', label: '八王子駅南口・集約型都市構造化', count: 88 },
       { theme: 'medical', label: '夜間小児救急医療支援センター', count: 72 },
     ],
-    lastMeetingDate: '2026年6月 第2回定例会 本会議',
-    lastUpdatedDate: '2026/08/21',
+    lastMeetingDate: '2026/6/12｜第2回定例会',
+    lastUpdatedDate: '2026/08/22',
   },
 ];
 
@@ -298,14 +298,14 @@ export default function Home() {
           </div>
         )}
 
-        {/* 東京都全域 議会オープンデータ構造化実績 */}
+        {/* 東京都全域 議会オープンデータ構造化実績 (数字の証拠) */}
         <div className="w-full mt-6 grid grid-cols-2 sm:grid-cols-4 gap-3 text-left">
           <div className="dark:bg-slate-900/90 bg-white border dark:border-slate-800 border-slate-200 p-3 rounded-xl shadow-sm">
             <div className="text-[10px] dark:text-slate-400 text-slate-500 font-semibold mb-1">対応自治体</div>
-            <div className="text-lg font-bold text-emerald-600 dark:text-emerald-400">62<span className="text-[10px] text-slate-500 font-normal ml-1">/ 62</span></div>
+            <div className="text-lg font-bold text-emerald-600 dark:text-emerald-400">62<span className="text-[10px] text-slate-500 font-normal ml-1">市区町村</span></div>
           </div>
           <div className="dark:bg-slate-900/90 bg-white border dark:border-slate-800 border-slate-200 p-3 rounded-xl shadow-sm">
-            <div className="text-[10px] dark:text-slate-400 text-slate-500 font-semibold mb-1">取得議事録</div>
+            <div className="text-[10px] dark:text-slate-400 text-slate-500 font-semibold mb-1">取得会議録</div>
             <div className="text-lg font-bold dark:text-white text-slate-900">12,481<span className="text-[10px] text-slate-500 font-normal ml-1">件</span></div>
           </div>
           <div className="dark:bg-slate-900/90 bg-white border dark:border-slate-800 border-slate-200 p-3 rounded-xl shadow-sm">
@@ -314,7 +314,7 @@ export default function Home() {
           </div>
           <div className="dark:bg-slate-900/90 bg-white border dark:border-slate-800 border-slate-200 p-3 rounded-xl shadow-sm">
             <div className="text-[10px] dark:text-slate-400 text-slate-500 font-semibold mb-1">最終データ更新</div>
-            <div className="text-sm font-bold dark:text-white text-slate-900 mt-1">2026/08/21</div>
+            <div className="text-sm font-bold dark:text-white text-slate-900 mt-1">2026/08/22</div>
           </div>
         </div>
       </section>
@@ -486,6 +486,7 @@ export default function Home() {
           assembly={selectedAssemblyForModal}
           initialTheme={getThemeKeyword(userTheme)}
           onClose={() => setSelectedAssemblyForModal(null)}
+          onOpenDashboard={() => setAnalyticsAssembly(selectedAssemblyForModal)}
         />
       )}
 

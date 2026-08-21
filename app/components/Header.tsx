@@ -15,25 +15,23 @@ interface HeaderProps {
 export default function Header({
   onOpenAnalytics,
 }: HeaderProps) {
-  const [theme, setTheme] = useState<'dark' | 'light'>(() => {
-    if (typeof window === 'undefined') return 'light';
+  const [theme, setTheme] = useState<'dark' | 'light'>('light');
+  const [fontSize, setFontSize] = useState<'normal' | 'large' | 'xlarge'>('normal');
+
+  useEffect(() => {
     try {
       const storedTheme = localStorage.getItem('gijiraku_theme') as 'dark' | 'light' | null;
-      return storedTheme || 'light';
+      if (storedTheme) {
+        setTheme(storedTheme);
+      }
+      const storedFont = localStorage.getItem('gijiraku_font_size') as 'normal' | 'large' | 'xlarge' | null;
+      if (storedFont) {
+        setFontSize(storedFont);
+      }
     } catch {
-      return 'light';
+      // ignore
     }
-  });
-
-  const [fontSize, setFontSize] = useState<'normal' | 'large' | 'xlarge'>(() => {
-    if (typeof window === 'undefined') return 'normal';
-    try {
-      const stored = localStorage.getItem('gijiraku_font_size') as 'normal' | 'large' | 'xlarge' | null;
-      return stored || 'normal';
-    } catch {
-      return 'normal';
-    }
-  });
+  }, []);
 
   useEffect(() => {
     if (theme === 'dark') {
