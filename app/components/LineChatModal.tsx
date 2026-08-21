@@ -820,26 +820,36 @@ export default function LineChatModal({
       });
     }
 
-    queueMicrotask(() => setMessages(initialMsgs));
+    queueMicrotask(() => {
+      setMessages(initialMsgs);
+      if (chatContainerRef.current) {
+        chatContainerRef.current.scrollTop = 0;
+      }
+    });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [assembly, initialTheme]);
 
   const chatContainerRef = useRef<HTMLDivElement>(null);
-  const isInitialMount = useRef(true);
 
+  // モーダルオープン時および自治体変更時は常に一番上（scrollTop = 0）にスクロール位置をリセット
   useEffect(() => {
-    if (isInitialMount.current) {
-      isInitialMount.current = false;
+    if (chatContainerRef.current) {
+      chatContainerRef.current.scrollTop = 0;
+    }
+    const timer = setTimeout(() => {
       if (chatContainerRef.current) {
         chatContainerRef.current.scrollTop = 0;
       }
-      return;
-    }
+    }, 50);
+    return () => clearTimeout(timer);
+  }, [assembly]);
 
-    if (messages.length > 2) {
+  // ユーザーが新しい質問を送信した時のみ、最新メッセージへスクロールダウン
+  const scrollToBottom = () => {
+    setTimeout(() => {
       chatBottomRef.current?.scrollIntoView({ behavior: 'smooth' });
-    }
-  }, [messages]);
+    }, 100);
+  };
 
   const toggleQuote = (id: string) => {
     setExpandedQuotes((prev) => ({ ...prev, [id]: !prev[id] }));
