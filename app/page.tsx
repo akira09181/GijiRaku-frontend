@@ -196,7 +196,7 @@ export default function Home() {
   }, [selectedAssemblyId]);
 
   return (
-    <main className="min-h-screen flex flex-col bg-slate-950 text-slate-100 selection:bg-emerald-500 selection:text-slate-950">
+    <main className="min-h-screen flex flex-col dark:bg-slate-950 dark:text-slate-100 bg-slate-50 text-slate-900 selection:bg-emerald-500 selection:text-slate-950 transition-colors duration-200">
       {/* 共通ヘッダー */}
       <Header onOpenAnalytics={() => setAnalyticsAssembly(TOKYO_ASSEMBLIES[0])} />
 
@@ -466,7 +466,7 @@ export default function Home() {
       )}
 
       {/* フッター */}
-      <footer className="border-t border-slate-800 py-6 px-4 text-center text-xs text-slate-500">
+      <footer className="border-t dark:border-slate-800 border-slate-200 py-6 px-4 text-center text-xs dark:text-slate-500 text-slate-600 transition-colors">
         <div className="max-w-5xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-2">
           <span>マチボイス (MachiVoice) &copy; 2026 - 東京都オープンデータ活用ポータル</span>
           <span>東京都オープンデータカタログサイト API 連携</span>
