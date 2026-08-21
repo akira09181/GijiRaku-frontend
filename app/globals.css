@@ -7,6 +7,14 @@
   --foreground: #0f172a;
 }
 
+html[data-font-size="large"] {
+  font-size: 112.5%;
+}
+
+html[data-font-size="xlarge"] {
+  font-size: 125%;
+}
+
 .dark {
   --background: #020617;
   --foreground: #f8fafc;

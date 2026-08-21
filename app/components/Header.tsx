@@ -25,6 +25,16 @@ export default function Header({
     }
   });
 
+  const [fontSize, setFontSize] = useState<'normal' | 'large' | 'xlarge'>(() => {
+    if (typeof window === 'undefined') return 'normal';
+    try {
+      const stored = localStorage.getItem('gijiraku_font_size') as 'normal' | 'large' | 'xlarge' | null;
+      return stored || 'normal';
+    } catch {
+      return 'normal';
+    }
+  });
+
   useEffect(() => {
     if (theme === 'dark') {
       document.documentElement.classList.add('dark');
@@ -33,11 +43,22 @@ export default function Header({
     }
   }, [theme]);
 
+  useEffect(() => {
+    document.documentElement.setAttribute('data-font-size', fontSize);
+  }, [fontSize]);
+
   const toggleTheme = () => {
     const nextTheme = theme === 'dark' ? 'light' : 'dark';
     setTheme(nextTheme);
     localStorage.setItem('gijiraku_theme', nextTheme);
     window.dispatchEvent(new CustomEvent('theme_changed', { detail: { theme: nextTheme } }));
+  };
+
+  const changeFontSize = (size: 'normal' | 'large' | 'xlarge') => {
+    setFontSize(size);
+    localStorage.setItem('gijiraku_font_size', size);
+    document.documentElement.setAttribute('data-font-size', size);
+    window.dispatchEvent(new CustomEvent('font_size_changed', { detail: { fontSize: size } }));
   };
 
   return (
@@ -56,8 +77,46 @@ export default function Header({
           </div>
         </div>
 
-        {/* テーマ切替 ＆ 行政向け導線 */}
+        {/* 文字サイズ変更 ＆ テーマ切替 ＆ 行政向け導線 */}
         <div className="flex items-center gap-2 shrink-0">
+          {/* 文字サイズ変更ピル */}
+          <div className="flex items-center gap-0.5 p-1 rounded-lg dark:bg-slate-800/80 dark:border-slate-700/70 bg-slate-100 border-slate-300 border text-xs">
+            <span className="px-1 text-slate-500 font-bold hidden sm:inline text-[11px]">文字</span>
+            <button
+              onClick={() => changeFontSize('normal')}
+              className={`px-1.5 py-0.5 rounded font-semibold transition-all text-[11px] ${
+                fontSize === 'normal'
+                  ? 'bg-emerald-600 text-white shadow-2xs'
+                  : 'dark:text-slate-300 text-slate-600 hover:text-slate-900'
+              }`}
+              title="標準文字サイズ"
+            >
+              標準
+            </button>
+            <button
+              onClick={() => changeFontSize('large')}
+              className={`px-1.5 py-0.5 rounded font-semibold transition-all text-[11px] ${
+                fontSize === 'large'
+                  ? 'bg-emerald-600 text-white shadow-2xs'
+                  : 'dark:text-slate-300 text-slate-600 hover:text-slate-900'
+              }`}
+              title="文字サイズ大 (+12.5%)"
+            >
+              大
+            </button>
+            <button
+              onClick={() => changeFontSize('xlarge')}
+              className={`px-1.5 py-0.5 rounded font-semibold transition-all text-[11px] ${
+                fontSize === 'xlarge'
+                  ? 'bg-emerald-600 text-white shadow-2xs'
+                  : 'dark:text-slate-300 text-slate-600 hover:text-slate-900'
+              }`}
+              title="文字サイズ特大 (+25%)"
+            >
+              特大
+            </button>
+          </div>
+
           <button
             onClick={toggleTheme}
             className="px-2.5 py-1.5 rounded-lg dark:bg-slate-800/80 dark:hover:bg-slate-800 dark:border-slate-700/70 dark:text-slate-300 bg-slate-100 hover:bg-slate-200 border-slate-300 text-slate-700 border text-xs font-medium flex items-center gap-1.5 transition-colors"
