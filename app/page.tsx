@@ -323,7 +323,7 @@ export default function Home() {
       <section className="px-4 pb-12 max-w-4xl w-full mx-auto space-y-4">
         <div className="flex items-center justify-between">
           <h3 className="text-sm font-bold dark:text-white text-slate-900 flex items-center gap-2">
-            <span>あなたの生活に関係する議論</span>
+            <span>いま、街で動いている議論</span>
             <span className="px-2 py-0.5 rounded-full text-[11px] font-normal dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700 bg-slate-200 text-slate-700 border-slate-300 border">
               {activeAssemblies.length}地域
             </span>
