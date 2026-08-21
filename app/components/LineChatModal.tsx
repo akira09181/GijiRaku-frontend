@@ -881,7 +881,7 @@ export default function LineChatModal({
       body: JSON.stringify({ opinion_type: type }),
     }).catch(() => {});
 
-    triggerEbpmFeedbackNotification(type === 'agree' ? '賛成の声' : '懸念の声', newCount);
+    triggerEbpmFeedbackNotification(assembly.name, type === 'agree' ? '賛成の声' : '懸念の声', newCount);
   };
 
   const toggleCommentBox = (id: string) => {
