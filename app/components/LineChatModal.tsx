@@ -127,6 +127,39 @@ interface PersistedReactionState {
   readonly counts: ReactionCounts;
 }
 
+interface AssemblyRecordStatement {
+  readonly statement_id: string;
+  readonly speaker_name: string;
+  readonly speaker_role: string;
+  readonly party_name?: string;
+  readonly committee_name?: string;
+  readonly stance_label: string;
+  readonly vote_record?: string;
+  readonly summary_quote: string;
+  readonly full_summary?: string;
+  readonly source_excerpt?: string;
+  readonly question_type?: string;
+  readonly avatar_color?: string;
+}
+
+interface AssemblyRecord {
+  readonly discussion_id: string;
+  readonly meeting_date: string;
+  readonly meeting_name: string;
+  readonly source_url: string;
+  readonly what_changes: string;
+  readonly target_audience: string;
+  readonly current_stage: string;
+  readonly budget_info: string;
+  readonly original_quote: string;
+  readonly statements: readonly AssemblyRecordStatement[];
+}
+
+interface AssemblyRecordsResponse {
+  readonly status: 'success';
+  readonly records: readonly AssemblyRecord[];
+}
+
 const ANONYMOUS_USER_STORAGE_KEY = 'gijiraku_anonymous_user_id';
 const TOKYO_VERIFIED_MINUTES_URL = 'https://www.gikai.metro.tokyo.lg.jp/record/proceedings/2024-2/03-07.html';
 const VERIFIED_ASSEMBLY_IDS = new Set([
@@ -382,6 +415,29 @@ function getOrCreateAnonymousUserId(): string {
   const anonymousUserId = crypto.randomUUID();
   localStorage.setItem(ANONYMOUS_USER_STORAGE_KEY, anonymousUserId);
   return anonymousUserId;
+}
+
+function mapAssemblyRecordsToSpeakers(records: readonly AssemblyRecord[]): SpeakerUtterance[] {
+  return records.flatMap((record) => record.statements.map((statement) => ({
+    id: statement.statement_id,
+    speakerName: statement.speaker_name,
+    speakerRole: statement.speaker_role,
+    partyName: statement.party_name,
+    committeeName: statement.committee_name,
+    stanceLabel: statement.stance_label,
+    voteRecord: statement.vote_record,
+    summaryQuote: statement.summary_quote,
+    fullSummary: statement.full_summary,
+    sourceExcerpt: statement.source_excerpt,
+    meetingName: record.meeting_name,
+    meetingDate: record.meeting_date.replaceAll('-', '/'),
+    questionType: statement.question_type,
+    sourceUrl: record.source_url,
+    avatarColor: statement.avatar_color,
+    agreeCount: 0,
+    concernCount: 0,
+    helpfulCount: 0,
+  })));
 }
 
 /**
@@ -1277,6 +1333,71 @@ export default function LineChatModal({
         chatContainerRef.current.scrollTop = 0;
       }
     });
+
+    const controller = new AbortController();
+    const loadAssemblyRecords = async () => {
+      try {
+        const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000';
+        const query = new URLSearchParams({ assembly_id: assembly.id, limit: '20' });
+        const response = await fetch(`${apiBase}/api/assembly-records?${query.toString()}`, {
+          signal: controller.signal,
+        });
+        if (!response.ok) return;
+
+        const payload = await response.json() as AssemblyRecordsResponse;
+        const records = payload.records || [];
+        const latestRecord = records[0];
+        if (!latestRecord) return;
+
+        const apiSpeakers = mapAssemblyRecordsToSpeakers(records);
+        const latestSpeakers = apiSpeakers.slice(0, latestRecord.statements.length);
+        const latestDate = latestRecord.meeting_date.replaceAll('-', '/');
+        const latestTimeline: TimelineItem[] = latestSpeakers.map((speaker) => ({
+          date: latestDate,
+          event: `${speaker.speakerName}が${speaker.questionType || '本会議'}で発言`,
+          status: 'completed',
+        }));
+
+        setMessages((current) => current.map((message) => {
+          if (message.id === 'msg-1') {
+            return {
+              ...message,
+              date: `${latestDate} ${latestRecord.meeting_name}`,
+              sourceUrl: latestRecord.source_url,
+              sourceVerified: true,
+            };
+          }
+          if (message.id !== 'msg-2' && message.id !== 'msg-theme-reply') return message;
+          return {
+            ...message,
+            plainText: latestRecord.what_changes,
+            structuredSummary: {
+              whatChanges: latestRecord.what_changes,
+              targetAudience: latestRecord.target_audience,
+              currentStage: latestRecord.current_stage,
+              budgetInfo: latestRecord.budget_info,
+              nextStep: '今後の行政対応・議会審議を継続確認',
+            },
+            timeline: latestTimeline,
+            policyArguments: {
+              supporting: [latestSpeakers[0]?.summaryQuote || latestRecord.what_changes],
+              concerns: ['会議録に記載された課題と行政対応を継続確認'],
+            },
+            speakerUtterances: apiSpeakers,
+            date: latestRecord.meeting_name,
+            originalQuote: latestRecord.original_quote,
+            sourceUrl: latestRecord.source_url,
+            sourceVerified: true,
+          };
+        }));
+        void loadPersistedReactions();
+      } catch {
+        // API停止時は従来の埋め込み済み表示をそのまま維持する。
+      }
+    };
+    void loadAssemblyRecords();
+
+    return () => controller.abort();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [assembly, initialTheme]);
 
@@ -1624,7 +1745,7 @@ export default function LineChatModal({
 
                         <div className="space-y-2">
                           {msg.speakerUtterances.map((utt, idx) => {
-                            const itemKey = `${msg.id}-speaker-${idx}`;
+                            const itemKey = `${assembly.id}-speaker-${utt.id || idx}`;
                             const isExpanded = expandedSpeakerKeys[itemKey];
 
                             const stanceStyle =
@@ -1657,7 +1778,7 @@ export default function LineChatModal({
                                 : 'bg-purple-600 text-white';
 
                             return (
-                              <div key={idx} className="dark:bg-slate-950/90 dark:border-slate-800/90 bg-slate-50 border-slate-200 border rounded-xl p-3 space-y-2">
+                              <div key={itemKey} className="dark:bg-slate-950/90 dark:border-slate-800/90 bg-slate-50 border-slate-200 border rounded-xl p-3 space-y-2">
                                 {/* 発言の出典ヘッダー（日時・会議名・質問種別） */}
                                 <div className="flex items-center justify-between border-b dark:border-slate-800/80 border-slate-200 pb-1.5 mb-1.5 text-[10px] dark:text-slate-400 text-slate-500">
                                   <div className="flex items-center gap-1.5 font-medium text-slate-700 dark:text-slate-300">
