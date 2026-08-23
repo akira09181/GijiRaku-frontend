@@ -103,6 +103,39 @@ interface LineChatModalProps {
   readonly onOpenDashboard?: () => void;
 }
 
+type ReactionType = 'agree' | 'concern' | 'helpful';
+
+interface ReactionCounts {
+  readonly agree: number;
+  readonly concern: number;
+  readonly helpful: number;
+}
+
+interface ReactionStateResponse {
+  readonly status: 'success';
+  readonly statement_id: string;
+  readonly previous_reaction_type: ReactionType | null;
+  readonly reaction_type: ReactionType | null;
+  readonly changed: boolean;
+  readonly counts: ReactionCounts;
+}
+
+interface PersistedReactionState {
+  readonly statement_id: string;
+  readonly reaction_type: ReactionType | null;
+  readonly counts: ReactionCounts;
+}
+
+const ANONYMOUS_USER_STORAGE_KEY = 'gijiraku_anonymous_user_id';
+
+function getOrCreateAnonymousUserId(): string {
+  const stored = localStorage.getItem(ANONYMOUS_USER_STORAGE_KEY);
+  if (stored) return stored;
+  const anonymousUserId = crypto.randomUUID();
+  localStorage.setItem(ANONYMOUS_USER_STORAGE_KEY, anonymousUserId);
+  return anonymousUserId;
+}
+
 /**
  * LINE風 議事録対話モーダル
  */
@@ -570,100 +603,154 @@ export default function LineChatModal({
   const [expandedSpeakerKeys, setExpandedSpeakerKeys] = useState<Record<string, boolean>>({});
   const [inputQuestion, setInputQuestion] = useState('');
   const [isSending, setIsSending] = useState(false);
-  const [userVotes, setUserVotes] = useState<Record<string, 'agree' | 'disagree'>>({});
+  const [userVotes, setUserVotes] = useState<Record<string, 'agree' | 'concern'>>({});
   const [openComments, setOpenComments] = useState<Record<string, boolean>>({});
   const [commentInputs, setCommentInputs] = useState<Record<string, string>>({});
   const [ebpmToast, setEbpmToast] = useState<string | null>(null);
   const chatBottomRef = useRef<HTMLDivElement>(null);
+  const anonymousUserIdRef = useRef('');
+  const reactionRequestsInFlight = useRef<Set<string>>(new Set());
 
   const toggleSpeakerExpand = (key: string) => {
     setExpandedSpeakerKeys((prev) => ({ ...prev, [key]: !prev[key] }));
   };
 
-  const [utteranceVotes, setUtteranceVotes] = useState<Record<string, 'agree' | 'concern' | 'helpful' | null>>(() => {
-    if (typeof window === 'undefined') return {};
-    try {
-      const stored = localStorage.getItem('gijiraku_voted_statements_v2');
-      return stored ? JSON.parse(stored) : {};
-    } catch {
-      return {};
-    }
-  });
+  const [utteranceVotes, setUtteranceVotes] = useState<Record<string, ReactionType | null>>({});
 
-  const [utteranceCounts, setUtteranceCounts] = useState<Record<string, { agree: number; concern: number; helpful: number }>>(() => {
-    if (typeof window === 'undefined') return {};
-    try {
-      const stored = localStorage.getItem('gijiraku_statement_counts_v2');
-      return stored ? JSON.parse(stored) : {};
-    } catch {
-      return {};
-    }
-  });
+  const [utteranceCounts, setUtteranceCounts] = useState<Record<string, ReactionCounts>>({});
 
   const [openUtteranceComments, setOpenUtteranceComments] = useState<Record<string, boolean>>({});
   const [utteranceCommentInputs, setUtteranceCommentInputs] = useState<Record<string, string>>({});
   const [utteranceCommentsList, setUtteranceCommentsList] = useState<Record<string, Array<{ user: string; text: string }>>>({});
 
+  const getAnonymousUserId = () => {
+    if (!anonymousUserIdRef.current) {
+      anonymousUserIdRef.current = getOrCreateAnonymousUserId();
+    }
+    return anonymousUserIdRef.current;
+  };
+
+  const putReactionState = async (
+    statementId: string,
+    reactionType: ReactionType | null,
+    baseCounts: ReactionCounts,
+  ): Promise<ReactionStateResponse> => {
+    const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000';
+    const response = await fetch(`${apiBase}/api/reactions`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        discussion_id: assembly.id,
+        statement_id: statementId,
+        reaction_type: reactionType,
+        anonymous_user_id: getAnonymousUserId(),
+        base_counts: baseCounts,
+      }),
+    });
+    if (!response.ok) throw new Error(`Reaction API failed: ${response.status}`);
+    return response.json();
+  };
+
+  const loadPersistedReactions = async () => {
+    try {
+      const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000';
+      const query = new URLSearchParams({
+        discussion_id: assembly.id,
+        anonymous_user_id: getAnonymousUserId(),
+      });
+      const response = await fetch(`${apiBase}/api/reactions?${query.toString()}`);
+      if (!response.ok) return;
+      const payload = await response.json() as { data?: PersistedReactionState[] };
+      const persisted = payload.data || [];
+      const topicVotes: Record<string, 'agree' | 'concern'> = {};
+      const statementVotes: Record<string, ReactionType | null> = {};
+      const statementCounts: Record<string, ReactionCounts> = {};
+      const topicStates = new Map<string, PersistedReactionState>();
+
+      persisted.forEach((state) => {
+        if (state.statement_id.includes('-speaker-')) {
+          statementVotes[state.statement_id] = state.reaction_type;
+          statementCounts[state.statement_id] = state.counts;
+        } else {
+          topicStates.set(state.statement_id, state);
+          if (state.reaction_type === 'agree' || state.reaction_type === 'concern') {
+            topicVotes[state.statement_id] = state.reaction_type;
+          }
+        }
+      });
+
+      setUserVotes(topicVotes);
+      setUtteranceVotes(statementVotes);
+      setUtteranceCounts(statementCounts);
+      setMessages((prev) => prev.map((message) => {
+        const persistedState = topicStates.get(message.id);
+        if (!persistedState) return message;
+        return {
+          ...message,
+          agreeCount: persistedState.counts.agree,
+          disagreeCount: persistedState.counts.concern,
+        };
+      }));
+
+      try {
+        localStorage.setItem('gijiraku_voted_statements_v2', JSON.stringify(statementVotes));
+        localStorage.setItem('gijiraku_statement_counts_v2', JSON.stringify(statementCounts));
+      } catch {
+        // ignore
+      }
+    } catch {
+      // Keep the existing screen unchanged when the API is unavailable.
+    }
+  };
+
   const handleUtteranceVote = async (
     uttKey: string,
     speakerName: string,
-    type: 'agree' | 'concern' | 'helpful',
-    defaultCounts: { agree: number; concern: number; helpful: number }
+    type: ReactionType,
+    defaultCounts: ReactionCounts
   ) => {
     const currentVote = utteranceVotes[uttKey] || null;
-    const currentCounts = utteranceCounts[uttKey] || { ...defaultCounts };
-
-    let newVote: 'agree' | 'concern' | 'helpful' | null = type;
-    const nextCounts = { ...currentCounts };
-
-    if (currentVote === type) {
-      // Untoggle reaction
-      newVote = null;
-      nextCounts[type] = Math.max(0, nextCounts[type] - 1);
-    } else if (currentVote !== null) {
-      // Switch reaction from currentVote -> type
-      nextCounts[currentVote] = Math.max(0, nextCounts[currentVote] - 1);
-      nextCounts[type] = nextCounts[type] + 1;
-    } else {
-      // First reaction
-      nextCounts[type] = nextCounts[type] + 1;
-    }
-
-    const nextVotes = { ...utteranceVotes, [uttKey]: newVote };
-    setUtteranceVotes(nextVotes);
-
-    const nextAllCounts = { ...utteranceCounts, [uttKey]: nextCounts };
-    setUtteranceCounts(nextAllCounts);
+    const nextVote: ReactionType | null = currentVote === type ? null : type;
+    const requestKey = `${assembly.id}:${uttKey}`;
+    if (reactionRequestsInFlight.current.has(requestKey)) return;
+    reactionRequestsInFlight.current.add(requestKey);
 
     try {
-      localStorage.setItem('gijiraku_voted_statements_v2', JSON.stringify(nextVotes));
-      localStorage.setItem('gijiraku_statement_counts_v2', JSON.stringify(nextAllCounts));
-    } catch {
-      // ignore
-    }
-
-    const typeLabel = type === 'agree' ? '👍 賛成' : type === 'concern' ? '⚠️ 気になる' : '💡 参考';
-
-    if (newVote === null) {
-      decrementEbpmReactionCount();
-      setEbpmToast(`ℹ️ 「${speakerName}」議員の発言へのリアクションを取り消しました（集計: ${nextCounts[type]}件）`);
-    } else if (currentVote !== null) {
-      setEbpmToast(`👍 「${speakerName}」議員の発言へのリアクションを【${typeLabel}】に変更しました！（集計: ${nextCounts[type]}件）`);
-    } else {
-      incrementEbpmReactionCount();
-      triggerEbpmFeedbackNotification(speakerName, typeLabel, nextCounts[type]);
-    }
-    setTimeout(() => setEbpmToast(null), 4000);
-
-    try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
-      await fetch(`${apiUrl}/api/statements/${encodeURIComponent(uttKey)}/reaction`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ reaction_type: type, speaker_name: speakerName }),
+      const result = await putReactionState(uttKey, nextVote, defaultCounts);
+      setUtteranceVotes((prev) => {
+        const nextVotes = { ...prev, [uttKey]: result.reaction_type };
+        try {
+          localStorage.setItem('gijiraku_voted_statements_v2', JSON.stringify(nextVotes));
+        } catch {
+          // ignore
+        }
+        return nextVotes;
       });
+      setUtteranceCounts((prev) => {
+        const nextCounts = { ...prev, [uttKey]: result.counts };
+        try {
+          localStorage.setItem('gijiraku_statement_counts_v2', JSON.stringify(nextCounts));
+        } catch {
+          // ignore
+        }
+        return nextCounts;
+      });
+
+      const typeLabel = type === 'agree' ? '👍 賛成' : type === 'concern' ? '⚠️ 気になる' : '💡 参考';
+      if (result.changed && result.reaction_type === null) {
+        decrementEbpmReactionCount();
+        setEbpmToast(`ℹ️ 「${speakerName}」議員の発言へのリアクションを取り消しました（集計: ${result.counts[type]}件）`);
+      } else if (result.changed && result.previous_reaction_type !== null) {
+        setEbpmToast(`👍 「${speakerName}」議員の発言へのリアクションを【${typeLabel}】に変更しました！（集計: ${result.counts[type]}件）`);
+      } else if (result.changed) {
+        incrementEbpmReactionCount();
+        triggerEbpmFeedbackNotification(speakerName, typeLabel, result.counts[type]);
+      }
+      setTimeout(() => setEbpmToast(null), 4000);
     } catch {
-      // Clean fallback if backend is sleeping
+      // Keep the existing screen unchanged when the API is unavailable.
+    } finally {
+      reactionRequestsInFlight.current.delete(requestKey);
     }
   };
 
@@ -685,7 +772,7 @@ export default function LineChatModal({
     setTimeout(() => setEbpmToast(null), 4500);
 
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+      const apiUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000';
       await fetch(`${apiUrl}/api/statements/${encodeURIComponent(uttKey)}/comment`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -824,7 +911,11 @@ export default function LineChatModal({
     }
 
     queueMicrotask(() => {
+      setUserVotes({});
+      setUtteranceVotes({});
+      setUtteranceCounts({});
       setMessages(initialMsgs);
+      void loadPersistedReactions();
       if (chatContainerRef.current) {
         chatContainerRef.current.scrollTop = 0;
       }
@@ -869,32 +960,37 @@ export default function LineChatModal({
     }, 4000);
   };
 
-  const handleVote = (id: string, type: 'agree' | 'disagree') => {
+  const handleVote = async (id: string, type: 'agree' | 'concern', baseCounts: ReactionCounts) => {
     if (userVotes[id]) return;
-    setUserVotes((prev) => ({ ...prev, [id]: type }));
-    setMessages((prev) =>
-      prev.map((msg) => {
-        if (msg.id !== id) return msg;
-        return {
-          ...msg,
-          agreeCount: type === 'agree' ? (msg.agreeCount || 0) + 1 : msg.agreeCount,
-          disagreeCount: type === 'disagree' ? (msg.disagreeCount || 0) + 1 : msg.disagreeCount,
-        };
-      })
-    );
+    const requestKey = `${assembly.id}:${id}`;
+    if (reactionRequestsInFlight.current.has(requestKey)) return;
+    reactionRequestsInFlight.current.add(requestKey);
 
-    // カウントアップ連動イベント発火
-    const newCount = incrementEbpmReactionCount();
+    try {
+      const result = await putReactionState(id, type, baseCounts);
+      if (result.reaction_type === 'agree' || result.reaction_type === 'concern') {
+        setUserVotes((prev) => ({ ...prev, [id]: result.reaction_type as 'agree' | 'concern' }));
+      }
+      setMessages((prev) =>
+        prev.map((msg) => {
+          if (msg.id !== id) return msg;
+          return {
+            ...msg,
+            agreeCount: result.counts.agree,
+            disagreeCount: result.counts.concern,
+          };
+        })
+      );
 
-    // バックエンドヘ非同期通知
-    const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000';
-    fetch(`${apiBase}/api/assemblies/${assembly.id}/messages/${id}/opinion`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ opinion_type: type }),
-    }).catch(() => {});
-
-    triggerEbpmFeedbackNotification(assembly.name, type === 'agree' ? '賛成の声' : '懸念の声', newCount);
+      if (result.changed && result.previous_reaction_type === null) {
+        const newCount = incrementEbpmReactionCount();
+        triggerEbpmFeedbackNotification(assembly.name, type === 'agree' ? '賛成の声' : '懸念の声', newCount);
+      }
+    } catch {
+      // Keep the existing screen unchanged when the API is unavailable.
+    } finally {
+      reactionRequestsInFlight.current.delete(requestKey);
+    }
   };
 
   const toggleCommentBox = (id: string) => {
@@ -1485,7 +1581,11 @@ export default function LineChatModal({
                           <div className="flex items-center gap-1.5 flex-wrap">
                             <span className="text-[11px] font-bold dark:text-slate-300 text-slate-800">この議論、どう思う？</span>
                             <button
-                              onClick={() => handleVote(msg.id, 'agree')}
+                              onClick={() => handleVote(msg.id, 'agree', {
+                                agree: msg.agreeCount !== undefined ? msg.agreeCount : 42,
+                                concern: msg.disagreeCount !== undefined ? msg.disagreeCount : 3,
+                                helpful: 0,
+                              })}
                               className={`px-2.5 py-1 rounded-lg text-xs font-medium border flex items-center gap-1 transition-colors ${
                                 hasVoted === 'agree'
                                   ? 'bg-emerald-600/20 text-emerald-700 dark:text-emerald-300 border-emerald-500/40'
@@ -1496,9 +1596,13 @@ export default function LineChatModal({
                               <span>賛成 {msg.agreeCount !== undefined ? msg.agreeCount : 42}</span>
                             </button>
                             <button
-                              onClick={() => handleVote(msg.id, 'disagree')}
+                              onClick={() => handleVote(msg.id, 'concern', {
+                                agree: msg.agreeCount !== undefined ? msg.agreeCount : 42,
+                                concern: msg.disagreeCount !== undefined ? msg.disagreeCount : 3,
+                                helpful: 0,
+                              })}
                               className={`px-2.5 py-1 rounded-lg text-xs font-medium border flex items-center gap-1 transition-colors ${
-                                hasVoted === 'disagree'
+                                hasVoted === 'concern'
                                   ? 'bg-rose-600/20 text-rose-700 dark:text-rose-300 border-rose-500/40'
                                   : 'dark:bg-slate-800 dark:hover:bg-slate-750 dark:text-slate-300 dark:border-slate-700 bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-300'
                               }`}

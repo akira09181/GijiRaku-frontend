@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import {
   X,
@@ -22,14 +22,20 @@ import {
   MemberScorecard,
 } from '../types/analytics';
 
-import { getEbpmReactionCount } from '../utils/ebpmStore';
-
 interface AnalyticsDashboardModalProps {
   readonly assembly: Assembly;
   readonly onClose: () => void;
 }
 
 type TabType = 'overview' | 'party' | 'member' | 'public';
+
+interface ReactionAggregate {
+  readonly counts: {
+    readonly agree: number;
+    readonly concern: number;
+    readonly helpful: number;
+  };
+}
 
 /**
  * 議員・行政向け EBPM分析ダッシュボードモーダル
@@ -46,51 +52,56 @@ export default function AnalyticsDashboardModal({
   const [analytics, setAnalytics] = useState<AssemblyAnalytics | null>(null);
   const [reactionCount, setReactionCount] = useState<number>(37);
   const [isCountUpdated, setIsCountUpdated] = useState(false);
+  const lastServerReactionCountRef = useRef<number | null>(null);
 
   useEffect(() => {
-    queueMicrotask(() => {
-      setMounted(true);
-      setReactionCount(getEbpmReactionCount());
-    });
-
-    const handleCountUpdate = (e: Event) => {
-      const customEvt = e as CustomEvent<{ count: number }>;
-      if (customEvt.detail?.count) {
-        setReactionCount(customEvt.detail.count);
-        setIsCountUpdated(true);
-      }
-    };
-
-    window.addEventListener('ebpm_count_updated', handleCountUpdate);
+    queueMicrotask(() => setMounted(true));
 
     document.body.style.overflow = 'hidden';
     return () => {
       document.body.style.overflow = 'unset';
-      window.removeEventListener('ebpm_count_updated', handleCountUpdate);
     };
   }, []);
 
   useEffect(() => {
     queueMicrotask(() => setLoading(true));
-    const timer = setTimeout(() => {
+    let cancelled = false;
+    let refreshInFlight = false;
+
+    const refreshAnalytics = async () => {
+      if (refreshInFlight) return;
+      refreshInFlight = true;
       const isTokyo = assembly.id === 'tokyo-metropolitan';
       let totalAgree = 0;
       let totalConcern = 0;
       let totalHelpful = 0;
+      let hasServerCounts = false;
+
       try {
-        const storedCounts = localStorage.getItem('gijiraku_statement_counts_v2');
-        if (storedCounts) {
-          const countsObj = JSON.parse(storedCounts);
-          Object.values(countsObj).forEach((c: any) => {
-            totalAgree += c.agree || 0;
-            totalConcern += c.concern || 0;
-            totalHelpful += c.helpful || 0;
+        const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000';
+        const query = new URLSearchParams({
+          discussion_id: assembly.id,
+          anonymous_user_id: 'analytics-dashboard',
+        });
+        const response = await fetch(`${apiBase}/api/reactions?${query.toString()}`, {
+          cache: 'no-store',
+        });
+        if (response.ok) {
+          const payload = await response.json() as { data?: ReactionAggregate[] };
+          const aggregates = payload.data || [];
+          hasServerCounts = aggregates.length > 0;
+          aggregates.forEach((aggregate) => {
+            totalAgree += aggregate.counts.agree;
+            totalConcern += aggregate.counts.concern;
+            totalHelpful += aggregate.counts.helpful;
           });
         }
-      } catch (e) {}
+      } catch {
+        // Keep the existing fallback data when the API is unavailable.
+      }
 
       // Fallback base data if no reactions yet (to avoid 0 division)
-      if (totalAgree + totalConcern + totalHelpful === 0) {
+      if (!hasServerCounts) {
         totalAgree = 78;
         totalConcern = 14;
         totalHelpful = 8;
@@ -100,6 +111,22 @@ export default function AnalyticsDashboardModal({
       const positivePct = Math.round((totalAgree / totalReactions) * 100);
       const neutralPct = Math.round((totalHelpful / totalReactions) * 100);
       const negativePct = Math.round((totalConcern / totalReactions) * 100);
+
+      if (cancelled) {
+        refreshInFlight = false;
+        return;
+      }
+
+      if (hasServerCounts) {
+        if (
+          lastServerReactionCountRef.current !== null &&
+          lastServerReactionCountRef.current !== totalReactions
+        ) {
+          setIsCountUpdated(true);
+        }
+        lastServerReactionCountRef.current = totalReactions;
+        setReactionCount(totalReactions);
+      }
 
       const mockTopicTrends: readonly TopicTrend[] = [
         {
@@ -200,9 +227,20 @@ export default function AnalyticsDashboardModal({
         publicSentimentScore: 86,
       });
       setLoading(false);
-    }, 250);
+      refreshInFlight = false;
+    };
 
-    return () => clearTimeout(timer);
+    const timer = setTimeout(() => void refreshAnalytics(), 250);
+    const pollingTimer = setInterval(() => void refreshAnalytics(), 3000);
+    const handleCountUpdate = () => void refreshAnalytics();
+    window.addEventListener('ebpm_count_updated', handleCountUpdate);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+      clearInterval(pollingTimer);
+      window.removeEventListener('ebpm_count_updated', handleCountUpdate);
+    };
   }, [assembly]);
 
   if (!mounted) return null;
