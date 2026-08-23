@@ -59,17 +59,17 @@ const TOKYO_ASSEMBLIES: readonly Assembly[] = [
     membersCount: 38,
     mayorName: '吉住 健一',
     openDataStatus: 'ready',
-    totalMinutesCount: 4210,
-    hotTopic: 'インバウンド対策・繁華街安全推進・子育て家庭支援',
+    totalMinutesCount: 2,
+    hotTopic: '高齢者支援・ヤングケアラー・ビジネスケアラー',
     mainIssues: [
-      { theme: 'child', label: '認可外保育施設利用料補助', count: 85 },
-      { theme: 'dx', label: '住民票・税証明のLINE申請対応', count: 120 },
-      { theme: 'redevelop', label: '新宿駅西口・東口地下広場再編', count: 95 },
-      { theme: 'medical', label: '区立健康センター休日診療', count: 45 },
+      { theme: 'child', label: 'ヤングケアラー支援', count: 1 },
+      { theme: 'dx', label: '相談先・支援制度の周知', count: 1 },
+      { theme: 'redevelop', label: '高齢者の住まいとペット', count: 1 },
+      { theme: 'medical', label: 'ビジネスケアラー支援', count: 1 },
     ],
-    sourceUrl: 'https://ssp.kaigiroku.net/tenant/shinjuku/',
-    lastMeetingDate: '2026/6/12｜第2回定例会',
-    lastUpdatedDate: '2026/08/22',
+    sourceUrl: 'https://ssp.kaigiroku.net/tenant/shinjuku/SpMinuteView.html?council_id=3005&schedule_id=2',
+    lastMeetingDate: '2024/6/12｜第2回定例会',
+    lastUpdatedDate: '2026/08/24',
   },
   {
     id: 'machida-city',
@@ -80,17 +80,17 @@ const TOKYO_ASSEMBLIES: readonly Assembly[] = [
     membersCount: 36,
     mayorName: '石阪 丈一',
     openDataStatus: 'ready',
-    totalMinutesCount: 3890,
-    hotTopic: '多摩モノレール町田方面延伸・中学校給食全員喫食',
+    totalMinutesCount: 2,
+    hotTopic: '市内企業の人手不足・雇用環境・就労支援',
     mainIssues: [
-      { theme: 'child', label: '中学校給食全員喫食・食育推進', count: 112 },
-      { theme: 'dx', label: '電子申請サービス導入・市役所DX', count: 78 },
-      { theme: 'redevelop', label: '多摩都市モノレール町田延伸早期着工', count: 134 },
-      { theme: 'medical', label: '南多摩急病医療体制の確保', count: 52 },
+      { theme: 'child', label: '仕事と子育ての両立', count: 1 },
+      { theme: 'dx', label: '就労支援・リスキリング', count: 1 },
+      { theme: 'redevelop', label: '職住近接と市内雇用', count: 1 },
+      { theme: 'medical', label: '福祉職の人手不足', count: 1 },
     ],
-    sourceUrl: 'https://ssp.kaigiroku.net/tenant/machida/',
-    lastMeetingDate: '2026/6/12｜第2回定例会',
-    lastUpdatedDate: '2026/08/22',
+    sourceUrl: 'https://www.gikai-machida.jp/voices2/minutes.html?FINO=3474',
+    lastMeetingDate: '2024/6/7｜6月定例会',
+    lastUpdatedDate: '2026/08/24',
   },
   {
     id: 'shinagawa-ward',
@@ -101,17 +101,17 @@ const TOKYO_ASSEMBLIES: readonly Assembly[] = [
     membersCount: 40,
     mayorName: '森澤 恭子',
     openDataStatus: 'ready',
-    totalMinutesCount: 3650,
-    hotTopic: '区立小中学校の給食費完全無償化・おむつ定額支給',
+    totalMinutesCount: 2,
+    hotTopic: '避難所環境・災害関連死対策・防災備蓄',
     mainIssues: [
-      { theme: 'child', label: '小中学校給食費の完全無償化', count: 140 },
-      { theme: 'dx', label: 'スマート区役所・マイナポータル連携', count: 90 },
-      { theme: 'redevelop', label: '大井町駅周辺・品川駅西口基盤整備', count: 68 },
-      { theme: 'medical', label: '病児・病後児保育の区内全域予約', count: 58 },
+      { theme: 'child', label: '子どもの権利', count: 1 },
+      { theme: 'dx', label: '情報公開・新庁舎', count: 1 },
+      { theme: 'redevelop', label: '避難所の生活環境', count: 1 },
+      { theme: 'medical', label: '災害関連死対策', count: 1 },
     ],
-    sourceUrl: 'https://ssp.kaigiroku.net/tenant/shinagawa/',
-    lastMeetingDate: '2026/6/12｜第2回定例会',
-    lastUpdatedDate: '2026/08/22',
+    sourceUrl: 'https://kaigiroku.city.shinagawa.tokyo.jp/index.php/275892?Template=document&Id=6737',
+    lastMeetingDate: '2024/6/27｜第2回定例会',
+    lastUpdatedDate: '2026/08/24',
   },
   {
     id: 'shibuya-ward',
@@ -122,17 +122,17 @@ const TOKYO_ASSEMBLIES: readonly Assembly[] = [
     membersCount: 34,
     mayorName: '長谷部 健',
     openDataStatus: 'ready',
-    totalMinutesCount: 3980,
-    hotTopic: 'スタートアップ育成特区・スマートシティ渋谷DX',
+    totalMinutesCount: 2,
+    hotTopic: '渋谷駅周辺の迷惑路上飲酒・ごみ・安全対策',
     mainIssues: [
-      { theme: 'child', label: '渋谷版シブヤフォント・放課後クラブ', count: 76 },
-      { theme: 'dx', label: 'LINEによる区民手続き・スマート認証', count: 165 },
-      { theme: 'redevelop', label: '渋谷駅周辺100年に一度の再開発', count: 120 },
-      { theme: 'medical', label: '地域医療連携・休日夜間診療所', count: 40 },
+      { theme: 'child', label: '区民の安全・安心', count: 1 },
+      { theme: 'dx', label: '条例施行前の周知', count: 1 },
+      { theme: 'redevelop', label: '渋谷駅周辺の路上飲酒', count: 1 },
+      { theme: 'medical', label: 'ごみ・騒音対策', count: 1 },
     ],
-    sourceUrl: 'https://ssp.kaigiroku.net/tenant/shibuya/',
-    lastMeetingDate: '2026/6/12｜第2回定例会',
-    lastUpdatedDate: '2026/08/22',
+    sourceUrl: 'https://ssp.kaigiroku.net/tenant/shibuya/SpMinuteView.html?council_id=2344&schedule_id=2',
+    lastMeetingDate: '2024/6/3｜第2回定例会',
+    lastUpdatedDate: '2026/08/24',
   },
   {
     id: 'hachioji-city',
@@ -143,17 +143,17 @@ const TOKYO_ASSEMBLIES: readonly Assembly[] = [
     membersCount: 40,
     mayorName: '初宿 和夫',
     openDataStatus: 'ready',
-    totalMinutesCount: 4520,
-    hotTopic: '医療用物資備蓄・圏央道インター周辺産業拠点化',
+    totalMinutesCount: 2,
+    hotTopic: '人口減少対策・持続可能性分析・地域交通',
     mainIssues: [
-      { theme: 'child', label: '学童保育受入拡大・子ども医療費助成', count: 95 },
-      { theme: 'dx', label: '八王子スマートシティ構想推進', count: 82 },
-      { theme: 'redevelop', label: '八王子駅南口・集約型都市構造化', count: 88 },
-      { theme: 'medical', label: '夜間小児救急医療支援センター', count: 72 },
+      { theme: 'child', label: '出生数・若年女性人口', count: 1 },
+      { theme: 'dx', label: '人口データの分析', count: 1 },
+      { theme: 'redevelop', label: '交通マスタープラン', count: 1 },
+      { theme: 'medical', label: '自然減対策', count: 1 },
     ],
-    sourceUrl: 'https://ssp.kaigiroku.net/tenant/hachioji/',
-    lastMeetingDate: '2026/6/12｜第2回定例会',
-    lastUpdatedDate: '2026/08/22',
+    sourceUrl: 'https://www.city.hachioji.tokyo.dbsr.jp/index.php/549802?Id=5826&Template=document',
+    lastMeetingDate: '2024/6/11｜第2回定例会',
+    lastUpdatedDate: '2026/08/24',
   },
 ];
 
@@ -312,11 +312,11 @@ export default function Home() {
           </div>
           <div className="dark:bg-slate-900/90 bg-white border dark:border-slate-800 border-slate-200 p-3 rounded-xl shadow-sm">
             <div className="text-[10px] dark:text-slate-400 text-slate-500 font-semibold mb-1">実データ接続</div>
-            <div className="text-lg font-bold dark:text-white text-slate-900">1<span className="text-[10px] text-slate-500 font-normal ml-1">議会</span></div>
+            <div className="text-lg font-bold dark:text-white text-slate-900">6<span className="text-[10px] text-slate-500 font-normal ml-1">議会</span></div>
           </div>
           <div className="dark:bg-slate-900/90 bg-white border dark:border-slate-800 border-slate-200 p-3 rounded-xl shadow-sm">
             <div className="text-[10px] dark:text-slate-400 text-slate-500 font-semibold mb-1">原文照合済み発言</div>
-            <div className="text-lg font-bold dark:text-white text-slate-900">2<span className="text-[10px] text-slate-500 font-normal ml-1">件</span></div>
+            <div className="text-lg font-bold dark:text-white text-slate-900">12<span className="text-[10px] text-slate-500 font-normal ml-1">件</span></div>
           </div>
           <div className="dark:bg-slate-900/90 bg-white border dark:border-slate-800 border-slate-200 p-3 rounded-xl shadow-sm">
             <div className="text-[10px] dark:text-slate-400 text-slate-500 font-semibold mb-1">最終データ更新</div>

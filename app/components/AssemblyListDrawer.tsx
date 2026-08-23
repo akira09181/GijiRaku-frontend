@@ -85,7 +85,7 @@ export default function AssemblyListDrawer({
       <div className="p-3 bg-slate-950/60 rounded-xl border border-slate-800 text-[10px] sm:text-[11px] text-slate-400 flex items-start gap-2">
         <Info className="w-3.5 h-3.5 text-slate-400 shrink-0 mt-0.5" />
         <div>
-          <span className="text-slate-300 font-semibold">データ連携:</span> 東京都議会は公式会議録に接続済み、その他はデモデータを含みます
+          <span className="text-slate-300 font-semibold">データ連携:</span> 表示中の6議会は公式会議録に接続済み、その他はデモデータを含みます
         </div>
       </div>
     </div>
