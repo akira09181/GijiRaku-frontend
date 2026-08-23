@@ -38,16 +38,17 @@ const TOKYO_ASSEMBLIES: readonly Assembly[] = [
     membersCount: 127,
     mayorName: '小池 百合子',
     openDataStatus: 'ready',
-    totalMinutesCount: 12450,
-    hotTopic: '第2子保育料無償化・高校授業料実質無償化・018サポート',
+    totalMinutesCount: 2,
+    hotTopic: 'EBPMによる事業評価・教育データ活用・地域公共交通',
     mainIssues: [
-      { theme: 'child', label: '第2子保育料無償化・018サポート給付', count: 320 },
-      { theme: 'dx', label: 'GovTech東京連携・都民ポータル推進', count: 180 },
-      { theme: 'redevelop', label: '多摩モノレール延伸・東京ベイeSG', count: 145 },
-      { theme: 'medical', label: '休日夜間こども初期診療拡充', count: 110 },
+      { theme: 'child', label: '子供政策・AI教材の効果検証', count: 1 },
+      { theme: 'dx', label: '教育ダッシュボード・データ活用', count: 1 },
+      { theme: 'redevelop', label: '地域公共交通データのオープン化', count: 1 },
+      { theme: 'medical', label: '緊急避妊の情報提供・若者支援', count: 1 },
     ],
-    lastMeetingDate: '2026/6/12｜第2回定例会',
-    lastUpdatedDate: '2026/08/22',
+    sourceUrl: 'https://www.gikai.metro.tokyo.lg.jp/record/proceedings/2024-2/03-07.html',
+    lastMeetingDate: '2024/6/5｜第2回定例会',
+    lastUpdatedDate: '2026/08/24',
   },
   {
     id: 'shinjuku-ward',
@@ -66,6 +67,7 @@ const TOKYO_ASSEMBLIES: readonly Assembly[] = [
       { theme: 'redevelop', label: '新宿駅西口・東口地下広場再編', count: 95 },
       { theme: 'medical', label: '区立健康センター休日診療', count: 45 },
     ],
+    sourceUrl: 'https://ssp.kaigiroku.net/tenant/shinjuku/',
     lastMeetingDate: '2026/6/12｜第2回定例会',
     lastUpdatedDate: '2026/08/22',
   },
@@ -86,6 +88,7 @@ const TOKYO_ASSEMBLIES: readonly Assembly[] = [
       { theme: 'redevelop', label: '多摩都市モノレール町田延伸早期着工', count: 134 },
       { theme: 'medical', label: '南多摩急病医療体制の確保', count: 52 },
     ],
+    sourceUrl: 'https://ssp.kaigiroku.net/tenant/machida/',
     lastMeetingDate: '2026/6/12｜第2回定例会',
     lastUpdatedDate: '2026/08/22',
   },
@@ -106,6 +109,7 @@ const TOKYO_ASSEMBLIES: readonly Assembly[] = [
       { theme: 'redevelop', label: '大井町駅周辺・品川駅西口基盤整備', count: 68 },
       { theme: 'medical', label: '病児・病後児保育の区内全域予約', count: 58 },
     ],
+    sourceUrl: 'https://ssp.kaigiroku.net/tenant/shinagawa/',
     lastMeetingDate: '2026/6/12｜第2回定例会',
     lastUpdatedDate: '2026/08/22',
   },
@@ -126,6 +130,7 @@ const TOKYO_ASSEMBLIES: readonly Assembly[] = [
       { theme: 'redevelop', label: '渋谷駅周辺100年に一度の再開発', count: 120 },
       { theme: 'medical', label: '地域医療連携・休日夜間診療所', count: 40 },
     ],
+    sourceUrl: 'https://ssp.kaigiroku.net/tenant/shibuya/',
     lastMeetingDate: '2026/6/12｜第2回定例会',
     lastUpdatedDate: '2026/08/22',
   },
@@ -146,6 +151,7 @@ const TOKYO_ASSEMBLIES: readonly Assembly[] = [
       { theme: 'redevelop', label: '八王子駅南口・集約型都市構造化', count: 88 },
       { theme: 'medical', label: '夜間小児救急医療支援センター', count: 72 },
     ],
+    sourceUrl: 'https://ssp.kaigiroku.net/tenant/hachioji/',
     lastMeetingDate: '2026/6/12｜第2回定例会',
     lastUpdatedDate: '2026/08/22',
   },
@@ -235,7 +241,7 @@ export default function Home() {
                 onChange={(e) => setSelectedAssemblyId(e.target.value)}
                 className="w-full dark:bg-slate-950 dark:border-slate-700/80 dark:text-white bg-slate-50 border-slate-300 text-slate-900 border rounded-xl px-3.5 py-2.5 text-xs sm:text-sm focus:outline-none focus:ring-1 focus:ring-emerald-500 appearance-none cursor-pointer pr-10 font-medium transition-colors"
               >
-                <option value="all">東京都（全62市区町村）</option>
+                <option value="all">東京都（対象：全62市区町村）</option>
                 {TOKYO_ASSEMBLIES.map((a) => (
                   <option key={a.id} value={a.id}>
                     {a.name} ({a.type === 'prefecture' ? '都議会' : a.type === 'ward' ? '特別区' : '市'})
@@ -301,20 +307,20 @@ export default function Home() {
         {/* 東京都全域 議会オープンデータ構造化実績 (数字の証拠) */}
         <div className="w-full mt-6 grid grid-cols-2 sm:grid-cols-4 gap-3 text-left">
           <div className="dark:bg-slate-900/90 bg-white border dark:border-slate-800 border-slate-200 p-3 rounded-xl shadow-sm">
-            <div className="text-[10px] dark:text-slate-400 text-slate-500 font-semibold mb-1">対応自治体</div>
+            <div className="text-[10px] dark:text-slate-400 text-slate-500 font-semibold mb-1">対象自治体</div>
             <div className="text-lg font-bold text-emerald-600 dark:text-emerald-400">62<span className="text-[10px] text-slate-500 font-normal ml-1">市区町村</span></div>
           </div>
           <div className="dark:bg-slate-900/90 bg-white border dark:border-slate-800 border-slate-200 p-3 rounded-xl shadow-sm">
-            <div className="text-[10px] dark:text-slate-400 text-slate-500 font-semibold mb-1">取得会議録</div>
-            <div className="text-lg font-bold dark:text-white text-slate-900">12,481<span className="text-[10px] text-slate-500 font-normal ml-1">件</span></div>
+            <div className="text-[10px] dark:text-slate-400 text-slate-500 font-semibold mb-1">実データ接続</div>
+            <div className="text-lg font-bold dark:text-white text-slate-900">1<span className="text-[10px] text-slate-500 font-normal ml-1">議会</span></div>
           </div>
           <div className="dark:bg-slate-900/90 bg-white border dark:border-slate-800 border-slate-200 p-3 rounded-xl shadow-sm">
-            <div className="text-[10px] dark:text-slate-400 text-slate-500 font-semibold mb-1">構造化発言</div>
-            <div className="text-lg font-bold dark:text-white text-slate-900">184,320<span className="text-[10px] text-slate-500 font-normal ml-1">件</span></div>
+            <div className="text-[10px] dark:text-slate-400 text-slate-500 font-semibold mb-1">原文照合済み発言</div>
+            <div className="text-lg font-bold dark:text-white text-slate-900">2<span className="text-[10px] text-slate-500 font-normal ml-1">件</span></div>
           </div>
           <div className="dark:bg-slate-900/90 bg-white border dark:border-slate-800 border-slate-200 p-3 rounded-xl shadow-sm">
             <div className="text-[10px] dark:text-slate-400 text-slate-500 font-semibold mb-1">最終データ更新</div>
-            <div className="text-sm font-bold dark:text-white text-slate-900 mt-1">2026/08/22</div>
+            <div className="text-sm font-bold dark:text-white text-slate-900 mt-1">2026/08/24</div>
           </div>
         </div>
       </section>
@@ -396,7 +402,7 @@ export default function Home() {
                   </button>
 
                   <a
-                    href="https://catalog.data.metro.tokyo.lg.jp/"
+                    href={assembly.sourceUrl || 'https://catalog.data.metro.tokyo.lg.jp/'}
                     target="_blank"
                     rel="noreferrer"
                     className="text-xs dark:text-slate-400 dark:hover:text-slate-200 text-slate-500 hover:text-slate-700 flex items-center gap-1 font-medium transition-colors"
@@ -421,7 +427,7 @@ export default function Home() {
                 <span>地図・全リストから探す</span>
               </h3>
               <p className="text-xs dark:text-slate-400 text-slate-500 mt-0.5">
-                都内62市区町村の位置情報および会議録データを地図上で探索できます
+                都内62市区町村への展開を想定し、現在の接続対象を地図上で確認できます
               </p>
             </div>
 

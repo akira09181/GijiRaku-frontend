@@ -93,6 +93,7 @@ interface Message {
   readonly disagreeCount?: number;
   readonly comments?: readonly Comment[];
   readonly sourceUrl?: string;
+  readonly sourceVerified?: boolean;
   readonly aiChainSteps?: readonly AiChainStep[];
 }
 
@@ -127,6 +128,42 @@ interface PersistedReactionState {
 }
 
 const ANONYMOUS_USER_STORAGE_KEY = 'gijiraku_anonymous_user_id';
+const TOKYO_VERIFIED_MINUTES_URL = 'https://www.gikai.metro.tokyo.lg.jp/record/proceedings/2024-2/03-07.html';
+
+function getTokyoThemeEvidence(theme: string) {
+  switch (theme) {
+    case '子育て支援・給食費無償化':
+      return {
+        summary: '子供政策や教育施策では、実施件数だけでなく、施策前後の意欲や行動の変化を成果として測る必要性が提起されました。',
+        audience: '都内の子供・生徒、保護者、教育施策を設計する行政部門',
+        excerpt: '「その前後で意欲の伸長について評価をしたり」',
+      };
+    case '行政DX・スマホ手続き':
+      return {
+        summary: '教育ダッシュボードについて、研究校の成果公開と国内外の最新事例を踏まえたデータ活用が求められました。',
+        audience: '都立学校の児童生徒・教員、教育データを扱う行政部門',
+        excerpt: '「教育データの利活用に関する最新事例を収集し」',
+      };
+    case '都市再開発・交通インフラ':
+      return {
+        summary: '地域公共交通を維持する基盤として、バス運行データの共有・オープン化を促進する必要性が議論されました。',
+        audience: 'バスなど地域公共交通を利用する都民と区市町村',
+        excerpt: '「バスの運行データのオープン化をより一層促進し」',
+      };
+    case '医療体制・休日診療':
+      return {
+        summary: '緊急避妊を必要とする若者が、診療可能な医療機関の正確な情報へ速やかにアクセスできる仕組みが議論されました。',
+        audience: '緊急避妊に関する情報・相談支援を必要とする若者',
+        excerpt: '「早く、そして正確な情報を手に入れられる仕組みが必要です。」',
+      };
+    default:
+      return {
+        summary: '事業の設計段階から評価指標と測定方法を定め、データに基づいて成果を検証する考え方が議論されました。',
+        audience: '東京都の政策・行政サービスを利用する都民と行政部門',
+        excerpt: '「あらかじめ事業に評価を組み込む必要があります。」',
+      };
+  }
+}
 
 function getOrCreateAnonymousUserId(): string {
   const stored = localStorage.getItem(ANONYMOUS_USER_STORAGE_KEY);
@@ -144,6 +181,49 @@ const getDynamicSpeakerUtterances = (assembly: Assembly, theme?: string): Speake
   const mayorName = isTokyo ? '小池 百合子' : assembly.mayorName || '首長';
   const mayorRole = isTokyo ? '東京都知事' : assembly.type === 'ward' ? '区長' : assembly.type === 'city' ? '市長' : '首長';
   const hotTopic = theme || assembly.hotTopic;
+
+  if (isTokyo) {
+    return [
+      {
+        id: 'tokyo-fukushima-2024-06-05-ebpm',
+        speakerName: '福島 りえこ',
+        speakerRole: '東京都議会議員',
+        partyName: '都民ファーストの会',
+        committeeName: '本会議',
+        stanceLabel: '課題提起',
+        summaryQuote: '事業の成果を正しく測るため、設計段階から評価指標と測定方法を組み込む必要があると提案しました。',
+        fullSummary: '事業の執行状況だけでなく成果を評価するため、統計的なデータ分析、事前の指標設計、実施前後のデータ取得を政策評価に組み込むよう求めました。',
+        sourceExcerpt: '「あらかじめ事業に評価を組み込む必要があります。」',
+        meetingName: '令和6年第2回定例会 東京都議会会議録第9号',
+        meetingDate: '2024/6/5',
+        questionType: '一般質問',
+        sourceUrl: TOKYO_VERIFIED_MINUTES_URL,
+        avatarColor: 'sky',
+        agreeCount: 0,
+        concernCount: 0,
+        helpfulCount: 0,
+      },
+      {
+        id: 'tokyo-koike-2024-06-05-ebpm',
+        speakerName: '小池 百合子',
+        speakerRole: '東京都知事',
+        partyName: '行政執行部',
+        committeeName: '本会議・知事答弁',
+        stanceLabel: '推進',
+        summaryQuote: '成果重視の評価や外部有識者・データ分析の活用を進め、都民サービス向上と財源確保につなげると答弁しました。',
+        fullSummary: '全事業への終期設定、外部有識者の知見、データ分析を活用した成果重視の評価を導入し、評価制度を継続的に見直す方針を示しました。',
+        sourceExcerpt: '「評価制度の不断の見直しで、都民のQOL向上と着実な財源確保につなげてまいります。」',
+        meetingName: '令和6年第2回定例会 東京都議会会議録第9号',
+        meetingDate: '2024/6/5',
+        questionType: '知事答弁',
+        sourceUrl: TOKYO_VERIFIED_MINUTES_URL,
+        avatarColor: 'emerald',
+        agreeCount: 0,
+        concernCount: 0,
+        helpfulCount: 0,
+      },
+    ];
+  }
 
   if (assembly.id === 'shinagawa-ward') {
     return [
@@ -784,10 +864,17 @@ export default function LineChatModal({
   };
 
   const DEFAULT_CHAIN_STEPS: AiChainStep[] = [
-    { step_number: 1, title: '公式データ取得・連携', detail: '東京都オープンデータカタログより該当の議会会議録データを取得', status: 'completed' },
+    { step_number: 1, title: '公式データ取得・連携', detail: '東京都議会公式サイトより該当する会議録本文を取得', status: 'completed' },
     { step_number: 2, title: '発言・テーマ構造化', detail: '会議録より質問・答弁・関連施策情報を特定・分類', status: 'completed' },
     { step_number: 3, title: '平易な要約・解説作成', detail: '専門用語や行政条文をわかりやすい対話形式に整理', status: 'completed' },
     { step_number: 4, title: '原文照合・ファクトチェック', detail: '公式会議録の原文との整合性を照合済み', status: 'completed' },
+  ];
+
+  const DEMO_CHAIN_STEPS: AiChainStep[] = [
+    { step_number: 1, title: '公開情報の対象確認', detail: '自治体の公開会議録システムをデータ取得対象として登録', status: 'completed' },
+    { step_number: 2, title: 'デモ発言生成', detail: '想定テーマに基づく画面体験用のデモ発言を生成', status: 'completed' },
+    { step_number: 3, title: '平易な要約・解説作成', detail: '専門用語をわかりやすい対話形式に整理', status: 'completed' },
+    { step_number: 4, title: '個別原文照合', detail: 'このデモ発言は公式会議録との個別照合対象外', status: 'completed' },
   ];
 
   useEffect(() => {
@@ -803,6 +890,7 @@ export default function LineChatModal({
   useEffect(() => {
     const isTokyo = assembly.id === 'tokyo-metropolitan';
     const dynamicSpeakers = getDynamicSpeakerUtterances(assembly);
+    const chainSteps = isTokyo ? DEFAULT_CHAIN_STEPS : DEMO_CHAIN_STEPS;
 
     const initialMsgs: Message[] = [
       {
@@ -810,61 +898,72 @@ export default function LineChatModal({
         sender: 'assistant',
         plainText: `こんにちは！${assembly.name}の会議録データをわかりやすく構造化してお届けします。\n知りたいテーマや疑問があればご質問ください。`,
         speaker: `${assembly.name} 議会案内`,
-        speakerTitle: '公式データ連携',
-        date: '最新の定例会より',
+        speakerTitle: isTokyo ? '公式会議録・原文照合済み' : '画面体験用デモデータ',
+        date: isTokyo ? '2024年6月5日 東京都議会本会議' : 'デモデータ',
         timestamp: '10:00',
-        sourceUrl: 'https://catalog.data.metro.tokyo.lg.jp/',
-        aiChainSteps: DEFAULT_CHAIN_STEPS,
+        sourceUrl: isTokyo ? TOKYO_VERIFIED_MINUTES_URL : assembly.sourceUrl,
+        sourceVerified: isTokyo,
+        aiChainSteps: chainSteps,
       },
       {
         id: 'msg-2',
         sender: 'assistant',
         plainText: isTokyo
-          ? `第2子以降の保育料を無料にする案が進んでいます。おむつ代を定額で支援する制度も検討されています。`
+          ? '東京都議会では、事業の設計段階から評価指標と測定方法を組み込み、成果をデータで検証するEBPMの進め方が議論されました。'
           : `${assembly.name}における「${assembly.hotTopic}」について支援策が進んでいます。`,
         structuredSummary: {
           whatChanges: isTokyo
-            ? '第2子以降の保育料を無料にする案が進んでいます。おむつ代を定額で支援する制度も検討されています。'
+            ? '政策を実施してから評価するだけでなく、設計段階から指標・測定方法・データ取得を組み込む考え方が示されました。'
             : `${assembly.name}において「${assembly.hotTopic}」を推進し、区民・市民の生活負担を減らす案が検討されています。`,
           targetAudience: isTokyo
-            ? '都内にお住まいの子育て世帯（特に小中学生や乳幼児のいるご家庭）'
+            ? '東京都の政策・行政サービスを利用する都民と、事業を設計・評価する行政部門'
             : `${assembly.name}にお住まいの子育て世帯・ご家庭および関係住民の皆様`,
-          currentStage: '2026年 当初予算案を審議中（決定後に運用スタート予定）',
-          budgetInfo: '所得制限なしの重点事業として予算計上（都の重点施策）',
-          nextStep: '予算案可決後、2026年度中の制度開始に向け準備進行予定',
+          currentStage: isTokyo ? '2024年6月5日の一般質問で質疑・答弁済み' : '画面体験用のデモシナリオ',
+          budgetInfo: isTokyo ? '事業評価による財源確保と成果重視の評価制度について議論' : 'デモ値（個別原文との照合対象外）',
+          nextStep: isTokyo ? '評価制度を継続的に見直し、都民サービス向上と財源確保につなげる方針' : '実データ接続後に個別検証',
         },
-        timeline: [
-          { date: '2026-02-20', event: '令和8年度当初予算案 提出', status: 'completed' },
-          { date: '2026-03-05', event: '予算特別委員会で詳細審議', status: 'active' },
-          { date: '2026-03-25', event: '本会議で採決予定（可決後に準備開始）', status: 'upcoming' },
-        ],
-        policyArguments: {
-          supporting: [
-            '子育て世帯の経済的負担を抜本的に軽減できる',
-            '若年世代の定住促進と地域活性化につながる',
-          ],
-          concerns: [
-            '継続的な年間財源の確保に関する検証が必要',
-            '受入枠（保育士・施設容量）の確保が課題',
-          ],
-        },
+        timeline: isTokyo
+          ? [
+              { date: '2024-06-05', event: '福島りえこ議員が事業評価へのEBPM導入を質問', status: 'completed' },
+              { date: '2024-06-05', event: '小池知事が成果重視の評価制度について答弁', status: 'completed' },
+            ]
+          : [
+              { date: 'デモ', event: '画面体験用シナリオ（公式会議録との個別照合前）', status: 'active' },
+            ],
+        policyArguments: isTokyo
+          ? {
+              supporting: [
+                '政策目的に対応した成果指標を事前に設計できる',
+                'データ分析を事業改善と財源確保につなげられる',
+              ],
+              concerns: [
+                '複合要因を扱うため、統計的な分析設計が必要',
+                '事業実施前から継続的にデータを取得する必要がある',
+              ],
+            }
+          : {
+              supporting: ['デモデータによる画面体験'],
+              concerns: ['公式会議録との個別照合が必要'],
+            },
         speakerUtterances: dynamicSpeakers,
-        speaker: '議会定例会 3分解説',
-        speakerTitle: `${assembly.name} 会議録オープンデータ分析`,
-        date: '2026年 第1回定例会 本会議',
+        speaker: isTokyo ? '東京都議会 3分解説' : '議会定例会 3分解説',
+        speakerTitle: isTokyo ? '公式会議録・原文照合済み' : `${assembly.name} デモ分析`,
+        date: isTokyo ? '2024年 第2回定例会 本会議' : 'デモデータ',
         originalQuote: isTokyo
-          ? '「次代を担う子どもたちの健やかな育成を社会全体で後押しすべく、所得制限のない幼児教育・保育の負担軽減策を拡充し、切れ目のない子育て支援を推進してまいります。」'
+          ? '「あらかじめ事業に評価を組み込む必要があります。」'
           : `「${assembly.name}における本施策は、区民・市民の生活利便性向上と行政手続きの抜本的な効率化を目指し、令和8年度当初予算案に重点計上しております。」`,
         timestamp: '10:01',
-        agreeCount: 42,
-        disagreeCount: 3,
-        sourceUrl: 'https://catalog.data.metro.tokyo.lg.jp/dataset/t000021d0000000010',
-        aiChainSteps: DEFAULT_CHAIN_STEPS,
+        agreeCount: isTokyo ? 0 : 42,
+        disagreeCount: isTokyo ? 0 : 3,
+        sourceUrl: isTokyo ? TOKYO_VERIFIED_MINUTES_URL : assembly.sourceUrl,
+        sourceVerified: isTokyo,
+        aiChainSteps: chainSteps,
       },
     ];
 
     if (initialTheme) {
       const themeSpeakers = getDynamicSpeakerUtterances(assembly, initialTheme);
+      const tokyoEvidence = getTokyoThemeEvidence(initialTheme);
       initialMsgs.push({
         id: 'msg-theme',
         sender: 'user',
@@ -874,39 +973,39 @@ export default function LineChatModal({
       initialMsgs.push({
         id: 'msg-theme-reply',
         sender: 'assistant',
-        plainText: `「${initialTheme}」に関する手続きをスマホで完結できるよう改善する案が進んでいます。`,
+        plainText: isTokyo
+          ? `公式会議録から「${initialTheme}」に関連する発言を確認しました。${tokyoEvidence.summary}`
+          : `「${initialTheme}」に関する手続きをスマホで完結できるよう改善する案が進んでいます。`,
         structuredSummary: {
-          whatChanges: `「${initialTheme}」に関する申請手続きをスマホ完結・ワンストップ化する案が進んでいます。`,
-          targetAudience: `${assembly.name}にお住まいで対象手続きを行う区民・市民の皆様`,
-          currentStage: '予算特別委員会にて具体仕様および実施ロードマップを審議中',
-          budgetInfo: 'システム構築およびオンライン申請運用予算を令和8年度に計上',
-          nextStep: '委員会での承認後、本年度中にオンライン申請システム構築を開始',
+          whatChanges: isTokyo ? tokyoEvidence.summary : `「${initialTheme}」に関する申請手続きをスマホ完結・ワンストップ化する案が進んでいます。`,
+          targetAudience: isTokyo ? tokyoEvidence.audience : `${assembly.name}にお住まいで対象手続きを行う区民・市民の皆様`,
+          currentStage: isTokyo ? '2024年6月5日の一般質問で質疑・答弁済み' : '画面体験用のデモシナリオ',
+          budgetInfo: isTokyo ? '公式会議録に記載された政策評価・データ活用に関する議論' : 'デモ値（個別原文との照合対象外）',
+          nextStep: isTokyo ? '関連施策の評価とデータ活用を継続' : '実データ接続後に個別検証',
         },
-        timeline: [
-          { date: '2026-02-15', event: 'オンライン化基本構想の発表', status: 'completed' },
-          { date: '2026-03-10', event: '委員会審査・システム予算採決', status: 'active' },
-          { date: '2026-10-01', event: 'スマホ完結申請サービスの運用開始予定', status: 'upcoming' },
-        ],
-        policyArguments: {
-          supporting: [
-            '役所窓口の待ち時間をゼロにし、24時間申請を可能にする',
-            'ペーパーレス化による行政コストの削減',
-          ],
-          concerns: [
-            '高齢者やスマホ未保有者へのサポート体制の準備が必要',
-            '個人情報・セキュリティ対策の徹底が求められる',
-          ],
-        },
+        timeline: isTokyo
+          ? [{ date: '2024-06-05', event: '東京都議会本会議で一般質問・答弁', status: 'completed' }]
+          : [{ date: 'デモ', event: '画面体験用シナリオ（公式会議録との個別照合前）', status: 'active' }],
+        policyArguments: isTokyo
+          ? {
+              supporting: ['公開データを使って政策課題を把握・評価できる'],
+              concerns: ['施策ごとに適切な指標と検証方法を設計する必要がある'],
+            }
+          : {
+              supporting: ['デモデータによる画面体験'],
+              concerns: ['公式会議録との個別照合が必要'],
+            },
         speakerUtterances: themeSpeakers,
         speaker: 'テーマ別要点解説',
-        speakerTitle: `${assembly.name} 委員会審査分析`,
-        date: '2026年 委員会審査',
-        originalQuote: '「市民の皆様からのご要望を踏まえ、オンラインでのワンストップ申請窓口の整備と支給スピードの短縮に努めてまいります。」',
+        speakerTitle: isTokyo ? '東京都議会 公式会議録分析' : `${assembly.name} デモ分析`,
+        date: isTokyo ? '2024年 第2回定例会 本会議' : 'デモデータ',
+        originalQuote: isTokyo ? tokyoEvidence.excerpt : '画面体験用に生成したデモ発言です。',
         timestamp: '10:03',
-        agreeCount: 28,
-        disagreeCount: 1,
-        sourceUrl: 'https://catalog.data.metro.tokyo.lg.jp/',
-        aiChainSteps: DEFAULT_CHAIN_STEPS,
+        agreeCount: isTokyo ? 0 : 28,
+        disagreeCount: isTokyo ? 0 : 1,
+        sourceUrl: isTokyo ? TOKYO_VERIFIED_MINUTES_URL : assembly.sourceUrl,
+        sourceVerified: isTokyo,
+        aiChainSteps: chainSteps,
       });
     }
 
@@ -1060,13 +1159,14 @@ export default function LineChatModal({
           plainText: data.answer,
           speaker: data.speaker || `${assembly.name} AI答弁`,
           speakerTitle: data.role || '超翻訳ナビゲーター',
-          date: '最新会議録より',
+          date: data.source_verified ? '2024年6月5日 東京都議会本会議' : 'デモ回答',
           originalQuote: data.original_quote,
           timestamp: nowStr,
           agreeCount: 1,
           disagreeCount: 0,
           sourceUrl: data.source_url || 'https://catalog.data.metro.tokyo.lg.jp/',
-          aiChainSteps: data.ai_chain_steps || DEFAULT_CHAIN_STEPS,
+          sourceVerified: data.source_verified === true,
+          aiChainSteps: data.ai_chain_steps || DEMO_CHAIN_STEPS,
         };
         setMessages((prev) => [...prev, assistantReply]);
       } else {
@@ -1076,16 +1176,16 @@ export default function LineChatModal({
       const fallbackReply: Message = {
         id: `assistant-${Date.now()}`,
         sender: 'assistant',
-        plainText: `ご質問「${userText}」に関して、${assembly.name}の最新議事録オープンデータを参照しました。\n\n本件については直近の定例会でも議論されており、関連予算および実施スケジュールが審議されています。`,
-        speaker: `${assembly.name} 議会答弁`,
-        speakerTitle: '関係部長・担当課',
-        date: '最新会議録より',
-        originalQuote: `「本件に関する施策につきましては、関係各所と綿密な連携を図りつつ、所期の目的達成に向けて着実に進行管理を行ってまいります。」`,
+        plainText: `ご質問「${userText}」への回答を取得できませんでした。公開会議録へのリンクから原文をご確認ください。`,
+        speaker: 'マチボイス AI',
+        speakerTitle: 'API接続エラー',
+        date: '回答未取得',
         timestamp: nowStr,
         agreeCount: 1,
         disagreeCount: 0,
-        sourceUrl: 'https://catalog.data.metro.tokyo.lg.jp/',
-        aiChainSteps: DEFAULT_CHAIN_STEPS,
+        sourceUrl: assembly.sourceUrl || 'https://catalog.data.metro.tokyo.lg.jp/',
+        sourceVerified: false,
+        aiChainSteps: DEMO_CHAIN_STEPS,
       };
       setMessages((prev) => [...prev, fallbackReply]);
     } finally {
@@ -1093,11 +1193,9 @@ export default function LineChatModal({
     }
   };
 
-  const quickPrompts = [
-    '病児保育の予約や受け入れ枠は？',
-    '給食費無償化の対象や条件は？',
-    'スマホ申請できる行政手続きは？',
-  ];
+  const quickPrompts = assembly.id === 'tokyo-metropolitan'
+    ? ['EBPMはどう進める？', '教育データをどう活用する？', 'バス運行データの公開は？']
+    : ['病児保育の予約や受け入れ枠は？', '給食費無償化の対象や条件は？', 'スマホ申請できる行政手続きは？'];
 
   if (!mounted) return null;
 
@@ -1126,11 +1224,11 @@ export default function LineChatModal({
                 </h3>
                 <span className="px-2 py-0.5 rounded-full text-[10px] dark:bg-slate-800 dark:text-emerald-400 dark:border-slate-700 bg-emerald-50 text-emerald-700 border-emerald-300 border font-medium shrink-0 flex items-center gap-1">
                   <Sparkles className="w-3 h-3 text-emerald-600 dark:text-emerald-400" />
-                  公式データ連携
+                  {assembly.id === 'tokyo-metropolitan' ? '公式会議録連携' : 'デモデータ'}
                 </span>
               </div>
               <p className="text-[11px] dark:text-slate-400 text-slate-500 truncate">
-                公式議事録・発言データの要約・質問アシスタント
+                {assembly.id === 'tokyo-metropolitan' ? '公式議事録・発言データの要約・質問アシスタント' : '公開会議録への接続を想定したデモ画面'}
               </p>
             </div>
           </div>
@@ -1220,7 +1318,7 @@ export default function LineChatModal({
                           <span>何が変わる？</span>
                         </span>
                         <span className="text-[10px] px-2 py-0.5 rounded dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700 bg-slate-100 text-slate-700 border-slate-300 border font-medium">
-                          原文検証済み
+                          {msg.sourceVerified ? '原文検証済み' : 'デモデータ'}
                         </span>
                       </div>
                       <div className="text-sm sm:text-base font-bold dark:text-white text-slate-900 leading-snug">
@@ -1306,7 +1404,7 @@ export default function LineChatModal({
                                 <div className="flex items-center justify-between border-b dark:border-slate-800/80 border-slate-200 pb-1.5 mb-1.5 text-[10px] dark:text-slate-400 text-slate-500">
                                   <div className="flex items-center gap-1.5 font-medium text-slate-700 dark:text-slate-300">
                                     <Calendar className="w-3 h-3" />
-                                    <span>{utt.meetingDate || '2026/6/12'} ｜ {utt.meetingName || '第2回定例会'} ｜ {utt.questionType || '一般質問'}</span>
+                                    <span>{utt.meetingDate || 'デモ'} ｜ {utt.meetingName || '画面体験用データ'} ｜ {utt.questionType || 'デモ発言'}</span>
                                   </div>
                                 </div>
 
@@ -1458,7 +1556,7 @@ export default function LineChatModal({
                                       </div>
 
                                       <div>
-                                        <div className="text-[10px] dark:text-slate-400 text-slate-500 font-bold uppercase tracking-wider mb-0.5">💬 公式会議録 原文抜粋</div>
+                                        <div className="text-[10px] dark:text-slate-400 text-slate-500 font-bold uppercase tracking-wider mb-0.5">💬 {msg.sourceVerified ? '公式会議録 原文抜粋' : '画面体験用デモ発言'}</div>
                                         <div className="dark:bg-slate-950 dark:border-slate-800/80 dark:text-slate-300 bg-slate-50 border-slate-200 border p-2.5 rounded text-[11.5px] italic text-slate-800 leading-relaxed">
                                           {utt.sourceExcerpt || `「${utt.summaryQuote}」`}
                                         </div>
@@ -1474,7 +1572,7 @@ export default function LineChatModal({
                                           rel="noopener noreferrer"
                                           className="text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/30 px-2 py-1 rounded-md flex items-center gap-1 font-semibold transition-colors border border-emerald-200 dark:border-emerald-800"
                                         >
-                                          <span>出典を見る ➔ 元議事録の該当箇所</span>
+                                          <span>{msg.sourceVerified ? '出典を見る ➔ 元議事録の該当箇所' : '公開会議録システムを見る'}</span>
                                         </a>
                                       </div>
                                     </div>
@@ -1485,7 +1583,9 @@ export default function LineChatModal({
                         </div>
 
                         <p className="text-[10px] dark:text-slate-400 text-slate-500 font-normal pt-0.5">
-                          ※各発言者の右下ボタンをタップすると、公式会議録の原文抜粋および詳細な答弁内容を無制限に展開して閲覧できます。
+                          {msg.sourceVerified
+                            ? '※各発言者の右下ボタンから、公式会議録の原文抜粋と直接出典を確認できます。'
+                            : '※この発言は画面体験用デモデータです。公開会議録との個別照合は行っていません。'}
                         </p>
                       </div>
                     )}
@@ -1551,7 +1651,7 @@ export default function LineChatModal({
                             className="font-medium dark:text-slate-300 dark:hover:text-emerald-400 text-slate-700 hover:text-emerald-700 flex items-center gap-1.5 transition-colors"
                           >
                             <FileText className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-                            <span>根拠：公式会議録の原文を{isQuoteExpanded ? '閉じる' : '確認する'}</span>
+                            <span>{msg.sourceVerified ? '根拠：公式会議録の原文を' : 'デモ発言を'}{isQuoteExpanded ? '閉じる' : '確認する'}</span>
                             {isQuoteExpanded ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
                           </button>
 

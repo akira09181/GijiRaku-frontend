@@ -50,7 +50,7 @@ export default function AnalyticsDashboardModal({
   const [activeTab, setActiveTab] = useState<TabType>('overview');
   const [loading, setLoading] = useState(true);
   const [analytics, setAnalytics] = useState<AssemblyAnalytics | null>(null);
-  const [reactionCount, setReactionCount] = useState<number>(37);
+  const [reactionCount, setReactionCount] = useState<number>(0);
   const [isCountUpdated, setIsCountUpdated] = useState(false);
   const lastServerReactionCountRef = useRef<number | null>(null);
 
@@ -100,17 +100,10 @@ export default function AnalyticsDashboardModal({
         // Keep the existing fallback data when the API is unavailable.
       }
 
-      // Fallback base data if no reactions yet (to avoid 0 division)
-      if (!hasServerCounts) {
-        totalAgree = 78;
-        totalConcern = 14;
-        totalHelpful = 8;
-      }
-      
       const totalReactions = totalAgree + totalConcern + totalHelpful;
-      const positivePct = Math.round((totalAgree / totalReactions) * 100);
-      const neutralPct = Math.round((totalHelpful / totalReactions) * 100);
-      const negativePct = Math.round((totalConcern / totalReactions) * 100);
+      const positivePct = totalReactions > 0 ? Math.round((totalAgree / totalReactions) * 100) : 0;
+      const neutralPct = totalReactions > 0 ? Math.round((totalHelpful / totalReactions) * 100) : 0;
+      const negativePct = totalReactions > 0 ? Math.round((totalConcern / totalReactions) * 100) : 0;
 
       if (cancelled) {
         refreshInFlight = false;
@@ -130,26 +123,26 @@ export default function AnalyticsDashboardModal({
 
       const mockTopicTrends: readonly TopicTrend[] = [
         {
-          topic: '子育て支援・給食費無償化',
-          frequency: 342,
+          topic: isTokyo ? 'EBPM・事業評価' : '子育て支援・給食費無償化',
+          frequency: isTokyo ? 2 : 342,
           sentimentRatio: { positive: positivePct, neutral: neutralPct, negative: negativePct },
           hotKeywords: ['第2子無償', '所得制限撤廃', 'おむつ支援'],
         },
         {
-          topic: '行政DX・窓口オンライン化',
-          frequency: 218,
+          topic: isTokyo ? '教育データ・AI教材' : '行政DX・窓口オンライン化',
+          frequency: isTokyo ? 1 : 218,
           sentimentRatio: { positive: 80, neutral: 15, negative: 5 },
           hotKeywords: ['スマホ申請', 'LINE連携', 'マイナンバー'],
         },
         {
-          topic: '都市交通・再開発・防災',
-          frequency: 185,
+          topic: isTokyo ? '地域公共交通・バスデータ' : '都市交通・再開発・防災',
+          frequency: isTokyo ? 1 : 185,
           sentimentRatio: { positive: 50, neutral: 35, negative: 15 },
           hotKeywords: ['モノレール', '駅前再開発', '浸水対策'],
         },
         {
-          topic: '休日夜間診療・病児保育',
-          frequency: 142,
+          topic: isTokyo ? '若者支援・医療情報' : '休日夜間診療・病児保育',
+          frequency: isTokyo ? 1 : 142,
           sentimentRatio: { positive: 55, neutral: 30, negative: 15 },
           hotKeywords: ['小児科確保', '即時予約', '待機児童'],
         },
@@ -219,12 +212,12 @@ export default function AnalyticsDashboardModal({
       setAnalytics({
         assemblyId: assembly.id,
         assemblyName: assembly.name,
-        totalSpeechesAnalyzed: isTokyo ? 12450 : assembly.totalMinutesCount,
+        totalSpeechesAnalyzed: assembly.totalMinutesCount,
         ebpmDataReadinessScore: isTokyo ? 94 : 88,
         topicTrends: mockTopicTrends,
         partyAnalytics: mockPartyAnalytics,
         memberScorecards: mockMemberScorecards,
-        publicSentimentScore: 86,
+        publicSentimentScore: positivePct,
       });
       setLoading(false);
       refreshInFlight = false;
@@ -261,11 +254,11 @@ export default function AnalyticsDashboardModal({
                   マチボイス EBPM政策分析 ({assembly.name})
                 </h3>
                 <span className="px-2 py-0.5 rounded text-[10px] bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 font-semibold shrink-0">
-                  EBPM Suite
+                  DEMO ANALYSIS
                 </span>
               </div>
               <p className="text-[11px] dark:text-slate-400 text-slate-500 truncate">
-                オープンデータ解析に基づくエビデンス・議会トレンド
+                議会分析はデモ値・市民リアクションはSQLiteの実集計
               </p>
             </div>
           </div>
@@ -325,7 +318,7 @@ export default function AnalyticsDashboardModal({
                 </div>
 
                 <div className="dark:bg-slate-900 dark:border-slate-800 bg-white border-slate-200 border rounded-xl p-3 sm:p-4 shadow-xs">
-                  <span className="text-[11px] dark:text-slate-400 text-slate-500 block mb-1">EBPM準備度</span>
+                  <span className="text-[11px] dark:text-slate-400 text-slate-500 block mb-1">EBPM準備度（デモ評価）</span>
                   <div className="text-base sm:text-xl font-bold text-emerald-600 dark:text-emerald-400">
                     {analytics.ebpmDataReadinessScore}
                     <span className="text-xs font-normal dark:text-slate-400 text-slate-500 ml-1">/ 100点</span>
@@ -354,7 +347,7 @@ export default function AnalyticsDashboardModal({
                   <div className="flex items-center justify-between">
                     <h4 className="text-xs sm:text-sm font-bold dark:text-white text-slate-900 flex items-center gap-1.5">
                       <TrendingUp className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-                      <span>主要議論トピックと発言頻度</span>
+                      <span>主要議論トピックと発言頻度（デモ分析）</span>
                     </h4>
                   </div>
 
@@ -422,7 +415,7 @@ export default function AnalyticsDashboardModal({
                 <div className="space-y-4">
                   <h4 className="text-xs sm:text-sm font-bold dark:text-white text-slate-900 flex items-center gap-1.5">
                     <Building2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-                    <span>各会派の重点政策と議会スタンス</span>
+                    <span>各会派の重点政策と議会スタンス（デモ分析）</span>
                   </h4>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -459,7 +452,7 @@ export default function AnalyticsDashboardModal({
                 <div className="space-y-4">
                   <h4 className="text-xs sm:text-sm font-bold dark:text-white text-slate-900 flex items-center gap-1.5">
                     <Users className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-                    <span>主要発言者の活動スコア</span>
+                    <span>主要発言者の活動スコア（デモ評価）</span>
                   </h4>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -524,7 +517,7 @@ export default function AnalyticsDashboardModal({
                   {/* 市民フィードバックの実数集計 */}
                   <div className="dark:bg-slate-900 dark:border-slate-800 bg-white border-slate-200 border rounded-xl p-4 space-y-3 shadow-xs">
                     <div className="flex items-center justify-between text-xs">
-                      <span className="dark:text-white text-slate-900 font-medium">病児保育・給食無償化に関する市民リアクション</span>
+                      <span className="dark:text-white text-slate-900 font-medium">公式会議録に対する市民リアクション</span>
                       <span className="text-emerald-600 dark:text-emerald-400 font-bold font-mono">
                         リアルタイム集計中
                       </span>
@@ -532,15 +525,15 @@ export default function AnalyticsDashboardModal({
 
                     <div className="flex items-center justify-between p-3 dark:bg-slate-950 dark:border-slate-800 bg-slate-50 border-slate-200 border rounded-xl">
                       <div>
-                        <span className="text-xs font-bold dark:text-white text-slate-900 block">病児保育のLINE即時予約・受け入れ枠拡大</span>
-                        <span className="text-[10.5px] dark:text-slate-400 text-slate-500">市民画面でのワンタップ「困っている / 賛成」の集計件数</span>
+                        <span className="text-xs font-bold dark:text-white text-slate-900 block">発言・議題へのリアクション合計</span>
+                        <span className="text-[10.5px] dark:text-slate-400 text-slate-500">市民画面の「賛成 / 気になる / 参考」をSQLiteから集計</span>
                       </div>
                       <div className="text-right">
                         <span className={`text-xl font-extrabold text-emerald-600 dark:text-emerald-400 font-mono transition-all ${isCountUpdated ? 'text-emerald-500 scale-110' : ''}`}>
                           {reactionCount}件
                         </span>
                         <span className="text-[10px] text-emerald-700 dark:text-emerald-300 block font-medium">
-                          {isCountUpdated ? '✨ +1 リアルタイム反映済' : '市民反応データを即時連携'}
+                          {isCountUpdated ? '✨ 最新値をリアルタイム反映済' : '市民反応データを即時連携'}
                         </span>
                       </div>
                     </div>
@@ -548,7 +541,7 @@ export default function AnalyticsDashboardModal({
 
                   {/* 年代別ニーズグラフ */}
                   <div className="dark:bg-slate-900 dark:border-slate-800 bg-white border-slate-200 border rounded-xl p-4 space-y-3 shadow-xs">
-                    <h5 className="text-xs font-bold dark:text-slate-200 text-slate-900">年代別民意・最重点テーマ</h5>
+                    <h5 className="text-xs font-bold dark:text-slate-200 text-slate-900">年代別民意・最重点テーマ（デモ仮説）</h5>
                     <div className="space-y-2">
                       {[
                         { group: '10代・20代 (若者層)', ratio: 91, issue: '病児保育即時LINE予約・おむつデジタルクーポン' },
