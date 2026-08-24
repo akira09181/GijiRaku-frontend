@@ -157,11 +157,19 @@ interface AssemblyRecord {
 
 interface AssemblyRecordsResponse {
   readonly status: 'success';
+  readonly open_data_source?: {
+    readonly title: string;
+    readonly catalog_url: string;
+    readonly resource_url: string;
+    readonly format: string;
+    readonly license_id: string;
+    readonly license_url: string;
+  };
   readonly records: readonly AssemblyRecord[];
 }
 
 const ANONYMOUS_USER_STORAGE_KEY = 'gijiraku_anonymous_user_id';
-const TOKYO_VERIFIED_MINUTES_URL = 'https://www.gikai.metro.tokyo.lg.jp/record/proceedings/2024-2/03-07.html';
+const TOKYO_VERIFIED_MINUTES_URL = 'https://www.gikai.metro.tokyo.lg.jp/record/proceedings/2026-2/02-01.html';
 const VERIFIED_ASSEMBLY_IDS = new Set([
   'tokyo-metropolitan',
   'shinjuku-ward',
@@ -457,18 +465,18 @@ const getDynamicSpeakerUtterances = (assembly: Assembly, theme?: string): Speake
   if (isTokyo) {
     return [
       {
-        id: 'tokyo-fukushima-2024-06-05-ebpm',
-        speakerName: '福島 りえこ',
+        id: 'tokyo-araki-2026-06-16-tokyo-app',
+        speakerName: '荒木 ちはる',
         speakerRole: '東京都議会議員',
-        partyName: '都民ファーストの会',
+        partyName: '都民ファーストの会東京都議団',
         committeeName: '本会議',
-        stanceLabel: '課題提起',
-        summaryQuote: '事業の成果を正しく測るため、設計段階から評価指標と測定方法を組み込む必要があると提案しました。',
-        fullSummary: '事業の執行状況だけでなく成果を評価するため、統計的なデータ分析、事前の指標設計、実施前後のデータ取得を政策評価に組み込むよう求めました。',
-        sourceExcerpt: '「あらかじめ事業に評価を組み込む必要があります。」',
-        meetingName: '令和6年第2回定例会 東京都議会会議録第9号',
-        meetingDate: '2024/6/5',
-        questionType: '一般質問',
+        stanceLabel: '拡大提案',
+        summaryQuote: '東京アプリを、必要な支援や行政サービスが迅速かつワンストップで届く仕組みへ発展させるよう求めました。',
+        fullSummary: '生活応援事業の利用支援を充実させ、行政手続のオンライン化や東京ポイント交換先の追加など、都民が利便性を実感できる機能強化を提案しました。',
+        sourceExcerpt: '「都民ニーズに寄り添った行政サービスを迅速かつワンストップで提供」',
+        meetingName: '令和8年第2回定例会 東京都議会会議録第8号（速報版）',
+        meetingDate: '2026/6/16',
+        questionType: '代表質問',
         sourceUrl: TOKYO_VERIFIED_MINUTES_URL,
         avatarColor: 'sky',
         agreeCount: 0,
@@ -476,18 +484,18 @@ const getDynamicSpeakerUtterances = (assembly: Assembly, theme?: string): Speake
         helpfulCount: 0,
       },
       {
-        id: 'tokyo-koike-2024-06-05-ebpm',
-        speakerName: '小池 百合子',
-        speakerRole: '東京都知事',
+        id: 'tokyo-miyasaka-2026-06-16-tokyo-app',
+        speakerName: '宮坂 学',
+        speakerRole: '東京都副知事',
         partyName: '行政執行部',
-        committeeName: '本会議・知事答弁',
+        committeeName: '本会議・副知事答弁',
         stanceLabel: '推進',
-        summaryQuote: '成果重視の評価や外部有識者・データ分析の活用を進め、都民サービス向上と財源確保につなげると答弁しました。',
-        fullSummary: '全事業への終期設定、外部有識者の知見、データ分析を活用した成果重視の評価を導入し、評価制度を継続的に見直す方針を示しました。',
-        sourceExcerpt: '「評価制度の不断の見直しで、都民のQOL向上と着実な財源確保につなげてまいります。」',
-        meetingName: '令和6年第2回定例会 東京都議会会議録第9号',
-        meetingDate: '2024/6/5',
-        questionType: '知事答弁',
+        summaryQuote: 'ライフステージ別の情報配信、ログイン簡素化、決済事業者の追加、デジタル都民証と生成AI案内機能の開発を進めると答弁しました。',
+        fullSummary: '東京アプリを都民と行政をつなぐ基盤として育て、個々の状況に応じた情報・手続・支援が届く体験を広げる方針を示しました。',
+        sourceExcerpt: '「個々の状況に応じた支援情報等を生成AIが検索、整理して案内」',
+        meetingName: '令和8年第2回定例会 東京都議会会議録第8号（速報版）',
+        meetingDate: '2026/6/16',
+        questionType: '副知事答弁',
         sourceUrl: TOKYO_VERIFIED_MINUTES_URL,
         avatarColor: 'emerald',
         agreeCount: 0,
@@ -959,6 +967,7 @@ export default function LineChatModal({
   const [openComments, setOpenComments] = useState<Record<string, boolean>>({});
   const [commentInputs, setCommentInputs] = useState<Record<string, string>>({});
   const [ebpmToast, setEbpmToast] = useState<string | null>(null);
+  const [openDataSource, setOpenDataSource] = useState<AssemblyRecordsResponse['open_data_source']>();
   const chatBottomRef = useRef<HTMLDivElement>(null);
   const anonymousUserIdRef = useRef('');
   const reactionRequestsInFlight = useRef<Set<string>>(new Set());
@@ -1187,29 +1196,29 @@ export default function LineChatModal({
         id: 'msg-2',
         sender: 'assistant',
         plainText: isTokyo
-          ? '東京都議会では、事業の設計段階から評価指標と測定方法を組み込み、成果をデータで検証するEBPMの進め方が議論されました。'
+          ? '東京都議会では、東京アプリから必要な支援や行政サービスをワンストップで届ける機能強化が議論されました。'
           : isVerifiedAssembly
             ? primaryUtterance?.fullSummary || primaryUtterance?.summaryQuote || assembly.hotTopic
           : `${assembly.name}における「${assembly.hotTopic}」について支援策が進んでいます。`,
         structuredSummary: {
           whatChanges: isTokyo
-            ? '政策を実施してから評価するだけでなく、設計段階から指標・測定方法・データ取得を組み込む考え方が示されました。'
+            ? '子育て・介護などの情報配信、行政サービスへのログイン簡素化、東京ポイント交換先の追加、デジタル都民証と生成AI案内機能の開発が進められます。'
             : isVerifiedAssembly
               ? primaryUtterance?.summaryQuote || assembly.hotTopic
             : `${assembly.name}において「${assembly.hotTopic}」を推進し、区民・市民の生活負担を減らす案が検討されています。`,
           targetAudience: isTokyo
-            ? '東京都の政策・行政サービスを利用する都民と、事業を設計・評価する行政部門'
+            ? '東京アプリを利用する都民と、行政手続や支援情報を必要とする人'
             : isVerifiedAssembly
               ? `${assembly.name}の住民と関係する行政部門`
             : `${assembly.name}にお住まいの子育て世帯・ご家庭および関係住民の皆様`,
           currentStage: isVerifiedAssembly ? `${verifiedDate}の${verifiedMeeting}で質疑・答弁済み` : '画面体験用のデモシナリオ',
           budgetInfo: isTokyo
-            ? '事業評価による財源確保と成果重視の評価制度について議論'
+            ? '東京アプリ生活応援事業と機能拡張について議論'
             : isVerifiedAssembly
               ? '公式会議録に記載された質疑・答弁を要約'
               : 'デモ値（個別原文との照合対象外）',
           nextStep: isTokyo
-            ? '評価制度を継続的に見直し、都民サービス向上と財源確保につなげる方針'
+            ? '生活応援事業の利用支援と、アプリ機能の開発・提供を継続'
             : isVerifiedAssembly
               ? '今後の行政対応・議会審議を継続確認'
               : '実データ接続後に個別検証',
@@ -1225,12 +1234,12 @@ export default function LineChatModal({
         policyArguments: isTokyo
           ? {
               supporting: [
-                '政策目的に対応した成果指標を事前に設計できる',
-                'データ分析を事業改善と財源確保につなげられる',
+                '必要な情報・手続・支援をワンストップで届けられる',
+                '生成AIで個々の状況に応じた支援情報を案内できる',
               ],
               concerns: [
-                '複合要因を扱うため、統計的な分析設計が必要',
-                '事業実施前から継続的にデータを取得する必要がある',
+                '利用に不慣れな人への支援を継続する必要がある',
+                '個人情報を扱う機能の安全性を確認する必要がある',
               ],
             }
           : isVerifiedAssembly
@@ -1247,7 +1256,7 @@ export default function LineChatModal({
         speakerTitle: isVerifiedAssembly ? '公式会議録・原文照合済み' : `${assembly.name} デモ分析`,
         date: isVerifiedAssembly ? verifiedMeeting : 'デモデータ',
         originalQuote: isTokyo
-          ? '「あらかじめ事業に評価を組み込む必要があります。」'
+          ? '「必要な情報や手続、支援が確実に届く体験」'
           : isVerifiedAssembly
             ? primaryUtterance?.sourceExcerpt
           : `「${assembly.name}における本施策は、区民・市民の生活利便性向上と行政手続きの抜本的な効率化を目指し、令和8年度当初予算案に重点計上しております。」`,
@@ -1324,6 +1333,7 @@ export default function LineChatModal({
     }
 
     queueMicrotask(() => {
+      setOpenDataSource(undefined);
       setUserVotes({});
       setUtteranceVotes({});
       setUtteranceCounts({});
@@ -1348,6 +1358,7 @@ export default function LineChatModal({
         const records = payload.records || [];
         const latestRecord = records[0];
         if (!latestRecord) return;
+        setOpenDataSource(payload.open_data_source);
 
         const apiSpeakers = mapAssemblyRecordsToSpeakers(records);
         const latestSpeakers = apiSpeakers.slice(0, latestRecord.statements.length);
@@ -1573,7 +1584,7 @@ export default function LineChatModal({
   };
 
   const quickPrompts = assembly.id === 'tokyo-metropolitan'
-    ? ['EBPMはどう進める？', '教育データをどう活用する？', 'バス運行データの公開は？']
+    ? ['東京アプリで何が変わる？', 'どんな支援情報が届く？', '生成AI案内は何をする？']
     : assembly.mainIssues.slice(0, 3).map((issue) => `${issue.label}は？`);
 
   if (!mounted) return null;
@@ -2034,15 +2045,28 @@ export default function LineChatModal({
                             {isQuoteExpanded ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
                           </button>
 
-                          <a
-                            href={msg.sourceUrl || 'https://catalog.data.metro.tokyo.lg.jp/'}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="text-[10.5px] text-emerald-600 dark:text-emerald-400 hover:underline flex items-center gap-1 font-medium"
-                          >
-                            <span>東京都オープンデータ原典</span>
-                            <ExternalLink className="w-3 h-3" />
-                          </a>
+                          <div className="flex items-center gap-2 flex-wrap">
+                            {openDataSource && (
+                              <a
+                                href={openDataSource.catalog_url}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="text-[10.5px] text-emerald-600 dark:text-emerald-400 hover:underline flex items-center gap-1 font-medium"
+                              >
+                                <span>公式OD：{openDataSource.title}（{openDataSource.license_id}）</span>
+                                <ExternalLink className="w-3 h-3" />
+                              </a>
+                            )}
+                            <a
+                              href={msg.sourceUrl || 'https://catalog.data.metro.tokyo.lg.jp/'}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="text-[10.5px] text-emerald-600 dark:text-emerald-400 hover:underline flex items-center gap-1 font-medium"
+                            >
+                              <span>公式会議録原文</span>
+                              <ExternalLink className="w-3 h-3" />
+                            </a>
+                          </div>
                         </div>
 
                         {isQuoteExpanded && (
