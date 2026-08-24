@@ -21,7 +21,6 @@ import {
   Users,
 } from 'lucide-react';
 import { Assembly } from '../types/assembly';
-import { incrementEbpmReactionCount, decrementEbpmReactionCount } from '../utils/ebpmStore';
 
 interface Comment {
   readonly user: string;
@@ -425,6 +424,12 @@ function getOrCreateAnonymousUserId(): string {
   return anonymousUserId;
 }
 
+function getSourceExcerptUrl(sourceUrl: string, sourceExcerpt?: string): string {
+  const excerpt = sourceExcerpt?.trim().replace(/^「|」$/g, '');
+  if (!excerpt) return sourceUrl;
+  return `${sourceUrl}#:~:text=${encodeURIComponent(excerpt)}`;
+}
+
 function mapAssemblyRecordsToSpeakers(records: readonly AssemblyRecord[]): SpeakerUtterance[] {
   return records.flatMap((record) => record.statements.map((statement) => ({
     id: statement.statement_id,
@@ -453,7 +458,6 @@ function mapAssemblyRecordsToSpeakers(records: readonly AssemblyRecord[]): Speak
  */
 const getDynamicSpeakerUtterances = (assembly: Assembly, theme?: string): SpeakerUtterance[] => {
   const isTokyo = assembly.id === 'tokyo-metropolitan';
-  const mayorName = isTokyo ? '小池 百合子' : assembly.mayorName || '首長';
   const mayorRole = isTokyo ? '東京都知事' : assembly.type === 'ward' ? '区長' : assembly.type === 'city' ? '市長' : '首長';
   const hotTopic = theme || assembly.hotTopic;
   const verifiedRecord = VERIFIED_ASSEMBLY_RECORDS[assembly.id];
@@ -505,447 +509,75 @@ const getDynamicSpeakerUtterances = (assembly: Assembly, theme?: string): Speake
     ];
   }
 
-  if (assembly.id === 'shinagawa-ward') {
-    return [
-      {
-        id: 'shinagawa-morisawa-01',
-        speakerName: '森澤 恭子',
-        speakerRole: '品川区長',
-        partyName: '無所属',
-        committeeName: '本会議・区長方針表明',
-        stanceLabel: '推進',
-        voteRecord: '賛成',
-        summaryQuote: '給食費の完全無償化とおむつ定額支給を軸に、品川区の子育て世代を全面的にバックアップします。',
-        fullSummary: '令和8年度当初予算におきまして、品川区立小中学校の給食費全額公費負担を継続計上するとともに、0歳児から2歳児のおむつ配付助成を拡大実施いたします。',
-        sourceExcerpt: '「本区におきましては、次世代を担う子どもたちの成長とご家庭の経済的負担軽減を最優先課題と位置付け、小中学校給食費の全額無償化を恒久的に継続するとともに、乳幼児紙おむつ等の定期便配付事業を強力に推進してまいります。」',
-        meetingName: '令和8年 第1回定例会 本会議区政表明',
-        avatarColor: 'emerald',
-        agreeCount: 78,
-        concernCount: 6,
-        helpfulCount: 34,
-        citizenComments: [
-          { user: '品川区民 (30代保護者)', text: '給食費とおむつのW支援は本当に助かります！継続を強く希望します。' },
-        ],
-      },
-      {
-        id: 'shinagawa-ito-02',
-        speakerName: '伊藤 まさこ',
-        speakerRole: '区議会議員',
-        partyName: '品川区議会公明党',
-        committeeName: '文教委員会',
-        stanceLabel: '推進',
-        voteRecord: '賛成',
-        summaryQuote: '小中学校の給食費ゼロ継続に加え、病児保育予約の完全デジタル化も早期に完了させるべきです。',
-        fullSummary: '給食費全額無償化の維持を歓迎しつつ、共働き世帯が最も困る病児・病後児保育のLINE予約システムの即時全域展開を求めて質疑を行いました。',
-        sourceExcerpt: '「品川区における給食費無償化の継続方針を高く評価いたします。あわせて保護者の強いニーズである病児保育のオンライン即時予約枠の拡充について具体的進捗を伺います。」',
-        meetingName: '文教委員会 質疑応答',
-        avatarColor: 'emerald',
-        agreeCount: 52,
-        concernCount: 3,
-        helpfulCount: 29,
-        citizenComments: [
-          { user: '共働きパパAさん', text: '病児保育のLINE予約は絶対必要。朝電話がつながらない問題を解消してほしい。' },
-        ],
-      },
-      {
-        id: 'shinagawa-matsumoto-03',
-        speakerName: '松本 ときひろ',
-        speakerRole: '区議会議員',
-        partyName: '品川区議会自民党',
-        committeeName: '予算特別委員会',
-        stanceLabel: '条件付き賛成',
-        voteRecord: '賛成',
-        summaryQuote: '無償化施策の財源根拠と、将来にわたる持続可能性について予算特別委で精査が必要です。',
-        fullSummary: '給食費無償化および各種手当の増額に対する都補助金縮小リスクを懸念し、品川区独自の単年度財源確保策の検証を行いました。',
-        sourceExcerpt: '「無償化施策の理念には賛同いたしますが、単年度あたり数億円規模となる財源の持続性、並びに将来的な都補助金の変更に伴う影響を精査する必要があります。」',
-        meetingName: '予算特別委員会 総括質疑',
-        avatarColor: 'amber',
-        agreeCount: 31,
-        concernCount: 44,
-        helpfulCount: 58,
-        citizenComments: [
-          { user: '区民Bさん', text: 'ただ無償化するだけでなく、将来の区財政が圧迫されないかの懸念チェックは大切。' },
-        ],
-      },
-      {
-        id: 'shinagawa-tanaka-04',
-        speakerName: '田中 けんじ',
-        speakerRole: '区議会議員',
-        partyName: '無所属ネットワーク',
-        committeeName: '福祉健康委員会',
-        stanceLabel: '拡大提案',
-        voteRecord: '未採決',
-        summaryQuote: '区立学校だけでなく私立小中・フリースクールに通う区民児童への支援格差も解消すべきです。',
-        fullSummary: '区立学校に通う児童だけでなく、区内に居住し私立小中学校や特別支援校、フリースクールに通学する児童への公平な支援措置を提案しました。',
-        sourceExcerpt: '「公立小中学校のみならず、区内に在住し多様な学びの場を選択している全児童・生徒に対する支援の公平性観点から助成範囲の拡充を求めます。」',
-        meetingName: '福祉健康委員会 審議',
-        avatarColor: 'sky',
-        agreeCount: 63,
-        concernCount: 9,
-        helpfulCount: 21,
-        citizenComments: [
-          { user: '私立小通学の保護者', text: '公立私立を問わず品川区民の子ども全員を平等に支援する視点に共感します。' },
-        ],
-      },
-    ];
-  }
-
-  if (assembly.id === 'machida-city') {
-    return [
-      {
-        id: 'machida-ishizaka-01',
-        speakerName: '石阪 丈一',
-        speakerRole: '町田市長',
-        partyName: '無所属',
-        committeeName: '本会議・市政方針',
-        stanceLabel: '推進',
-        voteRecord: '未採決',
-        summaryQuote: '多摩モノレール町田延伸事業と併せ、0歳〜2歳児へのおむつ電子クーポン助成を強力に推進します。',
-        fullSummary: '多摩都市モノレール町田延伸の都市計画決定手続きを進めるとともに、子育て世帯へデジタル決済ポイントで直接おむつ代を助成する新制度を開始します。',
-        sourceExcerpt: '「次年度予算におきまして、電子ポイントを活用した紙おむつ購入費助成事業を新規計上し、併せて多摩都市モノレール町田方面延伸の早期事業化に全力を尽くします。」',
-        meetingName: '令和8年 第1回定例会 市政方針演説',
-        avatarColor: 'emerald',
-        agreeCount: 94,
-        concernCount: 18,
-        helpfulCount: 41,
-        citizenComments: [
-          { user: '町田市民 (20代ママ)', text: '電子ポイントでおむつが買えるのは助かる！モノレール延伸も期待。' },
-        ],
-      },
-      {
-        id: 'machida-takahashi-02',
-        speakerName: '高橋 りえ',
-        speakerRole: '市議会議員',
-        partyName: '町田市民の会',
-        committeeName: '文教社会委員会',
-        stanceLabel: '拡大提案',
-        voteRecord: '未採決',
-        summaryQuote: 'おむつ助成をクーポンだけでなくアプリ決済対応にし、中学校給食の全員喫食も前倒しすべきです。',
-        fullSummary: '紙のクーポンの使いづらさを指摘しスマホアプリ決済対応を求めるとともに、中学校全員給食の早期実現を促しました。',
-        sourceExcerpt: '「子育て中の保護者が使いやすいようスマホアプリ決済との連動を強く求めます。また中学校給食の全員喫食化についても前倒しで運用を開始すべきです。」',
-        meetingName: '文教社会委員会 質疑',
-        avatarColor: 'sky',
-        agreeCount: 45,
-        concernCount: 7,
-        helpfulCount: 23,
-      },
-      {
-        id: 'machida-kobayashi-03',
-        speakerName: '小林 けんじ',
-        speakerRole: '市議会議員',
-        partyName: '自由民主党町田市議団',
-        committeeName: '建設常任委員会',
-        stanceLabel: '条件付き賛成',
-        voteRecord: '未採決',
-        summaryQuote: '多摩都市モノレールの着工時期と周辺まちづくり事業の年間予算バランスを検証します。',
-        fullSummary: 'モノレール延伸に伴う市負担額および町田駅周辺デッキ整備の事業計画と市債残高への影響について慎重な審査を実施しました。',
-        sourceExcerpt: '「モノレール導入空間の確保とペデストリアンデッキ着工に係る市負担額の膨らみについて、将来世代の財政負担とならないよう精査が求められます。」',
-        meetingName: '建設常任委員会 審査',
-        avatarColor: 'amber',
-        agreeCount: 22,
-        concernCount: 36,
-        helpfulCount: 49,
-      },
-      {
-        id: 'machida-watanabe-04',
-        speakerName: '渡辺 まゆみ',
-        speakerRole: '市議会議員',
-        partyName: '町田市議会共産党',
-        committeeName: '福祉委員会',
-        stanceLabel: '課題提起',
-        voteRecord: '未採決',
-        summaryQuote: '学童保育の待機児童問題と指導員の処遇改善について追加対策を要望します。',
-        fullSummary: '学童保育（放課後児童クラブ）の受け入れ枠不足および指導員の人手不足・処遇改善に向けた市独自の助成策を求めました。',
-        sourceExcerpt: '「指導員の確保と待遇改善なしに放課後児童クラブの待機児童ゼロは達成できません。市独自の賃金上乗せ助成を速やかに実施してください。」',
-        meetingName: '福祉委員会 質疑',
-        avatarColor: 'purple',
-        agreeCount: 38,
-        concernCount: 14,
-        helpfulCount: 32,
-      },
-    ];
-  }
-
-  if (assembly.id === 'shinjuku-ward') {
-    return [
-      {
-        id: 'shinjuku-yoshizumi-01',
-        speakerName: '吉住 健一',
-        speakerRole: '新宿区長',
-        partyName: '無所属',
-        committeeName: '本会議・区政方針',
-        stanceLabel: '推進',
-        voteRecord: '賛成',
-        summaryQuote: '繁華街の防犯安全強化と並行し、認可外保育助成およびLINEによる住民票デジタル申請を進めます。',
-        fullSummary: '歌舞伎町・新宿駅周辺の防犯対策を強化しつつ、区民が役所に来ずにスマホ完結で証明書を取得できるデジタルトランスフォーメーションを推進します。',
-        sourceExcerpt: '「新宿区の安全安心なまちづくりと区民利便性の向上に向け、LINEを活用した住民票および税証明の即時申請・受取システムを全区民へ公開いたします。」',
-        meetingName: '令和8年 第1回定例会 区政表明',
-        avatarColor: 'emerald',
-        agreeCount: 112,
-        concernCount: 15,
-        helpfulCount: 67,
-      },
-      {
-        id: 'shinjuku-nomoto-02',
-        speakerName: '野もと あきとし',
-        speakerRole: '区議会議員',
-        partyName: '新宿区議会公明党',
-        committeeName: '総務区民委員会',
-        stanceLabel: '推進',
-        voteRecord: '賛成',
-        summaryQuote: '各種証明書のスマホ申請対応により窓口混雑を解消し、24時間申請を全手続きへ拡張すべきです。',
-        fullSummary: 'オンライン申請の対象手続きを住民票だけでなく子育て手当・保育園入園申請へ拡大することを提言しました。',
-        sourceExcerpt: '「役所窓口での長時間の待ち時間を削減するため、スマホ手続きの対象を子育て・福祉関連申請へ全面展開するよう求めます。」',
-        meetingName: '総務区民委員会 審議',
-        avatarColor: 'emerald',
-        agreeCount: 49,
-        concernCount: 4,
-        helpfulCount: 28,
-      },
-      {
-        id: 'shinjuku-kuwabara-03',
-        speakerName: '桑原 ようへい',
-        speakerRole: '区議会議員',
-        partyName: '自由民主党新宿区議団',
-        committeeName: '防災・まちづくり委員会',
-        stanceLabel: '課題提起',
-        voteRecord: '未採決',
-        summaryQuote: 'デジタル化が進む中で、スマホ操作に不安のある高齢区民へのフォロー窓口設置が不可欠です。',
-        fullSummary: '行政手続きのオンライン化が進む一方、高齢者や障害者などデジタル弱者を取り残さないための対面サポート窓口の併設を要望しました。',
-        sourceExcerpt: '「スマホ申請への移行と並行して、デジタル操作に不慣れな高齢区民の皆様への丁寧な対面補助体制を各地域センターへ配置してください。」',
-        meetingName: '防災・まちづくり委員会 質疑',
-        avatarColor: 'purple',
-        agreeCount: 58,
-        concernCount: 12,
-        helpfulCount: 73,
-      },
-    ];
-  }
-
-  if (assembly.id === 'shibuya-ward') {
-    return [
-      {
-        id: 'shibuya-hasebe-01',
-        speakerName: '長谷部 健',
-        speakerRole: '渋谷区長',
-        partyName: '無所属',
-        committeeName: '本会議・施策方針',
-        stanceLabel: '推進',
-        voteRecord: '賛成',
-        summaryQuote: 'スタートアップ育成特区とスマートシティ渋谷を両輪に、行政手続きのスマート認証化を加速します。',
-        fullSummary: 'グローバルスタートアップ拠点形成とシブヤスマートシティ构想に基づき、区民サービスおよび教育DXの先進事例を全国へ発信します。',
-        sourceExcerpt: '「100年に一度の再開発が進む渋谷において、行政手続きの完全オンライン化とスタートアップ実証実験の場を創出してまいります。」',
-        meetingName: '令和8年 第1回定例会 施策方針',
-        avatarColor: 'emerald',
-        agreeCount: 135,
-        concernCount: 29,
-        helpfulCount: 84,
-      },
-      {
-        id: 'shibuya-kamizono-02',
-        speakerName: '神園 まちこ',
-        speakerRole: '区議会議員',
-        partyName: 'シブヤ未来会議',
-        committeeName: '文教委員会',
-        stanceLabel: '拡大提案',
-        voteRecord: '賛成',
-        summaryQuote: '放課後クラブのオンライン申込化やシブヤフォント活用など、子育て教育DXをさらに深めるべきです。',
-        fullSummary: '渋谷区独自の教育テクノロジー活用と放課後クラブのデジタル化による保護者の負担軽減を提案しました。',
-        sourceExcerpt: '「放課後クラブのオンライン申込化とシブヤフォント活用を通じたインクルーシブ教育のさらなる進化を要望いたします。」',
-        meetingName: '文教委員会 質疑',
-        avatarColor: 'sky',
-        agreeCount: 71,
-        concernCount: 8,
-        helpfulCount: 46,
-      },
-      {
-        id: 'shibuya-maruyama-03',
-        speakerName: '丸山 たかし',
-        speakerRole: '区議会議員',
-        partyName: '渋谷区議会自民党',
-        committeeName: '都市再開発特別委員会',
-        stanceLabel: '条件付き賛成',
-        voteRecord: '未採決',
-        summaryQuote: '100年に一度と言われる渋谷駅周辺再開発と安全・治安対策の事業費について継続検証を行います。',
-        fullSummary: '渋谷駅周辺の再開発事業に伴う公共街路整備費用および夜間治安対策予算の費用対効果について検証を求めました。',
-        sourceExcerpt: '「再開発事業における区負担額の増加を抑制し、深夜の安全対策と防災備蓄体制の向上を最優先に図るべきです。」',
-        meetingName: '都市再開発特別委員会 審査',
-        avatarColor: 'amber',
-        agreeCount: 34,
-        concernCount: 41,
-        helpfulCount: 52,
-      },
-    ];
-  }
-
   const prefix = assembly.id || 'tokyo';
 
   return [
     {
       id: `${prefix}-mayor-01`,
-      speakerName: mayorName,
+      speakerName: 'デモ首長',
       speakerRole: `${assembly.name} ${mayorRole}`,
-      partyName: '無所属',
+      partyName: 'デモデータ',
       committeeName: '本会議・首長答弁',
       stanceLabel: '推進',
       voteRecord: '賛成',
       summaryQuote: `「${hotTopic}」に関して、住民の負担軽減と地域の利便性向上を最優先に施策を推進してまいります。`,
       fullSummary: `令和8年度当初予算案におきまして、「${hotTopic}」に係る事業予算を重点計上し、関係機関と連携の上で早期運用開始を目指します。`,
       sourceExcerpt: `「ご質問の『${hotTopic}』に関しまして、本区・本市の重要施策として位置付け、速やかな事業着手と効果的な運用を行ってまいります。」`,
-      meetingName: '令和8年 第1回定例会 本会議',
+      meetingName: '画面体験用デモ会議',
       avatarColor: 'emerald',
-      agreeCount: 85,
-      concernCount: 12,
-      helpfulCount: 48,
+      agreeCount: 0,
+      concernCount: 0,
+      helpfulCount: 0,
     },
     {
       id: `${prefix}-yamada-02`,
-      speakerName: '山田 太郎',
+      speakerName: 'デモ議員A',
       speakerRole: `${assembly.name} 議員`,
-      partyName: isTokyo ? '都民ファーストの会' : '自由民主党会派',
+      partyName: 'デモ会派',
       committeeName: '予算特別委員会',
       stanceLabel: '条件付き賛成',
       voteRecord: '賛成',
       summaryQuote: `「${hotTopic}」に関する事業の持続可能性と必要な財源措置について詳細な検証を行います。`,
       fullSummary: `事業に必要な継続的財源の裏付けおよび導入後の運用効率化について予算特別委員会で詳細なチェックを実施しました。`,
       sourceExcerpt: `「施策の方向性には理解を示しつつも、継続的な財政負担および運用の実行可能性について事前に精査を行う必要があります。」`,
-      meetingName: '予算特別委員会 質疑',
+      meetingName: '画面体験用デモ会議',
       avatarColor: 'amber',
-      agreeCount: 28,
-      concernCount: 35,
-      helpfulCount: 61,
+      agreeCount: 0,
+      concernCount: 0,
+      helpfulCount: 0,
     },
     {
       id: `${prefix}-sato-03`,
-      speakerName: '佐藤 花子',
+      speakerName: 'デモ議員B',
       speakerRole: `${assembly.name} 議員`,
-      partyName: isTokyo ? '日本共産党' : '市民無所属ネットワーク',
+      partyName: 'デモ会派',
       committeeName: '文教・生活福祉委員会',
       stanceLabel: '拡大提案',
       voteRecord: '未採決',
       summaryQuote: `「${hotTopic}」の対象範囲をさらに拡大し、支援が必要な世帯へ広く届くよう提案いたします。`,
       fullSummary: `一部の世帯だけでなく、所得制限撤廃やサポート対象者の拡大により、一人でも多くの住民に届く制度設計を求めました。`,
       sourceExcerpt: `「所得制限や年齢制限によって対象外となるご家庭をなくし、真に生活者へ届く支援への拡充を強く要望いたします。」`,
-      meetingName: '文教・生活福祉委員会 審議',
+      meetingName: '画面体験用デモ会議',
       avatarColor: 'sky',
-      agreeCount: 56,
-      concernCount: 14,
-      helpfulCount: 29,
+      agreeCount: 0,
+      concernCount: 0,
+      helpfulCount: 0,
     },
     {
       id: `${prefix}-suzuki-04`,
-      speakerName: '鈴木 健太',
+      speakerName: 'デモ議員C',
       speakerRole: `${assembly.name} 議員`,
-      partyName: isTokyo ? '自由民主党' : '公明党会派',
+      partyName: 'デモ会派',
       committeeName: '総務・防災委員会',
       stanceLabel: '課題提起',
       voteRecord: '未採決',
       summaryQuote: `「${hotTopic}」の運用に伴うデジタル弱者への対面フォロー体制の確保が必要です。`,
       fullSummary: `高齢者や障害をお持ちの方が手続から取り残されないよう、窓口サポートや訪問相談体制の併設を提言しました。`,
       sourceExcerpt: `「デジタル手続きの推進と同時に、窓口や電話による丁寧なサポート窓口を維持し、誰一人取り残さない行政サービスを構築してください。」`,
-      meetingName: '総務・防災委員会 質疑',
+      meetingName: '画面体験用デモ会議',
       avatarColor: 'purple',
-      agreeCount: 67,
-      concernCount: 9,
-    },
-  ];
-
-  if (assembly.id === 'shibuya-ward') {
-    return [
-      {
-        speakerName: '長谷部 健',
-        speakerRole: '渋谷区長',
-        partyName: '無所属',
-        committeeName: '本会議・施策方針',
-        stanceLabel: '推進',
-        voteRecord: '賛成',
-        summaryQuote: 'スタートアップ育成特区とスマートシティ渋谷を両輪に、行政手続きのスマート認証化を加速します。',
-        fullSummary: 'グローバルスタートアップ拠点形成とシブヤスマートシティ构想に基づき、区民サービスおよび教育DXの先進事例を全国へ発信します。',
-        sourceExcerpt: '「100年に一度の再開発が進む渋谷において、行政手続きの完全オンライン化とスタートアップ実証実験の場を創出してまいります。」',
-        meetingName: '令和8年 第1回定例会 施策方針',
-        avatarColor: 'emerald',
-      },
-      {
-        speakerName: '神園 まちこ',
-        speakerRole: '区議会議員',
-        partyName: 'シブヤ未来会議',
-        committeeName: '文教委員会',
-        stanceLabel: '拡大提案',
-        voteRecord: '賛成',
-        summaryQuote: '放課後クラブのオンライン申込化やシブヤフォント活用など、子育て教育DXをさらに深めるべきです。',
-        fullSummary: '渋谷区独自の教育テクノロジー活用と放課後クラブのデジタル化による保護者の負担軽減を提案しました。',
-        sourceExcerpt: '「放課後クラブのオンライン申込化とシブヤフォント活用を通じたインクルーシブ教育のさらなる進化を要望いたします。」',
-        meetingName: '文教委員会 質疑',
-        avatarColor: 'sky',
-      },
-      {
-        speakerName: '丸山 たかし',
-        speakerRole: '区議会議員',
-        partyName: '渋谷区議会自民党',
-        committeeName: '都市再開発特別委員会',
-        stanceLabel: '条件付き賛成',
-        voteRecord: '未採決',
-        summaryQuote: '100年に一度と言われる渋谷駅周辺再開発と安全・治安対策の事業費について継続検証を行います。',
-        fullSummary: '渋谷駅周辺の再開発事業に伴う公共街路整備費用および夜間治安対策予算の費用対効果について検証を求めました。',
-        sourceExcerpt: '「再開発事業における区負担額の増加を抑制し、深夜の安全対策と防災備蓄体制の向上を最優先に図るべきです。」',
-        meetingName: '都市再開発特別委員会 審査',
-        avatarColor: 'amber',
-      },
-    ];
-  }
-
-  return [
-    {
-      speakerName: mayorName,
-      speakerRole: `${assembly.name} ${mayorRole}`,
-      partyName: '無所属',
-      committeeName: '本会議・首長答弁',
-      stanceLabel: '推進',
-      voteRecord: '賛成',
-      summaryQuote: `「${hotTopic}」に関して、住民の負担軽減と地域の利便性向上を最優先に施策を推進してまいります。`,
-      fullSummary: `令和8年度当初予算案におきまして、「${hotTopic}」に係る事業予算を重点計上し、関係機関と連携の上で早期運用開始を目指します。`,
-      sourceExcerpt: `「ご質問の『${hotTopic}』に関しまして、本区・本市の重要施策として位置付け、速やかな事業着手と効果的な運用を行ってまいります。」`,
-      meetingName: '令和8年 第1回定例会 本会議',
-      avatarColor: 'emerald',
-    },
-    {
-      speakerName: '山田 太郎',
-      speakerRole: `${assembly.name} 議員`,
-      partyName: isTokyo ? '都民ファーストの会' : '自由民主党会派',
-      committeeName: '予算特別委員会',
-      stanceLabel: '条件付き賛成',
-      voteRecord: '賛成',
-      summaryQuote: `「${hotTopic}」に関する事業の持続可能性と必要な財源措置について詳細な検証を行います。`,
-      fullSummary: `事業に必要な継続的財源の裏付けおよび導入後の運用効率化について予算特別委員会で詳細なチェックを実施しました。`,
-      sourceExcerpt: `「施策の方向性には理解を示しつつも、継続的な財政負担および運用の実行可能性について事前に精査を行う必要があります。」`,
-      meetingName: '予算特別委員会 質疑',
-      avatarColor: 'amber',
-    },
-    {
-      speakerName: '佐藤 花子',
-      speakerRole: `${assembly.name} 議員`,
-      partyName: isTokyo ? '日本共産党' : '市民無所属ネットワーク',
-      committeeName: '文教・生活福祉委員会',
-      stanceLabel: '拡大提案',
-      voteRecord: '未採決',
-      summaryQuote: `「${hotTopic}」の対象範囲をさらに拡大し、支援が必要な世帯へ広く届くよう提案いたします。`,
-      fullSummary: `一部の世帯だけでなく、所得制限撤廃やサポート対象者の拡大により、一人でも多くの住民に届く制度設計を求めました。`,
-      sourceExcerpt: `「所得制限や年齢制限によって対象外となるご家庭をなくし、真に生活者へ届く支援への拡充を強く要望いたします。」`,
-      meetingName: '文教・生活福祉委員会 審議',
-      avatarColor: 'sky',
-    },
-    {
-      speakerName: '鈴木 健太',
-      speakerRole: `${assembly.name} 議員`,
-      partyName: isTokyo ? '自由民主党' : '公明党会派',
-      committeeName: '総務・防災委員会',
-      stanceLabel: '課題提起',
-      voteRecord: '未採決',
-      summaryQuote: `「${hotTopic}」の運用に伴うデジタル弱者への対面フォロー体制の確保が必要です。`,
-      fullSummary: `高齢者や障害をお持ちの方が手続から取り残されないよう、窓口サポートや訪問相談体制の併設を提言しました。`,
-      sourceExcerpt: `「デジタル手続きの推進と同時に、窓口や電話による丁寧なサポート窓口を維持し、誰一人取り残さない行政サービスを構築してください。」`,
-      meetingName: '総務・防災委員会 質疑',
-      avatarColor: 'purple',
+      agreeCount: 0,
+      concernCount: 0,
     },
   ];
 };
@@ -1099,12 +731,10 @@ export default function LineChatModal({
 
       const typeLabel = type === 'agree' ? '👍 賛成' : type === 'concern' ? '⚠️ 気になる' : '💡 参考';
       if (result.changed && result.reaction_type === null) {
-        decrementEbpmReactionCount();
         setEbpmToast(`ℹ️ 「${speakerName}」議員の発言へのリアクションを取り消しました（集計: ${result.counts[type]}件）`);
       } else if (result.changed && result.previous_reaction_type !== null) {
         setEbpmToast(`👍 「${speakerName}」議員の発言へのリアクションを【${typeLabel}】に変更しました！（集計: ${result.counts[type]}件）`);
       } else if (result.changed) {
-        incrementEbpmReactionCount();
         triggerEbpmFeedbackNotification(speakerName, typeLabel, result.counts[type]);
       }
       setTimeout(() => setEbpmToast(null), 4000);
@@ -1261,8 +891,8 @@ export default function LineChatModal({
             ? primaryUtterance?.sourceExcerpt
           : `「${assembly.name}における本施策は、区民・市民の生活利便性向上と行政手続きの抜本的な効率化を目指し、令和8年度当初予算案に重点計上しております。」`,
         timestamp: '10:01',
-        agreeCount: isVerifiedAssembly ? 0 : 42,
-        disagreeCount: isVerifiedAssembly ? 0 : 3,
+        agreeCount: 0,
+        disagreeCount: 0,
         sourceUrl: isVerifiedAssembly ? verifiedSourceUrl : assembly.sourceUrl,
         sourceVerified: isVerifiedAssembly,
         aiChainSteps: chainSteps,
@@ -1324,8 +954,8 @@ export default function LineChatModal({
         date: isVerifiedAssembly ? verifiedMeeting : 'デモデータ',
         originalQuote: isTokyo ? tokyoEvidence.excerpt : isVerifiedAssembly ? primaryUtterance?.sourceExcerpt : '画面体験用に生成したデモ発言です。',
         timestamp: '10:03',
-        agreeCount: isVerifiedAssembly ? 0 : 28,
-        disagreeCount: isVerifiedAssembly ? 0 : 1,
+        agreeCount: 0,
+        disagreeCount: 0,
         sourceUrl: isVerifiedAssembly ? verifiedSourceUrl : assembly.sourceUrl,
         sourceVerified: isVerifiedAssembly,
         aiChainSteps: chainSteps,
@@ -1472,8 +1102,11 @@ export default function LineChatModal({
       );
 
       if (result.changed && result.previous_reaction_type === null) {
-        const newCount = incrementEbpmReactionCount();
-        triggerEbpmFeedbackNotification(assembly.name, type === 'agree' ? '賛成の声' : '懸念の声', newCount);
+        triggerEbpmFeedbackNotification(
+          assembly.name,
+          type === 'agree' ? '賛成の声' : '懸念の声',
+          result.counts[type],
+        );
       }
     } catch {
       // Keep the existing screen unchanged when the API is unavailable.
@@ -1501,8 +1134,6 @@ export default function LineChatModal({
     );
     setCommentInputs((prev) => ({ ...prev, [id]: '' }));
 
-    const newCount = incrementEbpmReactionCount();
-
     const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000';
     fetch(`${apiBase}/api/assemblies/${assembly.id}/messages/${id}/opinion`, {
       method: 'POST',
@@ -1510,7 +1141,7 @@ export default function LineChatModal({
       body: JSON.stringify({ opinion_type: 'agree', comment_text: text }),
     }).catch(() => {});
 
-    setEbpmToast(`💡 あなたの声が匿名集計されました！議員・行政向け分析ダッシュボード（EBPM）の集計数が ${newCount}件 に即時反映！`);
+    setEbpmToast('💬 ご意見を画面内に追加しました（コメント永続化はデモ対象外です）');
     setTimeout(() => {
       setEbpmToast(null);
     }, 4500);
@@ -1552,7 +1183,7 @@ export default function LineChatModal({
           date: data.source_verified ? '公式会議録・原文照合済み' : 'デモ回答',
           originalQuote: data.original_quote,
           timestamp: nowStr,
-          agreeCount: 1,
+          agreeCount: 0,
           disagreeCount: 0,
           sourceUrl: data.source_url || 'https://catalog.data.metro.tokyo.lg.jp/',
           sourceVerified: data.source_verified === true,
@@ -1571,7 +1202,7 @@ export default function LineChatModal({
         speakerTitle: 'API接続エラー',
         date: '回答未取得',
         timestamp: nowStr,
-        agreeCount: 1,
+        agreeCount: 0,
         disagreeCount: 0,
         sourceUrl: assembly.sourceUrl || 'https://catalog.data.metro.tokyo.lg.jp/',
         sourceVerified: false,
@@ -1831,9 +1462,9 @@ export default function LineChatModal({
                                  <div className="pt-2 border-t dark:border-slate-900/80 border-slate-200 space-y-2">
                                    {(() => {
                                      const defaultCounts = {
-                                       agree: utt.agreeCount ?? 42,
-                                       concern: utt.concernCount ?? 8,
-                                       helpful: utt.helpfulCount ?? 15,
+                                       agree: utt.agreeCount ?? 0,
+                                       concern: utt.concernCount ?? 0,
+                                       helpful: utt.helpfulCount ?? 0,
                                      };
                                      const counts = utteranceCounts[itemKey] || defaultCounts;
                                      const uttUserVote = utteranceVotes[itemKey];
@@ -1957,12 +1588,15 @@ export default function LineChatModal({
                                           📍 審議会議: <span className="dark:text-slate-300 text-slate-800 font-medium">{utt.meetingName || '令和8年 第1回定例会 本会議・委員会'}</span>
                                         </div>
                                         <a
-                                          href={utt.sourceUrl || msg.sourceUrl || 'https://catalog.data.metro.tokyo.lg.jp/'}
+                                          href={getSourceExcerptUrl(
+                                            utt.sourceUrl || msg.sourceUrl || 'https://catalog.data.metro.tokyo.lg.jp/',
+                                            utt.sourceExcerpt,
+                                          )}
                                           target="_blank"
                                           rel="noopener noreferrer"
                                           className="text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/30 px-2 py-1 rounded-md flex items-center gap-1 font-semibold transition-colors border border-emerald-200 dark:border-emerald-800"
                                         >
-                                          <span>{msg.sourceVerified ? '出典を見る ➔ 元議事録の該当箇所' : '公開会議録システムを見る'}</span>
+                                          <span>{msg.sourceVerified ? '公式会議録の引用箇所を開く' : '公開会議録システムを見る'}</span>
                                         </a>
                                       </div>
                                     </div>
@@ -2085,8 +1719,8 @@ export default function LineChatModal({
                             <span className="text-[11px] font-bold dark:text-slate-300 text-slate-800">この議論、どう思う？</span>
                             <button
                               onClick={() => handleVote(msg.id, 'agree', {
-                                agree: msg.agreeCount !== undefined ? msg.agreeCount : 42,
-                                concern: msg.disagreeCount !== undefined ? msg.disagreeCount : 3,
+                                agree: msg.agreeCount ?? 0,
+                                concern: msg.disagreeCount ?? 0,
                                 helpful: 0,
                               })}
                               className={`px-2.5 py-1 rounded-lg text-xs font-medium border flex items-center gap-1 transition-colors ${
@@ -2100,8 +1734,8 @@ export default function LineChatModal({
                             </button>
                             <button
                               onClick={() => handleVote(msg.id, 'concern', {
-                                agree: msg.agreeCount !== undefined ? msg.agreeCount : 42,
-                                concern: msg.disagreeCount !== undefined ? msg.disagreeCount : 3,
+                                agree: msg.agreeCount ?? 0,
+                                concern: msg.disagreeCount ?? 0,
                                 helpful: 0,
                               })}
                               className={`px-2.5 py-1 rounded-lg text-xs font-medium border flex items-center gap-1 transition-colors ${
