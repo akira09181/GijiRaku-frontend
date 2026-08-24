@@ -1251,7 +1251,7 @@ export default function LineChatModal({
                 </span>
               </div>
               <p className="text-[11px] dark:text-slate-400 text-slate-500 truncate">
-                {VERIFIED_ASSEMBLY_IDS.has(assembly.id) ? '公式議事録・発言データの要約・質問アシスタント' : '公開会議録への接続を想定したデモ画面'}
+                {VERIFIED_ASSEMBLY_IDS.has(assembly.id) ? '議会の議論を確かめ、あなたの意思を届ける市民参加ナビ' : '公開会議録への接続を想定したデモ画面'}
               </p>
             </div>
           </div>
@@ -1610,6 +1610,122 @@ export default function LineChatModal({
                       </div>
                     )}
 
+                    {/* 市民参加: 発言と答弁を確認した直後に意思を届ける */}
+                    {(msg.agreeCount !== undefined || msg.disagreeCount !== undefined) && (
+                      <div className="pt-2.5 border-t dark:border-slate-800/80 border-slate-200 space-y-2 text-xs">
+                        <div className="flex items-center justify-between flex-wrap gap-2">
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <span className="text-[11px] font-bold dark:text-slate-300 text-slate-800">この議論、どう思う？</span>
+                            <button
+                              onClick={() => handleVote(msg.id, 'agree', {
+                                agree: msg.agreeCount ?? 0,
+                                concern: msg.disagreeCount ?? 0,
+                                helpful: 0,
+                              })}
+                              className={`px-2.5 py-1 rounded-lg text-xs font-medium border flex items-center gap-1 transition-colors ${
+                                hasVoted === 'agree'
+                                  ? 'bg-emerald-600/20 text-emerald-700 dark:text-emerald-300 border-emerald-500/40'
+                                  : 'dark:bg-slate-800 dark:hover:bg-slate-750 dark:text-slate-300 dark:border-slate-700 bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-300'
+                              }`}
+                            >
+                              <ThumbsUp className="w-3 h-3" />
+                              <span>賛成 {msg.agreeCount !== undefined ? msg.agreeCount : 42}</span>
+                            </button>
+                            <button
+                              onClick={() => handleVote(msg.id, 'concern', {
+                                agree: msg.agreeCount ?? 0,
+                                concern: msg.disagreeCount ?? 0,
+                                helpful: 0,
+                              })}
+                              className={`px-2.5 py-1 rounded-lg text-xs font-medium border flex items-center gap-1 transition-colors ${
+                                hasVoted === 'concern'
+                                  ? 'bg-rose-600/20 text-rose-700 dark:text-rose-300 border-rose-500/40'
+                                  : 'dark:bg-slate-800 dark:hover:bg-slate-750 dark:text-slate-300 dark:border-slate-700 bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-300'
+                              }`}
+                            >
+                              <ThumbsDown className="w-3 h-3" />
+                              <span>懸念 {msg.disagreeCount !== undefined ? msg.disagreeCount : 3}</span>
+                            </button>
+                            <button
+                              onClick={() => toggleCommentBox(msg.id)}
+                              className="px-2.5 py-1 rounded-lg text-xs font-medium dark:bg-slate-800 dark:hover:bg-slate-750 dark:text-slate-300 dark:border-slate-700 bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-300 border flex items-center gap-1 transition-colors"
+                            >
+                              <Send className="w-3 h-3 text-emerald-600 dark:text-emerald-400" />
+                              <span>意見を書く</span>
+                            </button>
+                          </div>
+
+                          <button
+                            onClick={() => toggleChain(msg.id)}
+                            className="text-[10.5px] font-medium dark:text-slate-400 dark:hover:text-slate-200 text-slate-600 hover:text-slate-900 flex items-center gap-1 transition-colors ml-auto"
+                          >
+                            <span>AI検証プロセス</span>
+                            {isChainExpanded ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+                          </button>
+                        </div>
+
+                        <p className="text-[10.5px] dark:text-slate-400 text-slate-600 leading-relaxed">
+                          集まった市民の反応は、地域・テーマなど個人を特定しない単位で集計し、議員・行政向け分析画面へ届けます。
+                        </p>
+
+                        {/* 意見コメント入力ボックス */}
+                        {openComments[msg.id] && (
+                          <div className="pt-2 flex items-center gap-1.5 animate-fade-in">
+                            <input
+                              type="text"
+                              value={commentInputs[msg.id] || ''}
+                              onChange={(e) =>
+                                setCommentInputs((prev) => ({ ...prev, [msg.id]: e.target.value }))
+                              }
+                              placeholder="この議題への匿名意見・声を届ける（行政ダッシュボードへ集計）..."
+                              className="flex-1 px-3 py-1.5 dark:bg-slate-950 dark:border-slate-800 dark:text-white bg-white border-slate-300 text-slate-900 border rounded-lg text-xs placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-emerald-500 transition-colors"
+                            />
+                            <button
+                              onClick={() => handleAddComment(msg.id)}
+                              className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-semibold shrink-0 shadow-2xs"
+                            >
+                              届ける
+                            </button>
+                          </div>
+                        )}
+
+                        {/* 投稿された市民コメント */}
+                        {msg.comments && msg.comments.length > 0 && (
+                          <div className="space-y-1.5 pt-1">
+                            {msg.comments.map((c, idx) => (
+                              <div
+                                key={idx}
+                                className="dark:bg-slate-950/80 dark:border-slate-800/80 dark:text-slate-300 bg-slate-100 border-slate-200 border p-2 rounded-lg text-[11px] text-slate-800"
+                              >
+                                <span className="font-semibold text-emerald-600 dark:text-emerald-400">{c.user}: </span>
+                                <span>{c.text}</span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* AI Processing Chain アコーディオン展開 */}
+                    {isChainExpanded && (
+                      <div className="p-3 dark:bg-slate-950 dark:border-slate-800 bg-slate-100 border-slate-200 border rounded-xl space-y-2 text-xs animate-fade-in">
+                        <p className="text-[11px] dark:text-slate-400 text-slate-600 font-semibold mb-1">
+                          処理ステップ: 公式データ連携 ➔ 情報抽出 ➔ 構造化要約 ➔ 原文照合
+                        </p>
+                        {chainSteps.map((step) => (
+                          <div key={step.step_number} className="flex items-start gap-2 text-[11px]">
+                            <span className="w-4 h-4 rounded-full dark:bg-slate-800 dark:text-emerald-400 dark:border-slate-700 bg-white border-slate-300 text-emerald-700 border flex items-center justify-center font-bold text-[9px] shrink-0 mt-0.5">
+                              {step.step_number}
+                            </span>
+                            <div>
+                              <span className="font-semibold dark:text-slate-200 text-slate-900">{step.title}</span>
+                              <p className="dark:text-slate-400 text-slate-600 text-[10.5px] leading-tight">{step.detail}</p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
                     {/* 【ブロック5】現在どの段階か */}
                     {msg.structuredSummary && (
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-2.5 border-t dark:border-slate-800/80 border-slate-200">
@@ -1730,117 +1846,6 @@ export default function LineChatModal({
                       </div>
                     )}
 
-                    {/* 補助情報: この議論、どう思う？ (双方向フィードバック) & AI検証ステップ */}
-                    {(msg.agreeCount !== undefined || msg.disagreeCount !== undefined) && (
-                      <div className="pt-2.5 border-t dark:border-slate-800/80 border-slate-200 space-y-2 text-xs">
-                        <div className="flex items-center justify-between flex-wrap gap-2">
-                          <div className="flex items-center gap-1.5 flex-wrap">
-                            <span className="text-[11px] font-bold dark:text-slate-300 text-slate-800">この議論、どう思う？</span>
-                            <button
-                              onClick={() => handleVote(msg.id, 'agree', {
-                                agree: msg.agreeCount ?? 0,
-                                concern: msg.disagreeCount ?? 0,
-                                helpful: 0,
-                              })}
-                              className={`px-2.5 py-1 rounded-lg text-xs font-medium border flex items-center gap-1 transition-colors ${
-                                hasVoted === 'agree'
-                                  ? 'bg-emerald-600/20 text-emerald-700 dark:text-emerald-300 border-emerald-500/40'
-                                  : 'dark:bg-slate-800 dark:hover:bg-slate-750 dark:text-slate-300 dark:border-slate-700 bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-300'
-                              }`}
-                            >
-                              <ThumbsUp className="w-3 h-3" />
-                              <span>賛成 {msg.agreeCount !== undefined ? msg.agreeCount : 42}</span>
-                            </button>
-                            <button
-                              onClick={() => handleVote(msg.id, 'concern', {
-                                agree: msg.agreeCount ?? 0,
-                                concern: msg.disagreeCount ?? 0,
-                                helpful: 0,
-                              })}
-                              className={`px-2.5 py-1 rounded-lg text-xs font-medium border flex items-center gap-1 transition-colors ${
-                                hasVoted === 'concern'
-                                  ? 'bg-rose-600/20 text-rose-700 dark:text-rose-300 border-rose-500/40'
-                                  : 'dark:bg-slate-800 dark:hover:bg-slate-750 dark:text-slate-300 dark:border-slate-700 bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-300'
-                              }`}
-                            >
-                              <ThumbsDown className="w-3 h-3" />
-                              <span>懸念 {msg.disagreeCount !== undefined ? msg.disagreeCount : 3}</span>
-                            </button>
-                            <button
-                              onClick={() => toggleCommentBox(msg.id)}
-                              className="px-2.5 py-1 rounded-lg text-xs font-medium dark:bg-slate-800 dark:hover:bg-slate-750 dark:text-slate-300 dark:border-slate-700 bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-300 border flex items-center gap-1 transition-colors"
-                            >
-                              <Send className="w-3 h-3 text-emerald-600 dark:text-emerald-400" />
-                              <span>意見を書く</span>
-                            </button>
-                          </div>
-
-                          <button
-                            onClick={() => toggleChain(msg.id)}
-                            className="text-[10.5px] font-medium dark:text-slate-400 dark:hover:text-slate-200 text-slate-600 hover:text-slate-900 flex items-center gap-1 transition-colors ml-auto"
-                          >
-                            <span>AI検証プロセス</span>
-                            {isChainExpanded ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
-                          </button>
-                        </div>
-
-                        {/* 意見コメント入力ボックス */}
-                        {openComments[msg.id] && (
-                          <div className="pt-2 flex items-center gap-1.5 animate-fade-in">
-                            <input
-                              type="text"
-                              value={commentInputs[msg.id] || ''}
-                              onChange={(e) =>
-                                setCommentInputs((prev) => ({ ...prev, [msg.id]: e.target.value }))
-                              }
-                              placeholder="この議題への匿名意見・声を届ける（行政ダッシュボードへ集計）..."
-                              className="flex-1 px-3 py-1.5 dark:bg-slate-950 dark:border-slate-800 dark:text-white bg-white border-slate-300 text-slate-900 border rounded-lg text-xs placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-emerald-500 transition-colors"
-                            />
-                            <button
-                              onClick={() => handleAddComment(msg.id)}
-                              className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-semibold shrink-0 shadow-2xs"
-                            >
-                              届ける
-                            </button>
-                          </div>
-                        )}
-
-                        {/* 投稿された市民コメント */}
-                        {msg.comments && msg.comments.length > 0 && (
-                          <div className="space-y-1.5 pt-1">
-                            {msg.comments.map((c, idx) => (
-                              <div
-                                key={idx}
-                                className="dark:bg-slate-950/80 dark:border-slate-800/80 dark:text-slate-300 bg-slate-100 border-slate-200 border p-2 rounded-lg text-[11px] text-slate-800"
-                              >
-                                <span className="font-semibold text-emerald-600 dark:text-emerald-400">{c.user}: </span>
-                                <span>{c.text}</span>
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    )}
-
-                    {/* AI Processing Chain アコーディオン展開 */}
-                    {isChainExpanded && (
-                      <div className="p-3 dark:bg-slate-950 dark:border-slate-800 bg-slate-100 border-slate-200 border rounded-xl space-y-2 text-xs animate-fade-in">
-                        <p className="text-[11px] dark:text-slate-400 text-slate-600 font-semibold mb-1">
-                          処理ステップ: 公式データ連携 ➔ 情報抽出 ➔ 構造化要約 ➔ 原文照合
-                        </p>
-                        {chainSteps.map((step) => (
-                          <div key={step.step_number} className="flex items-start gap-2 text-[11px]">
-                            <span className="w-4 h-4 rounded-full dark:bg-slate-800 dark:text-emerald-400 dark:border-slate-700 bg-white border-slate-300 text-emerald-700 border flex items-center justify-center font-bold text-[9px] shrink-0 mt-0.5">
-                              {step.step_number}
-                            </span>
-                            <div>
-                              <span className="font-semibold dark:text-slate-200 text-slate-900">{step.title}</span>
-                              <p className="dark:text-slate-400 text-slate-600 text-[10.5px] leading-tight">{step.detail}</p>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
                   </div>
                   <span className="text-[10px] text-slate-500 pl-1">{msg.timestamp}</span>
                 </div>
