@@ -870,19 +870,16 @@ export default function LineChatModal({
                 '必要な情報・手続・支援をワンストップで届けられる',
                 '生成AIで個々の状況に応じた支援情報を案内できる',
               ],
-              concerns: [
-                '利用に不慣れな人への支援を継続する必要がある',
-                '個人情報を扱う機能の安全性を確認する必要がある',
-              ],
+              concerns: [],
             }
           : isVerifiedAssembly
             ? {
                 supporting: [primaryUtterance?.summaryQuote || '公式会議録に記載された提案・行政対応'],
-                concerns: ['会議録に記載された課題と行政対応を継続確認'],
+                concerns: [],
               }
             : {
               supporting: ['デモデータによる画面体験'],
-              concerns: ['公式会議録との個別照合が必要'],
+              concerns: [],
             },
         speakerUtterances: dynamicSpeakers,
         speaker: isTokyo ? '東京都議会 3分解説' : '議会定例会 3分解説',
@@ -941,16 +938,16 @@ export default function LineChatModal({
         policyArguments: isTokyo
           ? {
               supporting: ['公開データを使って政策課題を把握・評価できる'],
-              concerns: ['施策ごとに適切な指標と検証方法を設計する必要がある'],
+              concerns: [],
             }
           : isVerifiedAssembly
             ? {
                 supporting: [primaryUtterance?.summaryQuote || '公式会議録に記載された提案・行政対応'],
-                concerns: ['会議録に記載された課題と行政対応を継続確認'],
+                concerns: [],
               }
             : {
                 supporting: ['デモデータによる画面体験'],
-                concerns: ['公式会議録との個別照合が必要'],
+                concerns: [],
               },
         speakerUtterances: themeSpeakers,
         speaker: 'テーマ別要点解説',
@@ -1027,7 +1024,7 @@ export default function LineChatModal({
             timeline: selectedTimeline,
             policyArguments: {
               supporting: [selectedSpeakers[0]?.summaryQuote || selectedRecord.what_changes],
-              concerns: ['会議録に記載された課題と行政対応を継続確認'],
+              concerns: [],
             },
             speakerUtterances: selectedSpeakers,
             date: selectedRecord.meeting_name,
@@ -1657,29 +1654,33 @@ export default function LineChatModal({
                           <MessageSquare className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
                           <span>議会での主な論点（審議内容）</span>
                         </div>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px]">
-                          <div className="dark:bg-emerald-950/40 dark:border-emerald-800/40 bg-emerald-50/80 border-emerald-200 border p-2.5 rounded-xl space-y-1">
-                            <div className="text-[10.5px] font-bold text-emerald-700 dark:text-emerald-400 flex items-center gap-1">
-                              <CheckCircle2 className="w-3 h-3" />
-                              <span>賛成理由・推進側の主な意見</span>
+                        <div className={`grid grid-cols-1 ${msg.policyArguments.concerns.length > 0 ? 'sm:grid-cols-2' : ''} gap-2 text-[11px]`}>
+                          {msg.policyArguments.supporting.length > 0 && (
+                            <div className="dark:bg-emerald-950/40 dark:border-emerald-800/40 bg-emerald-50/80 border-emerald-200 border p-2.5 rounded-xl space-y-1">
+                              <div className="text-[10.5px] font-bold text-emerald-700 dark:text-emerald-400 flex items-center gap-1">
+                                <CheckCircle2 className="w-3 h-3" />
+                                <span>議会で示された主な意見</span>
+                              </div>
+                              <ul className="list-disc list-inside space-y-0.5 dark:text-slate-300 text-slate-800 text-[10.5px]">
+                                {msg.policyArguments.supporting.map((arg, idx) => (
+                                  <li key={idx}>{arg}</li>
+                                ))}
+                              </ul>
                             </div>
-                            <ul className="list-disc list-inside space-y-0.5 dark:text-slate-300 text-slate-800 text-[10.5px]">
-                              {msg.policyArguments.supporting.map((arg, idx) => (
-                                <li key={idx}>{arg}</li>
-                              ))}
-                            </ul>
-                          </div>
-                          <div className="dark:bg-rose-950/40 dark:border-rose-800/40 bg-rose-50/80 border-rose-200 border p-2.5 rounded-xl space-y-1">
-                            <div className="text-[10.5px] font-bold text-rose-700 dark:text-rose-400 flex items-center gap-1">
-                              <AlertCircle className="w-3 h-3" />
-                              <span>慎重論・懸念される主な点</span>
+                          )}
+                          {msg.policyArguments.concerns.length > 0 && (
+                            <div className="dark:bg-rose-950/40 dark:border-rose-800/40 bg-rose-50/80 border-rose-200 border p-2.5 rounded-xl space-y-1">
+                              <div className="text-[10.5px] font-bold text-rose-700 dark:text-rose-400 flex items-center gap-1">
+                                <AlertCircle className="w-3 h-3" />
+                                <span>原文で示された慎重論・懸念</span>
+                              </div>
+                              <ul className="list-disc list-inside space-y-0.5 dark:text-slate-300 text-slate-800 text-[10.5px]">
+                                {msg.policyArguments.concerns.map((arg, idx) => (
+                                  <li key={idx}>{arg}</li>
+                                ))}
+                              </ul>
                             </div>
-                            <ul className="list-disc list-inside space-y-0.5 dark:text-slate-300 text-slate-800 text-[10.5px]">
-                              {msg.policyArguments.concerns.map((arg, idx) => (
-                                <li key={idx}>{arg}</li>
-                              ))}
-                            </ul>
-                          </div>
+                          )}
                         </div>
                       </div>
                     )}

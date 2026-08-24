@@ -214,7 +214,7 @@ export default function Home() {
   const [officialStats, setOfficialStats] = useState({
     openDataSourceCount: 7,
     assemblyCount: 7,
-    statementCount: 324,
+    statementCount: 367,
     updatedAt: '2026/08/24',
   });
 
@@ -293,6 +293,10 @@ export default function Home() {
         </h2>
         <p className="text-xs sm:text-sm dark:text-slate-400 text-slate-600 mt-2.5 max-w-lg leading-relaxed">
           読み切れない議事録をAIで整理し、誰が何を質問し、行政がどう答えたかを、原文付きで3分で届けます。
+        </p>
+
+        <p className="mt-4 text-xs sm:text-sm font-bold text-emerald-700 dark:text-emerald-400 tracking-wide">
+          知る → 確かめる → 声を届ける
         </p>
 
         <div className="mt-5 flex flex-col items-center gap-2">
