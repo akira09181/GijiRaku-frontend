@@ -289,10 +289,13 @@ export default function Home() {
       {/* メインヒーローセクション */}
       <section className="px-4 pt-10 pb-8 sm:pt-14 sm:pb-10 max-w-4xl w-full mx-auto flex flex-col items-center text-center">
         <h2 className="text-2xl sm:text-4xl font-bold dark:text-white text-slate-900 tracking-tight leading-tight">
-          あなたの困り事は、議会で話されているかもしれない。
+          声を上げられる人だけで、政策が決まっていませんか？
         </h2>
-        <p className="text-xs sm:text-sm dark:text-slate-400 text-slate-600 mt-2.5 max-w-lg leading-relaxed">
-          読み切れない議事録をAIで整理し、誰が何を質問し、行政がどう答えたかを、原文付きで3分で届けます。
+        <p className="text-xs sm:text-sm font-semibold dark:text-slate-300 text-slate-700 mt-2.5 max-w-2xl leading-relaxed">
+          選挙だけでは届かない、日々暮らす市民の意思を政策へ。
+        </p>
+        <p className="text-xs sm:text-sm dark:text-slate-400 text-slate-600 mt-1.5 max-w-2xl leading-relaxed">
+          マチボイスは、議会の一次情報を「知る・確かめる・意思を示す」までつなぎ、沈黙していた多数の市民を政策形成に戻す参加基盤です。
         </p>
 
         <p className="mt-4 text-xs sm:text-sm font-bold text-emerald-700 dark:text-emerald-400 tracking-wide">
@@ -312,7 +315,10 @@ export default function Home() {
           </span>
         </div>
 
-        <p className="mt-4 max-w-2xl text-[11px] sm:text-xs dark:text-slate-400 text-slate-600 leading-relaxed">
+        <p className="mt-4 max-w-2xl text-xs sm:text-sm font-semibold dark:text-slate-300 text-slate-700 leading-relaxed">
+          AI要約は機能です。市民参加の偏りを正し、民主主義に参加者を取り戻すことがプロダクトです。
+        </p>
+        <p className="mt-1.5 max-w-2xl text-[11px] sm:text-xs dark:text-slate-400 text-slate-600 leading-relaxed">
           異なる形式の会議録を発言単位に構造化し、議員・日時・議題・原文を保持したままAI要約しています。
         </p>
 
