@@ -241,7 +241,7 @@ export default function Home() {
                 onChange={(e) => setSelectedAssemblyId(e.target.value)}
                 className="w-full dark:bg-slate-950 dark:border-slate-700/80 dark:text-white bg-slate-50 border-slate-300 text-slate-900 border rounded-xl px-3.5 py-2.5 text-xs sm:text-sm focus:outline-none focus:ring-1 focus:ring-emerald-500 appearance-none cursor-pointer pr-10 font-medium transition-colors"
               >
-                <option value="all">東京都（対象：全62市区町村）</option>
+                <option value="all">東京都（展開対象：全62市区町村）</option>
                 {TOKYO_ASSEMBLIES.map((a) => (
                   <option key={a.id} value={a.id}>
                     {a.name} ({a.type === 'prefecture' ? '都議会' : a.type === 'ward' ? '特別区' : '市'})
@@ -307,8 +307,8 @@ export default function Home() {
         {/* 東京都全域 議会オープンデータ構造化実績 (数字の証拠) */}
         <div className="w-full mt-6 grid grid-cols-2 sm:grid-cols-4 gap-3 text-left">
           <div className="dark:bg-slate-900/90 bg-white border dark:border-slate-800 border-slate-200 p-3 rounded-xl shadow-sm">
-            <div className="text-[10px] dark:text-slate-400 text-slate-500 font-semibold mb-1">対象自治体</div>
-            <div className="text-lg font-bold text-emerald-600 dark:text-emerald-400">62<span className="text-[10px] text-slate-500 font-normal ml-1">市区町村</span></div>
+            <div className="text-[10px] dark:text-slate-400 text-slate-500 font-semibold mb-1">公式OD出典</div>
+            <div className="text-lg font-bold text-emerald-600 dark:text-emerald-400">6<span className="text-[10px] text-slate-500 font-normal ml-1">データセット</span></div>
           </div>
           <div className="dark:bg-slate-900/90 bg-white border dark:border-slate-800 border-slate-200 p-3 rounded-xl shadow-sm">
             <div className="text-[10px] dark:text-slate-400 text-slate-500 font-semibold mb-1">実データ接続</div>
@@ -316,7 +316,7 @@ export default function Home() {
           </div>
           <div className="dark:bg-slate-900/90 bg-white border dark:border-slate-800 border-slate-200 p-3 rounded-xl shadow-sm">
             <div className="text-[10px] dark:text-slate-400 text-slate-500 font-semibold mb-1">原文照合済み発言</div>
-            <div className="text-lg font-bold dark:text-white text-slate-900">23<span className="text-[10px] text-slate-500 font-normal ml-1">件</span></div>
+            <div className="text-lg font-bold dark:text-white text-slate-900">25<span className="text-[10px] text-slate-500 font-normal ml-1">件</span></div>
           </div>
           <div className="dark:bg-slate-900/90 bg-white border dark:border-slate-800 border-slate-200 p-3 rounded-xl shadow-sm">
             <div className="text-[10px] dark:text-slate-400 text-slate-500 font-semibold mb-1">最終データ更新</div>
