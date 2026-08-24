@@ -175,6 +175,7 @@ const VERIFIED_ASSEMBLY_IDS = new Set([
   'machida-city',
   'shinagawa-ward',
   'shibuya-ward',
+  'arakawa-ward',
   'hachioji-city',
 ]);
 

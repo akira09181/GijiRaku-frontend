@@ -135,6 +135,27 @@ const TOKYO_ASSEMBLIES: readonly Assembly[] = [
     lastUpdatedDate: '2026/08/24',
   },
   {
+    id: 'arakawa-ward',
+    name: '荒川区議会',
+    type: 'ward',
+    lat: 35.7361,
+    lng: 139.7833,
+    membersCount: 32,
+    mayorName: '滝口 学',
+    openDataStatus: 'ready',
+    totalMinutesCount: 5,
+    hotTopic: '令和8年度予算・物価高対策・行政DX',
+    mainIssues: [
+      { theme: 'child', label: '小中一貫教育・子育て支援', count: 1 },
+      { theme: 'dx', label: '電子地域通貨・行政DX', count: 1 },
+      { theme: 'redevelop', label: '町会・自治会と地域連携', count: 1 },
+      { theme: 'medical', label: '医療・介護体制', count: 1 },
+    ],
+    sourceUrl: 'https://ssp.kaigiroku.net/tenant/arakawa/SpMinuteView.html?council_id=685&schedule_id=2',
+    lastMeetingDate: '2026/3/17｜定例会・2月会議',
+    lastUpdatedDate: '2026/08/24',
+  },
+  {
     id: 'hachioji-city',
     name: '八王子市議会',
     type: 'city',
@@ -189,9 +210,9 @@ export default function Home() {
   const [mobileView, setMobileView] = useState<'map' | 'list'>('map');
   const [notifyToast, setNotifyToast] = useState<string | null>(null);
   const [officialStats, setOfficialStats] = useState({
-    openDataSourceCount: 6,
-    assemblyCount: 6,
-    statementCount: 25,
+    openDataSourceCount: 7,
+    assemblyCount: 7,
+    statementCount: 324,
     updatedAt: '2026/08/24',
   });
 
