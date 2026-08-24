@@ -205,6 +205,8 @@ export default function Home() {
   const [selectedAssemblyId, setSelectedAssemblyId] = useState<string>('all');
   const [userTheme, setUserTheme] = useState<IssueTheme>('all');
   const [selectedAssemblyForModal, setSelectedAssemblyForModal] = useState<Assembly | null>(null);
+  const [modalInitialTheme, setModalInitialTheme] = useState<string | undefined>();
+  const [modalInitialDiscussionId, setModalInitialDiscussionId] = useState<string | undefined>();
   const [analyticsAssembly, setAnalyticsAssembly] = useState<Assembly | null>(null);
   const [showMapExplorer, setShowMapExplorer] = useState(false);
   const [mobileView, setMobileView] = useState<'map' | 'list'>('map');
@@ -263,18 +265,51 @@ export default function Home() {
     return TOKYO_ASSEMBLIES.find((a) => a.id === selectedAssemblyId) || null;
   }, [selectedAssemblyId]);
 
+  const openAssemblyModal = (
+    assembly: Assembly,
+    initialTheme = getThemeKeyword(userTheme),
+    initialDiscussionId?: string,
+  ) => {
+    setModalInitialTheme(initialTheme);
+    setModalInitialDiscussionId(initialDiscussionId);
+    setSelectedAssemblyForModal(assembly);
+  };
+
+  const openSickChildCareDemo = () => {
+    const shinjukuAssembly = TOKYO_ASSEMBLIES.find((assembly) => assembly.id === 'shinjuku-ward');
+    if (!shinjukuAssembly) return;
+    openAssemblyModal(shinjukuAssembly, '病児保育', 'shinjuku-sick-child-care-2026-06-10');
+  };
+
   return (
     <main className="min-h-screen flex flex-col dark:bg-slate-950 dark:text-slate-100 bg-slate-50 text-slate-900 selection:bg-emerald-500 selection:text-slate-950 transition-colors duration-200">
       {/* 共通ヘッダー */}
       <Header onOpenAnalytics={() => setAnalyticsAssembly(TOKYO_ASSEMBLIES[0])} />
 
-      {/* メインヒーローセクション: 「あなたの街で、いま何が話されてる？」 */}
+      {/* メインヒーローセクション */}
       <section className="px-4 pt-10 pb-8 sm:pt-14 sm:pb-10 max-w-4xl w-full mx-auto flex flex-col items-center text-center">
         <h2 className="text-2xl sm:text-4xl font-bold dark:text-white text-slate-900 tracking-tight leading-tight">
-          あなたの街で、いま何が話されてる？
+          あなたの困り事は、議会で話されているかもしれない。
         </h2>
         <p className="text-xs sm:text-sm dark:text-slate-400 text-slate-600 mt-2.5 max-w-lg leading-relaxed">
-          気になる地域とテーマを選ぶだけで、直近の議会で話し合われている施策や議論をすぐにチェックできます。
+          読み切れない議事録をAIで整理し、誰が何を質問し、行政がどう答えたかを、原文付きで3分で届けます。
+        </p>
+
+        <div className="mt-5 flex flex-col items-center gap-2">
+          <button
+            onClick={openSickChildCareDemo}
+            className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-sm font-bold flex items-center gap-2 transition-colors shadow-md"
+          >
+            <MessageSquare className="w-4 h-4" />
+            <span>実データのデモを見る</span>
+          </button>
+          <span className="text-xs font-semibold dark:text-slate-300 text-slate-700">
+            新宿区｜病児保育の予約・受入問題
+          </span>
+        </div>
+
+        <p className="mt-4 max-w-2xl text-[11px] sm:text-xs dark:text-slate-400 text-slate-600 leading-relaxed">
+          異なる形式の会議録を発言単位に構造化し、議員・日時・議題・原文を保持したままAI要約しています。
         </p>
 
         {/* 2ステップ選択カード */}
@@ -444,7 +479,7 @@ export default function Home() {
                 {/* アクションエリア */}
                 <div className="pt-2 border-t dark:border-slate-800/80 border-slate-100 flex items-center justify-between gap-3">
                   <button
-                    onClick={() => setSelectedAssemblyForModal(assembly)}
+                    onClick={() => openAssemblyModal(assembly)}
                     className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-colors shadow-sm"
                   >
                     <MessageSquare className="w-3.5 h-3.5" />
@@ -519,7 +554,7 @@ export default function Home() {
                   <AssemblyMap
                     assemblies={activeAssemblies}
                     selectedAssemblyId={currentSelectedAssembly?.id || null}
-                    onSelectAssembly={(assembly) => setSelectedAssemblyForModal(assembly)}
+                    onSelectAssembly={(assembly) => openAssemblyModal(assembly)}
                   />
                 </div>
 
@@ -527,7 +562,7 @@ export default function Home() {
                   <AssemblyListDrawer
                     assemblies={activeAssemblies}
                     selectedAssemblyId={currentSelectedAssembly?.id || null}
-                    onSelectAssembly={(assembly) => setSelectedAssemblyForModal(assembly)}
+                    onSelectAssembly={(assembly) => openAssemblyModal(assembly)}
                   />
                 </div>
               </div>
@@ -540,7 +575,8 @@ export default function Home() {
       {selectedAssemblyForModal && (
         <LineChatModal
           assembly={selectedAssemblyForModal}
-          initialTheme={getThemeKeyword(userTheme)}
+          initialTheme={modalInitialTheme}
+          initialDiscussionId={modalInitialDiscussionId}
           onClose={() => setSelectedAssemblyForModal(null)}
           onOpenDashboard={() => setAnalyticsAssembly(selectedAssemblyForModal)}
         />

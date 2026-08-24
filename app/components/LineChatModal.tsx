@@ -99,6 +99,7 @@ interface Message {
 interface LineChatModalProps {
   readonly assembly: Assembly;
   readonly initialTheme?: string;
+  readonly initialDiscussionId?: string;
   readonly onClose: () => void;
   readonly onOpenDashboard?: () => void;
 }
@@ -586,6 +587,7 @@ const getDynamicSpeakerUtterances = (assembly: Assembly, theme?: string): Speake
 export default function LineChatModal({
   assembly,
   initialTheme,
+  initialDiscussionId,
   onClose,
   onOpenDashboard,
 }: LineChatModalProps) {
@@ -901,6 +903,7 @@ export default function LineChatModal({
     ];
 
     if (initialTheme) {
+      initialMsgs.pop();
       const themeSpeakers = getDynamicSpeakerUtterances(assembly, initialTheme);
       const tokyoEvidence = getTokyoThemeEvidence(initialTheme);
       initialMsgs.push({
@@ -979,7 +982,7 @@ export default function LineChatModal({
     const loadAssemblyRecords = async () => {
       try {
         const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000';
-        const query = new URLSearchParams({ assembly_id: assembly.id, limit: '20' });
+        const query = new URLSearchParams({ assembly_id: assembly.id, limit: '100' });
         const response = await fetch(`${apiBase}/api/assembly-records?${query.toString()}`, {
           signal: controller.signal,
         });
@@ -987,15 +990,16 @@ export default function LineChatModal({
 
         const payload = await response.json() as AssemblyRecordsResponse;
         const records = payload.records || [];
-        const latestRecord = records[0];
-        if (!latestRecord) return;
+        const selectedRecord = initialDiscussionId
+          ? records.find((record) => record.discussion_id === initialDiscussionId)
+          : records[0];
+        if (!selectedRecord) return;
         setOpenDataSource(payload.open_data_source);
 
-        const apiSpeakers = mapAssemblyRecordsToSpeakers(records);
-        const latestSpeakers = apiSpeakers.slice(0, latestRecord.statements.length);
-        const latestDate = latestRecord.meeting_date.replaceAll('-', '/');
-        const latestTimeline: TimelineItem[] = latestSpeakers.map((speaker) => ({
-          date: latestDate,
+        const selectedSpeakers = mapAssemblyRecordsToSpeakers([selectedRecord]);
+        const selectedDate = selectedRecord.meeting_date.replaceAll('-', '/');
+        const selectedTimeline: TimelineItem[] = selectedSpeakers.map((speaker) => ({
+          date: selectedDate,
           event: `${speaker.speakerName}が${speaker.questionType || '本会議'}で発言`,
           status: 'completed',
         }));
@@ -1004,31 +1008,31 @@ export default function LineChatModal({
           if (message.id === 'msg-1') {
             return {
               ...message,
-              date: `${latestDate} ${latestRecord.meeting_name}`,
-              sourceUrl: latestRecord.source_url,
+              date: `${selectedDate} ${selectedRecord.meeting_name}`,
+              sourceUrl: selectedRecord.source_url,
               sourceVerified: true,
             };
           }
           if (message.id !== 'msg-2' && message.id !== 'msg-theme-reply') return message;
           return {
             ...message,
-            plainText: latestRecord.what_changes,
+            plainText: selectedRecord.what_changes,
             structuredSummary: {
-              whatChanges: latestRecord.what_changes,
-              targetAudience: latestRecord.target_audience,
-              currentStage: latestRecord.current_stage,
-              budgetInfo: latestRecord.budget_info,
+              whatChanges: selectedRecord.what_changes,
+              targetAudience: selectedRecord.target_audience,
+              currentStage: selectedRecord.current_stage,
+              budgetInfo: selectedRecord.budget_info,
               nextStep: '今後の行政対応・議会審議を継続確認',
             },
-            timeline: latestTimeline,
+            timeline: selectedTimeline,
             policyArguments: {
-              supporting: [latestSpeakers[0]?.summaryQuote || latestRecord.what_changes],
+              supporting: [selectedSpeakers[0]?.summaryQuote || selectedRecord.what_changes],
               concerns: ['会議録に記載された課題と行政対応を継続確認'],
             },
-            speakerUtterances: apiSpeakers,
-            date: latestRecord.meeting_name,
-            originalQuote: latestRecord.original_quote,
-            sourceUrl: latestRecord.source_url,
+            speakerUtterances: selectedSpeakers,
+            date: selectedRecord.meeting_name,
+            originalQuote: selectedRecord.original_quote,
+            sourceUrl: selectedRecord.source_url,
             sourceVerified: true,
           };
         }));
@@ -1041,7 +1045,7 @@ export default function LineChatModal({
 
     return () => controller.abort();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [assembly, initialTheme]);
+  }, [assembly, initialDiscussionId, initialTheme]);
 
   const chatContainerRef = useRef<HTMLDivElement>(null);
 
@@ -1332,12 +1336,12 @@ export default function LineChatModal({
                   {/* 要約本文カード (4大主要ブロック構成) */}
                   <div className="dark:bg-slate-900 dark:border-slate-800 bg-white border-slate-200 border rounded-2xl rounded-tl-sm p-4 sm:p-5 text-xs sm:text-sm dark:text-slate-200 text-slate-800 leading-relaxed space-y-3.5 shadow-md">
                     
-                    {/* 【ブロック1】何が変わる？ */}
+                    {/* 【ブロック1】何に困っているのか */}
                     <div className="space-y-1">
                       <div className="flex items-center justify-between text-[11px] font-bold text-emerald-600 dark:text-emerald-400">
                         <span className="flex items-center gap-1.5">
                           <Sparkles className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-                          <span>何が変わる？</span>
+                          <span>何に困っているのか</span>
                         </span>
                         <span className="text-[10px] px-2 py-0.5 rounded dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700 bg-slate-100 text-slate-700 border-slate-300 border font-medium">
                           {msg.sourceVerified ? '原文検証済み' : 'デモデータ'}
@@ -1348,26 +1352,13 @@ export default function LineChatModal({
                       </div>
                     </div>
 
-                    {/* 【ブロック2, 3, 4】誰に関係する？ × いまどの段階？ × お金・予算は？ */}
+                    {/* 【ブロック2】誰に関係する？ */}
                     {msg.structuredSummary && (
-                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 pt-2 border-t dark:border-slate-800/80 border-slate-200">
+                      <div className="pt-2 border-t dark:border-slate-800/80 border-slate-200">
                         <div className="dark:bg-slate-950 dark:border-slate-800/80 bg-slate-50 border-slate-200 border p-2.5 rounded-xl space-y-1">
                           <div className="text-[10.5px] font-semibold dark:text-slate-400 text-slate-500">📌 誰に関係する？</div>
                           <div className="text-xs font-semibold dark:text-slate-200 text-slate-800 leading-tight">
                             {msg.structuredSummary.targetAudience}
-                          </div>
-                        </div>
-                        <div className="dark:bg-slate-950 dark:border-slate-800/80 bg-slate-50 border-slate-200 border p-2.5 rounded-xl space-y-1">
-                          <div className="text-[10.5px] font-semibold dark:text-slate-400 text-slate-500">🟡 いまどの段階？</div>
-                          <div className="text-xs font-semibold text-amber-600 dark:text-amber-300 flex items-center gap-1.5 leading-tight">
-                            <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse shrink-0" />
-                            <span>{msg.structuredSummary.currentStage}</span>
-                          </div>
-                        </div>
-                        <div className="dark:bg-slate-950 dark:border-slate-800/80 bg-slate-50 border-slate-200 border p-2.5 rounded-xl space-y-1">
-                          <div className="text-[10.5px] font-semibold dark:text-slate-400 text-slate-500">💰 お金・予算は？</div>
-                          <div className="text-xs font-semibold dark:text-slate-300 text-slate-700 leading-tight">
-                            {msg.structuredSummary.budgetInfo || '令和8年度当初予算案に重点計上'}
                           </div>
                         </div>
                       </div>
@@ -1390,6 +1381,8 @@ export default function LineChatModal({
                           {msg.speakerUtterances.map((utt, idx) => {
                             const itemKey = `${assembly.id}-speaker-${utt.id || idx}`;
                             const isExpanded = expandedSpeakerKeys[itemKey];
+                            const isAiSummary = !utt.summaryQuote.startsWith('【公式原文抜粋】')
+                              && !utt.fullSummary?.includes('AIによる要約ではありません');
 
                             const stanceStyle =
                               utt.stanceLabel === '推進'
@@ -1453,8 +1446,13 @@ export default function LineChatModal({
                                         </span>
                                       )}
                                     </div>
-                                    <div className="dark:text-slate-200 text-slate-800 text-xs font-normal leading-relaxed">
-                                      💬「{utt.summaryQuote}」
+                                    <div className="dark:text-slate-200 text-slate-800 text-xs font-normal leading-relaxed space-y-0.5">
+                                      <div className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400">
+                                        {utt.questionType?.includes('答弁') || utt.speakerRole.includes('区長') || utt.speakerRole.includes('市長') || utt.speakerRole.includes('知事')
+                                          ? '行政はどう答えたか'
+                                          : '議員は何を質問したか'}
+                                      </div>
+                                      <div><span className="font-semibold">{isAiSummary ? 'AIによる要約' : '公式会議録からの自動抽出'}：</span>「{utt.summaryQuote}」</div>
                                     </div>
                                   </div>
                                  </div>
@@ -1573,12 +1571,12 @@ export default function LineChatModal({
                                   {isExpanded && (
                                     <div className="w-full mt-2.5 space-y-2 text-xs dark:bg-slate-900/90 dark:border-slate-800 bg-white border-slate-200 border p-3 rounded-lg dark:text-slate-300 text-slate-800 animate-fade-in shadow-xs">
                                       <div>
-                                        <div className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold uppercase tracking-wider mb-0.5">💡 発言の要旨詳細</div>
+                                        <div className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold uppercase tracking-wider mb-0.5">{isAiSummary ? 'AIによる要約' : '公式会議録からの自動抽出'}</div>
                                         <div className="dark:text-slate-200 text-slate-900 leading-relaxed font-normal">{utt.fullSummary || utt.summaryQuote}</div>
                                       </div>
 
                                       <div>
-                                        <div className="text-[10px] dark:text-slate-400 text-slate-500 font-bold uppercase tracking-wider mb-0.5">💬 {msg.sourceVerified ? '公式会議録 原文抜粋' : '画面体験用デモ発言'}</div>
+                                        <div className="text-[10px] dark:text-slate-400 text-slate-500 font-bold uppercase tracking-wider mb-0.5">{msg.sourceVerified ? '公式会議録の原文抜粋' : '画面体験用デモ発言'}</div>
                                         <div className="dark:bg-slate-950 dark:border-slate-800/80 dark:text-slate-300 bg-slate-50 border-slate-200 border p-2.5 rounded text-[11.5px] italic text-slate-800 leading-relaxed">
                                           {utt.sourceExcerpt || `「${utt.summaryQuote}」`}
                                         </div>
@@ -1612,6 +1610,25 @@ export default function LineChatModal({
                             ? '※各発言者の右下ボタンから、公式会議録の原文抜粋と直接出典を確認できます。'
                             : '※この発言は画面体験用デモデータです。公開会議録との個別照合は行っていません。'}
                         </p>
+                      </div>
+                    )}
+
+                    {/* 【ブロック5】現在どの段階か */}
+                    {msg.structuredSummary && (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-2.5 border-t dark:border-slate-800/80 border-slate-200">
+                        <div className="dark:bg-slate-950 dark:border-slate-800/80 bg-slate-50 border-slate-200 border p-2.5 rounded-xl space-y-1">
+                          <div className="text-[10.5px] font-semibold dark:text-slate-400 text-slate-500">🟡 現在どの段階か</div>
+                          <div className="text-xs font-semibold text-amber-600 dark:text-amber-300 flex items-center gap-1.5 leading-tight">
+                            <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse shrink-0" />
+                            <span>{msg.structuredSummary.currentStage}</span>
+                          </div>
+                        </div>
+                        <div className="dark:bg-slate-950 dark:border-slate-800/80 bg-slate-50 border-slate-200 border p-2.5 rounded-xl space-y-1">
+                          <div className="text-[10.5px] font-semibold dark:text-slate-400 text-slate-500">💰 検討事項</div>
+                          <div className="text-xs font-semibold dark:text-slate-300 text-slate-700 leading-tight">
+                            {msg.structuredSummary.budgetInfo || '公式会議録に記載された検討事項を確認'}
+                          </div>
+                        </div>
                       </div>
                     )}
 
@@ -1676,7 +1693,7 @@ export default function LineChatModal({
                             className="font-medium dark:text-slate-300 dark:hover:text-emerald-400 text-slate-700 hover:text-emerald-700 flex items-center gap-1.5 transition-colors"
                           >
                             <FileText className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-                            <span>{msg.sourceVerified ? '根拠：公式会議録の原文を' : 'デモ発言を'}{isQuoteExpanded ? '閉じる' : '確認する'}</span>
+                            <span>{msg.sourceVerified ? '公式会議録の原文抜粋を' : 'デモ発言を'}{isQuoteExpanded ? '閉じる' : '確認する'}</span>
                             {isQuoteExpanded ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
                           </button>
 
