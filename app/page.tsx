@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import Header from './components/Header';
 import AssemblyMap from './components/AssemblyMap';
 import AssemblyListDrawer from './components/AssemblyListDrawer';
@@ -188,6 +188,35 @@ export default function Home() {
   const [showMapExplorer, setShowMapExplorer] = useState(false);
   const [mobileView, setMobileView] = useState<'map' | 'list'>('map');
   const [notifyToast, setNotifyToast] = useState<string | null>(null);
+  const [officialStats, setOfficialStats] = useState({
+    openDataSourceCount: 6,
+    assemblyCount: 6,
+    statementCount: 25,
+    updatedAt: '2026/08/24',
+  });
+
+  useEffect(() => {
+    const controller = new AbortController();
+    const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000';
+
+    void fetch(`${apiBase}/api/assembly-records/stats`, {
+      cache: 'no-store',
+      signal: controller.signal,
+    })
+      .then((response) => response.ok ? response.json() : null)
+      .then((payload) => {
+        if (!payload) return;
+        setOfficialStats({
+          openDataSourceCount: payload.open_data_source_count,
+          assemblyCount: payload.assembly_count,
+          statementCount: payload.statement_count,
+          updatedAt: payload.updated_at?.slice(0, 10).replaceAll('-', '/') || '2026/08/24',
+        });
+      })
+      .catch(() => undefined);
+
+    return () => controller.abort();
+  }, []);
 
   const handleSubscribeNotifications = () => {
     const currentCity = TOKYO_ASSEMBLIES.find((a) => a.id === selectedAssemblyId)?.name || '東京都全域';
@@ -308,19 +337,19 @@ export default function Home() {
         <div className="w-full mt-6 grid grid-cols-2 sm:grid-cols-4 gap-3 text-left">
           <div className="dark:bg-slate-900/90 bg-white border dark:border-slate-800 border-slate-200 p-3 rounded-xl shadow-sm">
             <div className="text-[10px] dark:text-slate-400 text-slate-500 font-semibold mb-1">公式OD出典</div>
-            <div className="text-lg font-bold text-emerald-600 dark:text-emerald-400">6<span className="text-[10px] text-slate-500 font-normal ml-1">データセット</span></div>
+            <div className="text-lg font-bold text-emerald-600 dark:text-emerald-400">{officialStats.openDataSourceCount}<span className="text-[10px] text-slate-500 font-normal ml-1">データセット</span></div>
           </div>
           <div className="dark:bg-slate-900/90 bg-white border dark:border-slate-800 border-slate-200 p-3 rounded-xl shadow-sm">
             <div className="text-[10px] dark:text-slate-400 text-slate-500 font-semibold mb-1">実データ接続</div>
-            <div className="text-lg font-bold dark:text-white text-slate-900">6<span className="text-[10px] text-slate-500 font-normal ml-1">議会</span></div>
+            <div className="text-lg font-bold dark:text-white text-slate-900">{officialStats.assemblyCount}<span className="text-[10px] text-slate-500 font-normal ml-1">議会</span></div>
           </div>
           <div className="dark:bg-slate-900/90 bg-white border dark:border-slate-800 border-slate-200 p-3 rounded-xl shadow-sm">
             <div className="text-[10px] dark:text-slate-400 text-slate-500 font-semibold mb-1">原文照合済み発言</div>
-            <div className="text-lg font-bold dark:text-white text-slate-900">25<span className="text-[10px] text-slate-500 font-normal ml-1">件</span></div>
+            <div className="text-lg font-bold dark:text-white text-slate-900">{officialStats.statementCount}<span className="text-[10px] text-slate-500 font-normal ml-1">件</span></div>
           </div>
           <div className="dark:bg-slate-900/90 bg-white border dark:border-slate-800 border-slate-200 p-3 rounded-xl shadow-sm">
             <div className="text-[10px] dark:text-slate-400 text-slate-500 font-semibold mb-1">最終データ更新</div>
-            <div className="text-sm font-bold dark:text-white text-slate-900 mt-1">2026/08/24</div>
+            <div className="text-sm font-bold dark:text-white text-slate-900 mt-1">{officialStats.updatedAt}</div>
           </div>
         </div>
       </section>
