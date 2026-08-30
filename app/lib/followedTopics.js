@@ -12,12 +12,33 @@ export const FOLLOWED_TOPICS_STORAGE_KEY = 'machivoice_followed_topics_v1';
  */
 
 /**
- * @typedef {Object} FollowableTopicInput
+ * @typedef {Object} FollowTopicInput
  * @property {string} discussion_id
  * @property {string} assembly_id
  * @property {string} municipality_name
  * @property {string} theme_name
  */
+
+/**
+ * APIの会議録レコードから、保存可能なフォロー基本情報を生成する。
+ * discussion_idは表示順やフィルターに依存しないAPIの値をそのまま使う。
+ * @param {{ id?: unknown, name?: unknown }} assembly
+ * @param {{ discussion_id?: unknown, topic?: unknown }} record
+ * @returns {FollowTopicInput | null}
+ */
+export function createFollowTopic(assembly, record) {
+  const discussionId = typeof record.discussion_id === 'string' ? record.discussion_id.trim() : '';
+  const assemblyId = typeof assembly.id === 'string' ? assembly.id.trim() : '';
+  const municipalityName = typeof assembly.name === 'string' ? assembly.name.trim() : '';
+  const themeName = typeof record.topic === 'string' ? record.topic.trim() : '';
+  if (!discussionId || !assemblyId || !municipalityName || !themeName) return null;
+  return {
+    discussion_id: discussionId,
+    assembly_id: assemblyId,
+    municipality_name: municipalityName,
+    theme_name: themeName,
+  };
+}
 
 /** @typedef {Pick<Storage, 'getItem' | 'setItem'>} StorageLike */
 
@@ -90,7 +111,7 @@ export function hasFollowedTopics(topics) {
 /**
  * @param {StorageLike} storage
  * @param {FollowedTopic[]} currentTopics
- * @param {FollowableTopicInput} topic
+ * @param {FollowTopicInput} topic
  * @param {string} [followedAt]
  * @returns {FollowedTopic[]}
  */

@@ -7,12 +7,11 @@ import AssemblyListDrawer from './components/AssemblyListDrawer';
 import LineChatModal from './components/LineChatModal';
 import AnalyticsDashboardModal from './components/AnalyticsDashboardModal';
 import { Assembly, IssueTheme } from './types/assembly';
-import type { FollowableTopic, FollowedTopic } from './types/follow';
-import { getFollowableTopic } from './data/followableTopics';
+import type { FollowedTopic, FollowTopicInput } from './types/follow';
+import { getFollowTopicCtaLabel, getFollowUpDetails } from './data/followUpDetails';
 import {
   FOLLOWED_TOPICS_STORAGE_KEY,
   hasFollowedTopics,
-  isTopicFollowed,
   loadFollowedTopics,
   toggleFollowedTopic,
 } from './lib/followedTopics';
@@ -296,17 +295,12 @@ export default function Home() {
     openAssemblyModal(shinjukuAssembly, '病児保育', 'shinjuku-sick-child-care-2026-06-10');
   };
 
-  const handleToggleFollowTopic = (topic: FollowableTopic): boolean => {
+  const handleToggleFollowTopic = (topic: FollowTopicInput): boolean => {
     try {
       const nextTopics = toggleFollowedTopic(
         window.localStorage,
         followedTopics,
-        {
-          discussion_id: topic.discussionId,
-          assembly_id: topic.assemblyId,
-          municipality_name: topic.municipalityName,
-          theme_name: topic.themeName,
-        },
+        topic,
       );
       setFollowedTopics(nextTopics);
       return true;
@@ -316,17 +310,15 @@ export default function Home() {
   };
 
   const openFollowedTopic = (followedTopic: FollowedTopic) => {
-    const topic = getFollowableTopic(followedTopic.discussion_id);
     const assembly = TOKYO_ASSEMBLIES.find((item) => item.id === followedTopic.assembly_id);
-    if (!topic || !assembly) return;
-    openAssemblyModal(assembly, topic.modalTheme, topic.discussionId);
+    if (!assembly) return;
+    openAssemblyModal(assembly, followedTopic.theme_name, followedTopic.discussion_id);
   };
 
-  const followedTopicCards = followedTopics.flatMap((followedTopic) => {
-    const details = getFollowableTopic(followedTopic.discussion_id);
-    return details ? [{ followedTopic, details }] : [];
-  });
-  const selectedFollowableTopic = getFollowableTopic(modalInitialDiscussionId);
+  const followedTopicCards = followedTopics.map((followedTopic) => ({
+    followedTopic,
+    followUpDetails: getFollowUpDetails(followedTopic.discussion_id),
+  }));
 
   return (
     <main className="min-h-screen flex flex-col dark:bg-slate-950 dark:text-slate-100 bg-slate-50 text-slate-900 selection:bg-emerald-500 selection:text-slate-950 transition-colors duration-200">
@@ -452,14 +444,14 @@ export default function Home() {
         </div>
       </section>
 
-      {hasFollowedTopics(followedTopics) && followedTopicCards.length > 0 && (
+      {hasFollowedTopics(followedTopics) && (
         <section className="px-4 pb-8 max-w-4xl w-full mx-auto space-y-3">
           <h3 className="text-sm font-bold dark:text-white text-slate-900 flex items-center gap-2">
             <Bookmark className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
             <span>フォロー中のテーマ</span>
           </h3>
           <div className="space-y-3">
-            {followedTopicCards.map(({ followedTopic, details }) => (
+            {followedTopicCards.map(({ followedTopic, followUpDetails }) => (
               <article
                 key={followedTopic.discussion_id}
                 className="dark:bg-slate-900/90 dark:border-emerald-800/60 bg-white border-emerald-200 border rounded-2xl p-4 sm:p-5 shadow-sm space-y-3"
@@ -477,16 +469,22 @@ export default function Home() {
                     フォロー中
                   </span>
                 </div>
-                <div className="grid grid-cols-1 sm:grid-cols-[auto_1fr] gap-1 sm:gap-x-5 text-[11px]">
-                  <span className="dark:text-slate-400 text-slate-500">最終更新日：{details.lastCheckedAt}</span>
-                  <span className="dark:text-slate-300 text-slate-700">現在の状態：{details.currentStatus}</span>
-                </div>
+                {followUpDetails ? (
+                  <div className="grid grid-cols-1 sm:grid-cols-[auto_1fr] gap-1 sm:gap-x-5 text-[11px]">
+                    <span className="dark:text-slate-400 text-slate-500">最終確認日：{followUpDetails.last_checked_at}</span>
+                    <span className="dark:text-slate-300 text-slate-700">現在の状態：{followUpDetails.current_status}</span>
+                  </div>
+                ) : (
+                  <p className="text-[11px] dark:text-slate-400 text-slate-600">
+                    このブラウザにフォロー登録済みです。
+                  </p>
+                )}
                 <div className="flex justify-end">
                   <button
                     onClick={() => openFollowedTopic(followedTopic)}
                     className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 transition-colors shadow-sm"
                   >
-                    <span>その後を見る</span>
+                    <span>{getFollowTopicCtaLabel(followedTopic.discussion_id)}</span>
                     <ArrowRight className="w-3.5 h-3.5" />
                   </button>
                 </div>
@@ -660,13 +658,11 @@ export default function Home() {
       {/* LINE風対話モーダル */}
       {selectedAssemblyForModal && (
         <LineChatModal
+          key={`${selectedAssemblyForModal.id}:${modalInitialDiscussionId || 'latest'}`}
           assembly={selectedAssemblyForModal}
           initialTheme={modalInitialTheme}
           initialDiscussionId={modalInitialDiscussionId}
-          followableTopic={selectedFollowableTopic}
-          isTopicFollowed={selectedFollowableTopic
-            ? isTopicFollowed(followedTopics, selectedFollowableTopic.discussionId)
-            : false}
+          followedDiscussionIds={followedTopics.map((topic) => topic.discussion_id)}
           onToggleFollowTopic={handleToggleFollowTopic}
           onClose={() => setSelectedAssemblyForModal(null)}
           onOpenDashboard={() => setAnalyticsAssembly(selectedAssemblyForModal)}

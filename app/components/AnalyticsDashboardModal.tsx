@@ -305,8 +305,8 @@ export default function AnalyticsDashboardModal({
   if (!mounted) return null;
 
   const reactionBreakdown = [
-    { label: '賛成', count: liveReactionCounts.agree, color: 'bg-emerald-500' },
-    { label: '気になる', count: liveReactionCounts.concern, color: 'bg-rose-500' },
+    { label: '肯定的', count: liveReactionCounts.agree, color: 'bg-emerald-500' },
+    { label: '再議論希望', count: liveReactionCounts.concern, color: 'bg-rose-500' },
     { label: '参考', count: liveReactionCounts.helpful, color: 'bg-slate-400 dark:bg-slate-600' },
   ];
   const topReaction = reactionBreakdown.reduce((top, item) =>
@@ -409,7 +409,7 @@ export default function AnalyticsDashboardModal({
                 </div>
 
                 <div className="dark:bg-slate-900 dark:border-slate-800 bg-white border-slate-200 border rounded-xl p-3 sm:p-4 shadow-xs">
-                  <span className="text-[11px] dark:text-slate-400 text-slate-500 block mb-1">ライブ賛成率</span>
+                  <span className="text-[11px] dark:text-slate-400 text-slate-500 block mb-1">肯定的リアクション率</span>
                   <div className="text-base sm:text-xl font-bold text-emerald-600 dark:text-emerald-400">
                     {analytics.publicSentimentScore}%
                   </div>
@@ -447,7 +447,7 @@ export default function AnalyticsDashboardModal({
                             <div
                               className="bg-emerald-500 h-full"
                               style={{ width: `${topic.sentimentRatio.positive}%` }}
-                              title={`賛成: ${topic.sentimentRatio.positive}%`}
+                              title={`肯定的: ${topic.sentimentRatio.positive}%`}
                             />
                             <div
                               className="bg-slate-400 dark:bg-slate-600 h-full"
@@ -457,13 +457,13 @@ export default function AnalyticsDashboardModal({
                             <div
                               className="bg-rose-500 h-full"
                               style={{ width: `${topic.sentimentRatio.negative}%` }}
-                              title={`懸念: ${topic.sentimentRatio.negative}%`}
+                              title={`再議論希望: ${topic.sentimentRatio.negative}%`}
                             />
                           </div>
                           <div className="flex items-center justify-between text-[10px] dark:text-slate-400 text-slate-600">
-                            <span>賛成 {topic.sentimentRatio.positive}%</span>
+                            <span>肯定的 {topic.sentimentRatio.positive}%</span>
                             <span>参考 {topic.sentimentRatio.neutral}%</span>
-                            <span>気になる {topic.sentimentRatio.negative}%</span>
+                            <span>再議論希望 {topic.sentimentRatio.negative}%</span>
                           </div>
                         </div>
 
@@ -601,7 +601,7 @@ export default function AnalyticsDashboardModal({
                     <div className="flex items-center justify-between p-3 dark:bg-slate-950 dark:border-slate-800 bg-slate-50 border-slate-200 border rounded-xl">
                       <div>
                         <span className="text-xs font-bold dark:text-white text-slate-900 block">発言・議題へのリアクション合計</span>
-                        <span className="text-[10.5px] dark:text-slate-400 text-slate-500">市民画面の「賛成 / 気になる / 参考」をFirestoreからリアルタイム集計</span>
+                        <span className="text-[10.5px] dark:text-slate-400 text-slate-500">議題単位の「進めてほしい / もっと議論してほしい」と、発言単位の「賛成 / 気になる / 参考」をFirestoreから集計</span>
                       </div>
                       <div className="text-right">
                         <span className={`text-xl font-extrabold text-emerald-600 dark:text-emerald-400 font-mono transition-all ${isCountUpdated ? 'text-emerald-500 scale-110' : ''}`}>

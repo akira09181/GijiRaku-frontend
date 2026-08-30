@@ -6,6 +6,8 @@ export interface FollowedTopic {
   readonly followed_at: string;
 }
 
+export type FollowTopicInput = Omit<FollowedTopic, 'followed_at'>;
+
 export interface TopicProgressUpdate {
   readonly date: string;
   readonly label: string;
@@ -13,14 +15,11 @@ export interface TopicProgressUpdate {
   readonly kind: 'question' | 'answer' | 'no-change';
 }
 
-export interface FollowableTopic {
-  readonly discussionId: string;
-  readonly assemblyId: string;
-  readonly municipalityName: string;
-  readonly themeName: string;
-  readonly modalTheme: string;
-  readonly lastCheckedAt: string;
-  readonly currentStatus: string;
-  readonly sourceUrl: string;
+export interface FollowUpDetails {
+  readonly discussion_id: string;
+  readonly last_checked_at: string;
+  readonly current_status: string;
+  readonly source_url: string;
   readonly updates: readonly TopicProgressUpdate[];
+  readonly next_check_at?: string;
 }

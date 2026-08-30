@@ -23,7 +23,9 @@ import {
   BookmarkCheck,
 } from 'lucide-react';
 import { Assembly } from '../types/assembly';
-import type { FollowableTopic } from '../types/follow';
+import type { FollowTopicInput } from '../types/follow';
+import { getFollowUpDetails } from '../data/followUpDetails';
+import { createFollowTopic } from '../lib/followedTopics';
 
 interface Comment {
   readonly user: string;
@@ -103,9 +105,8 @@ interface LineChatModalProps {
   readonly assembly: Assembly;
   readonly initialTheme?: string;
   readonly initialDiscussionId?: string;
-  readonly followableTopic?: FollowableTopic;
-  readonly isTopicFollowed?: boolean;
-  readonly onToggleFollowTopic?: (topic: FollowableTopic) => boolean;
+  readonly followedDiscussionIds?: readonly string[];
+  readonly onToggleFollowTopic?: (topic: FollowTopicInput) => boolean;
   readonly onClose: () => void;
   readonly onOpenDashboard?: () => void;
 }
@@ -150,6 +151,7 @@ interface AssemblyRecordStatement {
 
 interface AssemblyRecord {
   readonly discussion_id: string;
+  readonly topic: string;
   readonly meeting_date: string;
   readonly meeting_name: string;
   readonly source_url: string;
@@ -594,8 +596,7 @@ export default function LineChatModal({
   assembly,
   initialTheme,
   initialDiscussionId,
-  followableTopic,
-  isTopicFollowed = false,
+  followedDiscussionIds = [],
   onToggleFollowTopic,
   onClose,
   onOpenDashboard,
@@ -612,6 +613,8 @@ export default function LineChatModal({
   const [commentInputs, setCommentInputs] = useState<Record<string, string>>({});
   const [ebpmToast, setEbpmToast] = useState<string | null>(null);
   const [followSaveError, setFollowSaveError] = useState<string | null>(null);
+  const [followFeedback, setFollowFeedback] = useState<string | null>(null);
+  const [activeFollowTopic, setActiveFollowTopic] = useState<FollowTopicInput | null>(null);
   const [openDataSource, setOpenDataSource] = useState<AssemblyRecordsResponse['open_data_source']>();
   const chatBottomRef = useRef<HTMLDivElement>(null);
   const anonymousUserIdRef = useRef('');
@@ -622,10 +625,21 @@ export default function LineChatModal({
   };
 
   const handleToggleFollowTopic = () => {
-    if (!followableTopic || !onToggleFollowTopic) return;
-    const saved = onToggleFollowTopic(followableTopic);
+    if (!activeFollowTopic || !onToggleFollowTopic) return;
+    const wasFollowed = followedDiscussionIds.includes(activeFollowTopic.discussion_id);
+    const saved = onToggleFollowTopic(activeFollowTopic);
     setFollowSaveError(saved ? null : 'フォロー状態を保存できませんでした。ブラウザの保存設定を確認してください。');
+    setFollowFeedback(saved
+      ? wasFollowed
+        ? 'フォローを解除しました。'
+        : 'フォローしました。次回アクセス時に、フォロー中のテーマからすぐ確認できます。'
+      : null);
   };
+
+  const isActiveTopicFollowed = activeFollowTopic
+    ? followedDiscussionIds.includes(activeFollowTopic.discussion_id)
+    : false;
+  const followUpDetails = getFollowUpDetails(activeFollowTopic?.discussion_id || initialDiscussionId);
 
   const [utteranceVotes, setUtteranceVotes] = useState<Record<string, ReactionType | null>>({});
 
@@ -983,6 +997,9 @@ export default function LineChatModal({
 
     queueMicrotask(() => {
       setOpenDataSource(undefined);
+      setActiveFollowTopic(null);
+      setFollowSaveError(null);
+      setFollowFeedback(null);
       setUserVotes({});
       setUtteranceVotes({});
       setUtteranceCounts({});
@@ -1007,6 +1024,7 @@ export default function LineChatModal({
           ? records.find((record) => record.discussion_id === initialDiscussionId)
           : records[0];
         if (!selectedRecord) return;
+        setActiveFollowTopic(createFollowTopic(assembly, selectedRecord));
         setOpenDataSource(payload.open_data_source);
 
         const selectedSpeakers = mapAssemblyRecordsToSpeakers([selectedRecord]);
@@ -1115,16 +1133,14 @@ export default function LineChatModal({
       );
 
       if (result.changed && result.previous_reaction_type === null) {
-        triggerEbpmFeedbackNotification(
-          assembly.name,
-          type === 'agree' ? '賛成の声' : '懸念の声',
-          result.counts[type],
-        );
+        const typeLabel = type === 'agree' ? '進めてほしい' : 'もっと議論してほしい';
+        setEbpmToast(`この議題に【${typeLabel}】を届けました！（集計: ${result.counts[type]}件）`);
+        setTimeout(() => setEbpmToast(null), 4000);
       } else if (result.changed && result.reaction_type === null) {
         setEbpmToast(`リアクションを取り消しました（集計: ${result.counts[type]}件）`);
         setTimeout(() => setEbpmToast(null), 4000);
       } else if (result.changed) {
-        const typeLabel = type === 'agree' ? '賛成の声' : '懸念の声';
+        const typeLabel = type === 'agree' ? '進めてほしい' : 'もっと議論してほしい';
         setEbpmToast(`リアクションを「${typeLabel}」に変更しました（集計: ${result.counts[type]}件）`);
         setTimeout(() => setEbpmToast(null), 4000);
       }
@@ -1312,27 +1328,30 @@ export default function LineChatModal({
           ))}
         </div>
 
-        {followableTopic && (
+        {activeFollowTopic && onToggleFollowTopic && (
           <div className="dark:bg-emerald-950/30 dark:border-emerald-900/60 bg-emerald-50/80 border-emerald-200 border-b px-4 py-2.5 sm:px-5 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 shrink-0">
             <div className="min-w-0">
               <p className="text-[10px] font-bold text-emerald-700 dark:text-emerald-400">継続して追う</p>
-              <p className="text-xs font-semibold dark:text-slate-200 text-slate-800 truncate">{followableTopic.themeName}</p>
+              <p className="text-xs font-semibold dark:text-slate-200 text-slate-800 truncate">{activeFollowTopic.theme_name}</p>
+              {followFeedback && (
+                <p role="status" className="text-[10px] text-emerald-700 dark:text-emerald-300 mt-0.5">{followFeedback}</p>
+              )}
               {followSaveError && (
-                <p className="text-[10px] text-rose-600 dark:text-rose-400 mt-0.5">{followSaveError}</p>
+                <p role="alert" className="text-[10px] text-rose-600 dark:text-rose-400 mt-0.5">{followSaveError}</p>
               )}
             </div>
             <button
               type="button"
               onClick={handleToggleFollowTopic}
-              aria-pressed={isTopicFollowed}
+              aria-pressed={isActiveTopicFollowed}
               className={`px-3 py-1.5 rounded-lg text-[11px] font-bold border flex items-center justify-center gap-1.5 shrink-0 transition-colors ${
-                isTopicFollowed
+                isActiveTopicFollowed
                   ? 'bg-emerald-600 text-white border-emerald-500'
                   : 'dark:bg-slate-900 dark:text-emerald-300 dark:border-emerald-800 bg-white text-emerald-700 border-emerald-300 hover:bg-emerald-100 dark:hover:bg-slate-800'
               }`}
             >
-              {isTopicFollowed ? <BookmarkCheck className="w-3.5 h-3.5" /> : <Bookmark className="w-3.5 h-3.5" />}
-              <span>{isTopicFollowed ? 'フォロー中' : 'このテーマをフォローする'}</span>
+              {isActiveTopicFollowed ? <BookmarkCheck className="w-3.5 h-3.5" /> : <Bookmark className="w-3.5 h-3.5" />}
+              <span>{isActiveTopicFollowed ? 'フォロー中' : 'このテーマをフォローする'}</span>
             </button>
           </div>
         )}
@@ -1664,7 +1683,7 @@ export default function LineChatModal({
                     {(msg.agreeCount !== undefined || msg.disagreeCount !== undefined) && (
                       <div className="pt-2.5 border-t dark:border-slate-800/80 border-slate-200 space-y-2 text-xs">
                         <p className="text-[10.5px] dark:text-slate-400 text-slate-600 leading-relaxed">
-                          この議題全体について、あなたの受け止めを教えてください。このブラウザでは「賛成」「気になる」のどちらか1つを選択でき、変更・取り消しもできます。
+                          この議題全体について、今後どうしてほしいか教えてください。このブラウザでは「進めてほしい」「もっと議論してほしい」のどちらか1つを選択でき、変更・取り消しもできます。
                         </p>
                         <div className="flex items-center justify-between flex-wrap gap-2">
                           <div className="flex items-center gap-1.5 flex-wrap">
@@ -1683,7 +1702,7 @@ export default function LineChatModal({
                               }`}
                             >
                               <ThumbsUp className="w-3 h-3" />
-                              <span>賛成 {msg.agreeCount !== undefined ? msg.agreeCount : 0}</span>
+                              <span>進めてほしい {msg.agreeCount !== undefined ? msg.agreeCount : 0}</span>
                             </button>
                             <button
                               onClick={() => handleVote(msg.id, 'concern', {
@@ -1699,7 +1718,7 @@ export default function LineChatModal({
                               }`}
                             >
                               <ThumbsDown className="w-3 h-3" />
-                              <span>気になる {msg.disagreeCount !== undefined ? msg.disagreeCount : 0}</span>
+                              <span>もっと議論してほしい {msg.disagreeCount !== undefined ? msg.disagreeCount : 0}</span>
                             </button>
                             <button
                               onClick={() => toggleCommentBox(msg.id)}
@@ -1818,7 +1837,7 @@ export default function LineChatModal({
                       </div>
                     )}
 
-                    {followableTopic && msg.id === (initialTheme ? 'msg-theme-reply' : 'msg-2') && (
+                    {followUpDetails && msg.id === (initialTheme ? 'msg-theme-reply' : 'msg-2') && (
                       <div className="pt-3 border-t dark:border-slate-800/80 border-slate-200 space-y-2.5">
                         <div className="flex items-center justify-between gap-2 flex-wrap">
                           <div>
@@ -1828,12 +1847,12 @@ export default function LineChatModal({
                             </p>
                           </div>
                           <span className="text-[10px] dark:text-slate-400 text-slate-500 font-mono">
-                            最終確認日 {followableTopic.lastCheckedAt}
+                            最終確認日 {followUpDetails.last_checked_at}
                           </span>
                         </div>
 
                         <ol className="space-y-2">
-                          {followableTopic.updates.map((update) => (
+                          {followUpDetails.updates.map((update) => (
                             <li key={`${update.date}-${update.label}`} className="flex items-start gap-2.5">
                               <span className={`w-2.5 h-2.5 rounded-full mt-1 shrink-0 ${
                                 update.kind === 'no-change' ? 'bg-slate-400' : 'bg-emerald-500'
@@ -1851,10 +1870,10 @@ export default function LineChatModal({
 
                         <div className="flex items-center justify-between gap-2 flex-wrap pt-1">
                           <span className="text-[10.5px] font-semibold dark:text-slate-300 text-slate-700">
-                            現在の状態：{followableTopic.currentStatus}
+                            現在の状態：{followUpDetails.current_status}
                           </span>
                           <a
-                            href={followableTopic.sourceUrl}
+                            href={followUpDetails.source_url}
                             target="_blank"
                             rel="noreferrer"
                             className="text-[10.5px] text-emerald-600 dark:text-emerald-400 hover:underline flex items-center gap-1 font-semibold"
