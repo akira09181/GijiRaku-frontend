@@ -19,8 +19,11 @@ import {
   CheckCircle2,
   AlertCircle,
   Users,
+  Bookmark,
+  BookmarkCheck,
 } from 'lucide-react';
 import { Assembly } from '../types/assembly';
+import type { FollowableTopic } from '../types/follow';
 
 interface Comment {
   readonly user: string;
@@ -100,6 +103,9 @@ interface LineChatModalProps {
   readonly assembly: Assembly;
   readonly initialTheme?: string;
   readonly initialDiscussionId?: string;
+  readonly followableTopic?: FollowableTopic;
+  readonly isTopicFollowed?: boolean;
+  readonly onToggleFollowTopic?: (topic: FollowableTopic) => boolean;
   readonly onClose: () => void;
   readonly onOpenDashboard?: () => void;
 }
@@ -588,6 +594,9 @@ export default function LineChatModal({
   assembly,
   initialTheme,
   initialDiscussionId,
+  followableTopic,
+  isTopicFollowed = false,
+  onToggleFollowTopic,
   onClose,
   onOpenDashboard,
 }: LineChatModalProps) {
@@ -602,6 +611,7 @@ export default function LineChatModal({
   const [openComments, setOpenComments] = useState<Record<string, boolean>>({});
   const [commentInputs, setCommentInputs] = useState<Record<string, string>>({});
   const [ebpmToast, setEbpmToast] = useState<string | null>(null);
+  const [followSaveError, setFollowSaveError] = useState<string | null>(null);
   const [openDataSource, setOpenDataSource] = useState<AssemblyRecordsResponse['open_data_source']>();
   const chatBottomRef = useRef<HTMLDivElement>(null);
   const anonymousUserIdRef = useRef('');
@@ -609,6 +619,12 @@ export default function LineChatModal({
 
   const toggleSpeakerExpand = (key: string) => {
     setExpandedSpeakerKeys((prev) => ({ ...prev, [key]: !prev[key] }));
+  };
+
+  const handleToggleFollowTopic = () => {
+    if (!followableTopic || !onToggleFollowTopic) return;
+    const saved = onToggleFollowTopic(followableTopic);
+    setFollowSaveError(saved ? null : 'フォロー状態を保存できませんでした。ブラウザの保存設定を確認してください。');
   };
 
   const [utteranceVotes, setUtteranceVotes] = useState<Record<string, ReactionType | null>>({});
@@ -972,9 +988,7 @@ export default function LineChatModal({
       setUtteranceCounts({});
       setMessages(initialMsgs);
       void loadPersistedReactions();
-      if (chatContainerRef.current) {
-        chatContainerRef.current.scrollTop = 0;
-      }
+      chatContainerRef.current?.scrollTo({ top: 0 });
     });
 
     const controller = new AbortController();
@@ -1048,25 +1062,14 @@ export default function LineChatModal({
 
   const chatContainerRef = useRef<HTMLDivElement>(null);
 
-  // モーダルオープン時および自治体変更時は常に一番上（scrollTop = 0）にスクロール位置をリセット
+  // モーダルオープン時および自治体変更時は常に一番上にスクロール位置をリセット
   useEffect(() => {
-    if (chatContainerRef.current) {
-      chatContainerRef.current.scrollTop = 0;
-    }
+    chatContainerRef.current?.scrollTo({ top: 0 });
     const timer = setTimeout(() => {
-      if (chatContainerRef.current) {
-        chatContainerRef.current.scrollTop = 0;
-      }
+      chatContainerRef.current?.scrollTo({ top: 0 });
     }, 50);
     return () => clearTimeout(timer);
   }, [assembly]);
-
-  // ユーザーが新しい質問を送信した時のみ、最新メッセージへスクロールダウン
-  const scrollToBottom = () => {
-    setTimeout(() => {
-      chatBottomRef.current?.scrollIntoView({ behavior: 'smooth' });
-    }, 100);
-  };
 
   const toggleQuote = (id: string) => {
     setExpandedQuotes((prev) => ({ ...prev, [id]: !prev[id] }));
@@ -1309,6 +1312,31 @@ export default function LineChatModal({
           ))}
         </div>
 
+        {followableTopic && (
+          <div className="dark:bg-emerald-950/30 dark:border-emerald-900/60 bg-emerald-50/80 border-emerald-200 border-b px-4 py-2.5 sm:px-5 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 shrink-0">
+            <div className="min-w-0">
+              <p className="text-[10px] font-bold text-emerald-700 dark:text-emerald-400">継続して追う</p>
+              <p className="text-xs font-semibold dark:text-slate-200 text-slate-800 truncate">{followableTopic.themeName}</p>
+              {followSaveError && (
+                <p className="text-[10px] text-rose-600 dark:text-rose-400 mt-0.5">{followSaveError}</p>
+              )}
+            </div>
+            <button
+              type="button"
+              onClick={handleToggleFollowTopic}
+              aria-pressed={isTopicFollowed}
+              className={`px-3 py-1.5 rounded-lg text-[11px] font-bold border flex items-center justify-center gap-1.5 shrink-0 transition-colors ${
+                isTopicFollowed
+                  ? 'bg-emerald-600 text-white border-emerald-500'
+                  : 'dark:bg-slate-900 dark:text-emerald-300 dark:border-emerald-800 bg-white text-emerald-700 border-emerald-300 hover:bg-emerald-100 dark:hover:bg-slate-800'
+              }`}
+            >
+              {isTopicFollowed ? <BookmarkCheck className="w-3.5 h-3.5" /> : <Bookmark className="w-3.5 h-3.5" />}
+              <span>{isTopicFollowed ? 'フォロー中' : 'このテーマをフォローする'}</span>
+            </button>
+          </div>
+        )}
+
         {/* チャットメッセージログ（スクロール領域） */}
         <div ref={chatContainerRef} className="flex-1 overflow-y-auto p-4 space-y-4 dark:bg-slate-950 bg-slate-50/80">
           {messages.map((msg) => {
@@ -1485,14 +1513,18 @@ export default function LineChatModal({
                                      const initialComments = utt.citizenComments || [];
                                      const allComments = [...initialComments, ...userComments];
 
-                                     return (
-                                       <div className="space-y-2">
-                                         <div className="flex flex-wrap items-center justify-between gap-1.5 text-[11px]">
+                                      return (
+                                        <div className="space-y-2">
+                                          <p className="text-[10.5px] dark:text-slate-400 text-slate-600 leading-relaxed">
+                                            この発言について、あなたの受け止めを教えてください。このブラウザでは1つだけ選べ、結果は匿名集計として議員・行政向け分析画面に反映されます。
+                                          </p>
+                                          <div className="flex flex-wrap items-center justify-between gap-1.5 text-[11px]">
                                            <div className="flex items-center gap-1.5 flex-wrap">
                                              <span className="text-[10px] dark:text-slate-400 text-slate-500 font-medium shrink-0">この発言への反応:</span>
 
-                                             <button
-                                               onClick={() => handleUtteranceVote(itemKey, utt.speakerName, 'agree', defaultCounts)}
+                                              <button
+                                                onClick={() => handleUtteranceVote(itemKey, utt.speakerName, 'agree', defaultCounts)}
+                                                aria-pressed={uttUserVote === 'agree'}
                                                className={`px-2 py-0.8 rounded-lg font-semibold border flex items-center gap-1 transition-all ${
                                                  uttUserVote === 'agree'
                                                    ? 'bg-emerald-600 text-white border-emerald-500 shadow-sm'
@@ -1503,8 +1535,9 @@ export default function LineChatModal({
                                                <span className="text-[10px] opacity-90 font-mono">({counts.agree})</span>
                                              </button>
 
-                                             <button
-                                               onClick={() => handleUtteranceVote(itemKey, utt.speakerName, 'concern', defaultCounts)}
+                                              <button
+                                                onClick={() => handleUtteranceVote(itemKey, utt.speakerName, 'concern', defaultCounts)}
+                                                aria-pressed={uttUserVote === 'concern'}
                                                className={`px-2 py-0.8 rounded-lg font-semibold border flex items-center gap-1 transition-all ${
                                                  uttUserVote === 'concern'
                                                    ? 'bg-amber-600 text-white border-amber-500 shadow-sm'
@@ -1515,8 +1548,9 @@ export default function LineChatModal({
                                                <span className="text-[10px] opacity-90 font-mono">({counts.concern})</span>
                                              </button>
 
-                                             <button
-                                               onClick={() => handleUtteranceVote(itemKey, utt.speakerName, 'helpful', defaultCounts)}
+                                              <button
+                                                onClick={() => handleUtteranceVote(itemKey, utt.speakerName, 'helpful', defaultCounts)}
+                                                aria-pressed={uttUserVote === 'helpful'}
                                                className={`px-2 py-0.8 rounded-lg font-semibold border flex items-center gap-1 transition-all ${
                                                  uttUserVote === 'helpful'
                                                    ? 'bg-sky-600 text-white border-sky-500 shadow-sm'
@@ -1629,15 +1663,19 @@ export default function LineChatModal({
                     {/* 市民参加: 発言と答弁を確認した直後に意思を届ける */}
                     {(msg.agreeCount !== undefined || msg.disagreeCount !== undefined) && (
                       <div className="pt-2.5 border-t dark:border-slate-800/80 border-slate-200 space-y-2 text-xs">
+                        <p className="text-[10.5px] dark:text-slate-400 text-slate-600 leading-relaxed">
+                          この議題全体について、あなたの受け止めを教えてください。このブラウザでは「賛成」「気になる」のどちらか1つを選択でき、変更・取り消しもできます。
+                        </p>
                         <div className="flex items-center justify-between flex-wrap gap-2">
                           <div className="flex items-center gap-1.5 flex-wrap">
-                            <span className="text-[11px] font-bold dark:text-slate-300 text-slate-800">この議論、どう思う？</span>
+                            <span className="text-[11px] font-bold dark:text-slate-300 text-slate-800">この議題全体への反応</span>
                             <button
                               onClick={() => handleVote(msg.id, 'agree', {
                                 agree: msg.agreeCount ?? 0,
                                 concern: msg.disagreeCount ?? 0,
                                 helpful: 0,
                               })}
+                              aria-pressed={hasVoted === 'agree'}
                               className={`px-2.5 py-1 rounded-lg text-xs font-medium border flex items-center gap-1 transition-colors ${
                                 hasVoted === 'agree'
                                   ? 'bg-emerald-600/20 text-emerald-700 dark:text-emerald-300 border-emerald-500/40'
@@ -1645,7 +1683,7 @@ export default function LineChatModal({
                               }`}
                             >
                               <ThumbsUp className="w-3 h-3" />
-                              <span>賛成 {msg.agreeCount !== undefined ? msg.agreeCount : 42}</span>
+                              <span>賛成 {msg.agreeCount !== undefined ? msg.agreeCount : 0}</span>
                             </button>
                             <button
                               onClick={() => handleVote(msg.id, 'concern', {
@@ -1653,6 +1691,7 @@ export default function LineChatModal({
                                 concern: msg.disagreeCount ?? 0,
                                 helpful: 0,
                               })}
+                              aria-pressed={hasVoted === 'concern'}
                               className={`px-2.5 py-1 rounded-lg text-xs font-medium border flex items-center gap-1 transition-colors ${
                                 hasVoted === 'concern'
                                   ? 'bg-rose-600/20 text-rose-700 dark:text-rose-300 border-rose-500/40'
@@ -1660,7 +1699,7 @@ export default function LineChatModal({
                               }`}
                             >
                               <ThumbsDown className="w-3 h-3" />
-                              <span>懸念 {msg.disagreeCount !== undefined ? msg.disagreeCount : 3}</span>
+                              <span>気になる {msg.disagreeCount !== undefined ? msg.disagreeCount : 0}</span>
                             </button>
                             <button
                               onClick={() => toggleCommentBox(msg.id)}
@@ -1775,6 +1814,54 @@ export default function LineChatModal({
                               <div className="dark:text-slate-200 text-slate-800 font-medium leading-tight mt-0.5">{item.event}</div>
                             </div>
                           ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {followableTopic && msg.id === (initialTheme ? 'msg-theme-reply' : 'msg-2') && (
+                      <div className="pt-3 border-t dark:border-slate-800/80 border-slate-200 space-y-2.5">
+                        <div className="flex items-center justify-between gap-2 flex-wrap">
+                          <div>
+                            <h4 className="text-xs font-bold dark:text-white text-slate-900">その後どうなった？</h4>
+                            <p className="text-[10px] dark:text-slate-400 text-slate-500 mt-0.5">
+                              公開済みの公式会議録で確認できた事実だけを時系列で表示しています。
+                            </p>
+                          </div>
+                          <span className="text-[10px] dark:text-slate-400 text-slate-500 font-mono">
+                            最終確認日 {followableTopic.lastCheckedAt}
+                          </span>
+                        </div>
+
+                        <ol className="space-y-2">
+                          {followableTopic.updates.map((update) => (
+                            <li key={`${update.date}-${update.label}`} className="flex items-start gap-2.5">
+                              <span className={`w-2.5 h-2.5 rounded-full mt-1 shrink-0 ${
+                                update.kind === 'no-change' ? 'bg-slate-400' : 'bg-emerald-500'
+                              }`} />
+                              <div className="min-w-0">
+                                <div className="flex items-baseline gap-2 flex-wrap">
+                                  <span className="text-[10px] font-mono text-emerald-700 dark:text-emerald-400">{update.date}</span>
+                                  <span className="text-[11px] font-bold dark:text-slate-200 text-slate-800">{update.label}</span>
+                                </div>
+                                <p className="text-[10.5px] dark:text-slate-300 text-slate-700 leading-relaxed mt-0.5">{update.detail}</p>
+                              </div>
+                            </li>
+                          ))}
+                        </ol>
+
+                        <div className="flex items-center justify-between gap-2 flex-wrap pt-1">
+                          <span className="text-[10.5px] font-semibold dark:text-slate-300 text-slate-700">
+                            現在の状態：{followableTopic.currentStatus}
+                          </span>
+                          <a
+                            href={followableTopic.sourceUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="text-[10.5px] text-emerald-600 dark:text-emerald-400 hover:underline flex items-center gap-1 font-semibold"
+                          >
+                            <span>公式原文で確認</span>
+                            <ExternalLink className="w-3 h-3" />
+                          </a>
                         </div>
                       </div>
                     )}

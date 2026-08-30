@@ -19,18 +19,20 @@ export default function Header({
   const [fontSize, setFontSize] = useState<'normal' | 'large' | 'xlarge'>('normal');
 
   useEffect(() => {
-    try {
-      const storedTheme = localStorage.getItem('gijiraku_theme') as 'dark' | 'light' | null;
-      if (storedTheme) {
-        setTheme(storedTheme);
+    queueMicrotask(() => {
+      try {
+        const storedTheme = localStorage.getItem('gijiraku_theme') as 'dark' | 'light' | null;
+        if (storedTheme) {
+          setTheme(storedTheme);
+        }
+        const storedFont = localStorage.getItem('gijiraku_font_size') as 'normal' | 'large' | 'xlarge' | null;
+        if (storedFont) {
+          setFontSize(storedFont);
+        }
+      } catch {
+        // ignore
       }
-      const storedFont = localStorage.getItem('gijiraku_font_size') as 'normal' | 'large' | 'xlarge' | null;
-      if (storedFont) {
-        setFontSize(storedFont);
-      }
-    } catch {
-      // ignore
-    }
+    });
   }, []);
 
   useEffect(() => {

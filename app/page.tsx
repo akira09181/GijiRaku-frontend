@@ -7,6 +7,15 @@ import AssemblyListDrawer from './components/AssemblyListDrawer';
 import LineChatModal from './components/LineChatModal';
 import AnalyticsDashboardModal from './components/AnalyticsDashboardModal';
 import { Assembly, IssueTheme } from './types/assembly';
+import type { FollowableTopic, FollowedTopic } from './types/follow';
+import { getFollowableTopic } from './data/followableTopics';
+import {
+  FOLLOWED_TOPICS_STORAGE_KEY,
+  hasFollowedTopics,
+  isTopicFollowed,
+  loadFollowedTopics,
+  toggleFollowedTopic,
+} from './lib/followedTopics';
 import {
   MapPin,
   Filter,
@@ -22,7 +31,8 @@ import {
   Layers,
   Map as MapIcon,
   List as ListIcon,
-  Bell,
+  Bookmark,
+  ArrowRight,
 } from 'lucide-react';
 
 /**
@@ -210,7 +220,7 @@ export default function Home() {
   const [analyticsAssembly, setAnalyticsAssembly] = useState<Assembly | null>(null);
   const [showMapExplorer, setShowMapExplorer] = useState(false);
   const [mobileView, setMobileView] = useState<'map' | 'list'>('map');
-  const [notifyToast, setNotifyToast] = useState<string | null>(null);
+  const [followedTopics, setFollowedTopics] = useState<FollowedTopic[]>([]);
   const [officialStats, setOfficialStats] = useState({
     openDataSourceCount: 7,
     assemblyCount: 7,
@@ -241,12 +251,17 @@ export default function Home() {
     return () => controller.abort();
   }, []);
 
-  const handleSubscribeNotifications = () => {
-    const currentCity = TOKYO_ASSEMBLIES.find((a) => a.id === selectedAssemblyId)?.name || '東京都全域';
-    const themeLabel = THEME_OPTIONS.find((t) => t.id === userTheme)?.label || '全テーマ';
-    setNotifyToast(`🔔 【更新通知を購読】「${currentCity} × ${themeLabel}」の最新議会ニュース通知を有効にしました。新着議題が入るとスマホへ届きます。`);
-    setTimeout(() => setNotifyToast(null), 4500);
-  };
+  useEffect(() => {
+    const syncFollowedTopics = () => {
+      setFollowedTopics(loadFollowedTopics(window.localStorage));
+    };
+    queueMicrotask(syncFollowedTopics);
+    const handleStorage = (event: StorageEvent) => {
+      if (event.key === FOLLOWED_TOPICS_STORAGE_KEY) syncFollowedTopics();
+    };
+    window.addEventListener('storage', handleStorage);
+    return () => window.removeEventListener('storage', handleStorage);
+  }, []);
 
   // 対象自治体の絞り込み
   const activeAssemblies = useMemo(() => {
@@ -281,6 +296,38 @@ export default function Home() {
     openAssemblyModal(shinjukuAssembly, '病児保育', 'shinjuku-sick-child-care-2026-06-10');
   };
 
+  const handleToggleFollowTopic = (topic: FollowableTopic): boolean => {
+    try {
+      const nextTopics = toggleFollowedTopic(
+        window.localStorage,
+        followedTopics,
+        {
+          discussion_id: topic.discussionId,
+          assembly_id: topic.assemblyId,
+          municipality_name: topic.municipalityName,
+          theme_name: topic.themeName,
+        },
+      );
+      setFollowedTopics(nextTopics);
+      return true;
+    } catch {
+      return false;
+    }
+  };
+
+  const openFollowedTopic = (followedTopic: FollowedTopic) => {
+    const topic = getFollowableTopic(followedTopic.discussion_id);
+    const assembly = TOKYO_ASSEMBLIES.find((item) => item.id === followedTopic.assembly_id);
+    if (!topic || !assembly) return;
+    openAssemblyModal(assembly, topic.modalTheme, topic.discussionId);
+  };
+
+  const followedTopicCards = followedTopics.flatMap((followedTopic) => {
+    const details = getFollowableTopic(followedTopic.discussion_id);
+    return details ? [{ followedTopic, details }] : [];
+  });
+  const selectedFollowableTopic = getFollowableTopic(modalInitialDiscussionId);
+
   return (
     <main className="min-h-screen flex flex-col dark:bg-slate-950 dark:text-slate-100 bg-slate-50 text-slate-900 selection:bg-emerald-500 selection:text-slate-950 transition-colors duration-200">
       {/* 共通ヘッダー */}
@@ -289,9 +336,12 @@ export default function Home() {
       {/* メインヒーローセクション */}
       <section className="px-4 pt-10 pb-8 sm:pt-14 sm:pb-10 max-w-4xl w-full mx-auto flex flex-col items-center text-center">
         <h2 className="text-2xl sm:text-4xl font-bold dark:text-white text-slate-900 tracking-tight leading-tight">
-          声を上げられる人だけで、政策が決まっていませんか？
+          自分の街で、自分の生活に関係する議論を3分で確認できます。
         </h2>
-        <p className="text-xs sm:text-sm font-semibold dark:text-slate-300 text-slate-700 mt-2.5 max-w-2xl leading-relaxed">
+        <p className="text-sm sm:text-lg font-bold dark:text-slate-200 text-slate-800 mt-3 max-w-2xl leading-relaxed">
+          声を上げられる人だけで、政策が決まっていませんか？
+        </p>
+        <p className="text-xs sm:text-sm font-semibold dark:text-slate-300 text-slate-700 mt-2 max-w-2xl leading-relaxed">
           選挙だけでは届かない、日々暮らす市民の意思を政策へ。
         </p>
         <p className="text-xs sm:text-sm dark:text-slate-400 text-slate-600 mt-1.5 max-w-2xl leading-relaxed">
@@ -336,7 +386,7 @@ export default function Home() {
                 onChange={(e) => setSelectedAssemblyId(e.target.value)}
                 className="w-full dark:bg-slate-950 dark:border-slate-700/80 dark:text-white bg-slate-50 border-slate-300 text-slate-900 border rounded-xl px-3.5 py-2.5 text-xs sm:text-sm focus:outline-none focus:ring-1 focus:ring-emerald-500 appearance-none cursor-pointer pr-10 font-medium transition-colors"
               >
-                <option value="all">東京都（展開対象：全62市区町村）</option>
+                <option value="all">東京都全域（現在{officialStats.assemblyCount}議会の実データを公開中）</option>
                 {TOKYO_ASSEMBLIES.map((a) => (
                   <option key={a.id} value={a.id}>
                     {a.name} ({a.type === 'prefecture' ? '都議会' : a.type === 'ward' ? '特別区' : '市'})
@@ -374,30 +424,12 @@ export default function Home() {
             </div>
           </div>
 
-          {/* マイフィード & 通知機能バッジ */}
-          <div className="pt-3 border-t dark:border-slate-800/80 border-slate-200 flex items-center justify-between text-xs flex-wrap gap-2">
+          <div className="pt-3 border-t dark:border-slate-800/80 border-slate-200 text-xs">
             <span className="text-[11px] dark:text-slate-400 text-slate-500">
-              💡 登録条件に合う新着議会ニュースが全自動で届きます
+              選んだ地域・テーマに合わせて、下の議題一覧を絞り込めます。
             </span>
-            <button
-              onClick={handleSubscribeNotifications}
-              className="px-3 py-1.5 dark:bg-emerald-950 dark:hover:bg-emerald-900 dark:text-emerald-300 dark:border-emerald-700/60 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border-emerald-300 border rounded-xl font-semibold text-[11px] flex items-center gap-1.5 transition-colors shadow-xs"
-            >
-              <Bell className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-              <span>この条件の更新通知を受け取る</span>
-            </button>
           </div>
         </div>
-
-        {/* 通知登録トースト通知 */}
-        {notifyToast && (
-          <div className="mt-4 px-4 py-3 bg-emerald-600/90 text-white rounded-xl text-xs font-semibold shadow-lg backdrop-blur-sm animate-fade-in flex items-center justify-between gap-2 max-w-lg mx-auto">
-            <span>{notifyToast}</span>
-            <button onClick={() => setNotifyToast(null)} className="text-white/80 hover:text-white">
-              ✕
-            </button>
-          </div>
-        )}
 
         {/* 東京都全域 議会オープンデータ構造化実績 (数字の証拠) */}
         <div className="w-full mt-6 grid grid-cols-2 sm:grid-cols-4 gap-3 text-left">
@@ -419,6 +451,50 @@ export default function Home() {
           </div>
         </div>
       </section>
+
+      {hasFollowedTopics(followedTopics) && followedTopicCards.length > 0 && (
+        <section className="px-4 pb-8 max-w-4xl w-full mx-auto space-y-3">
+          <h3 className="text-sm font-bold dark:text-white text-slate-900 flex items-center gap-2">
+            <Bookmark className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+            <span>フォロー中のテーマ</span>
+          </h3>
+          <div className="space-y-3">
+            {followedTopicCards.map(({ followedTopic, details }) => (
+              <article
+                key={followedTopic.discussion_id}
+                className="dark:bg-slate-900/90 dark:border-emerald-800/60 bg-white border-emerald-200 border rounded-2xl p-4 sm:p-5 shadow-sm space-y-3"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <span className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400">
+                      {followedTopic.municipality_name}
+                    </span>
+                    <h4 className="mt-0.5 text-sm sm:text-base font-bold dark:text-white text-slate-900 leading-snug">
+                      {followedTopic.theme_name}
+                    </h4>
+                  </div>
+                  <span className="px-2 py-0.5 rounded-full text-[10px] bg-emerald-50 dark:bg-emerald-950/70 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 shrink-0">
+                    フォロー中
+                  </span>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-[auto_1fr] gap-1 sm:gap-x-5 text-[11px]">
+                  <span className="dark:text-slate-400 text-slate-500">最終更新日：{details.lastCheckedAt}</span>
+                  <span className="dark:text-slate-300 text-slate-700">現在の状態：{details.currentStatus}</span>
+                </div>
+                <div className="flex justify-end">
+                  <button
+                    onClick={() => openFollowedTopic(followedTopic)}
+                    className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 transition-colors shadow-sm"
+                  >
+                    <span>その後を見る</span>
+                    <ArrowRight className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              </article>
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* メインコンテンツ: あなたに関係する議論カードフィード */}
       <section className="px-4 pb-12 max-w-4xl w-full mx-auto space-y-4">
@@ -587,6 +663,11 @@ export default function Home() {
           assembly={selectedAssemblyForModal}
           initialTheme={modalInitialTheme}
           initialDiscussionId={modalInitialDiscussionId}
+          followableTopic={selectedFollowableTopic}
+          isTopicFollowed={selectedFollowableTopic
+            ? isTopicFollowed(followedTopics, selectedFollowableTopic.discussionId)
+            : false}
+          onToggleFollowTopic={handleToggleFollowTopic}
           onClose={() => setSelectedAssemblyForModal(null)}
           onOpenDashboard={() => setAnalyticsAssembly(selectedAssemblyForModal)}
         />
