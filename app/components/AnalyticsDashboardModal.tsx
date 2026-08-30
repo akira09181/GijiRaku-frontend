@@ -333,7 +333,7 @@ export default function AnalyticsDashboardModal({
                 </span>
               </div>
               <p className="text-[11px] dark:text-slate-400 text-slate-500 truncate">
-                公式会議録の構造化データ・SQLite市民リアクションを集計
+                公式会議録の構造化データ・Firestoreの市民リアクションを集計
               </p>
             </div>
           </div>
@@ -569,7 +569,7 @@ export default function AnalyticsDashboardModal({
                       <span>リアルタイム市民フィードバック</span>
                     </h4>
                     <span className="px-2 py-0.5 rounded text-[10px] dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/20 bg-emerald-50 text-emerald-800 border-emerald-300 border font-mono font-medium">
-                      SQLite API Sync
+                      Firestore Live Sync
                     </span>
                   </div>
 
@@ -601,7 +601,7 @@ export default function AnalyticsDashboardModal({
                     <div className="flex items-center justify-between p-3 dark:bg-slate-950 dark:border-slate-800 bg-slate-50 border-slate-200 border rounded-xl">
                       <div>
                         <span className="text-xs font-bold dark:text-white text-slate-900 block">発言・議題へのリアクション合計</span>
-                        <span className="text-[10.5px] dark:text-slate-400 text-slate-500">市民画面の「賛成 / 気になる / 参考」をSQLiteから集計</span>
+                        <span className="text-[10.5px] dark:text-slate-400 text-slate-500">市民画面の「賛成 / 気になる / 参考」をFirestoreからリアルタイム集計</span>
                       </div>
                       <div className="text-right">
                         <span className={`text-xl font-extrabold text-emerald-600 dark:text-emerald-400 font-mono transition-all ${isCountUpdated ? 'text-emerald-500 scale-110' : ''}`}>
@@ -650,7 +650,7 @@ export default function AnalyticsDashboardModal({
                           LIVE
                         </span>
                         <span className="font-bold text-xs dark:text-white text-slate-900">
-                          公式会議録 → 発言構造化 → 住民リアクション → SQLite集計 → 行政画面
+                          公式会議録 → 発言構造化 → 住民リアクション → Firestore集計 → 行政画面
                         </span>
                       </div>
                       <p className="text-xs dark:text-slate-300 text-slate-800 leading-relaxed">
