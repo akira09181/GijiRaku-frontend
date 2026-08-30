@@ -136,6 +136,7 @@ export default function AnalyticsDashboardModal({
         const query = new URLSearchParams({
           discussion_id: assembly.id,
           anonymous_user_id: 'analytics-dashboard',
+          include_user_state: 'false',
         });
         try {
           const response = await fetch(`${apiBase}/api/reactions?${query.toString()}`, {
@@ -289,7 +290,7 @@ export default function AnalyticsDashboardModal({
     };
 
     const timer = setTimeout(() => void refreshAnalytics(), 250);
-    const pollingTimer = setInterval(() => void refreshAnalytics(), 3000);
+    const pollingTimer = setInterval(() => void refreshAnalytics(), 30000);
     const handleCountUpdate = () => void refreshAnalytics();
     window.addEventListener('ebpm_count_updated', handleCountUpdate);
 

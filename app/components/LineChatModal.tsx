@@ -695,7 +695,8 @@ export default function LineChatModal({
         // ignore
       }
     } catch {
-      // Keep the existing screen unchanged when the API is unavailable.
+      setEbpmToast('リアクション履歴を読み込めませんでした。通信状況を確認してください。');
+      setTimeout(() => setEbpmToast(null), 4000);
     }
   };
 
@@ -742,7 +743,8 @@ export default function LineChatModal({
       }
       setTimeout(() => setEbpmToast(null), 4000);
     } catch {
-      // Keep the existing screen unchanged when the API is unavailable.
+      setEbpmToast('リアクションを保存できませんでした。通信状況を確認して、もう一度お試しください。');
+      setTimeout(() => setEbpmToast(null), 4000);
     } finally {
       reactionRequestsInFlight.current.delete(requestKey);
     }
@@ -1082,16 +1084,22 @@ export default function LineChatModal({
   };
 
   const handleVote = async (id: string, type: 'agree' | 'concern', baseCounts: ReactionCounts) => {
-    if (userVotes[id]) return;
+    const currentVote = userVotes[id] || null;
+    const nextVote: 'agree' | 'concern' | null = currentVote === type ? null : type;
     const requestKey = `${assembly.id}:${id}`;
     if (reactionRequestsInFlight.current.has(requestKey)) return;
     reactionRequestsInFlight.current.add(requestKey);
 
     try {
-      const result = await putReactionState(id, type, baseCounts);
-      if (result.reaction_type === 'agree' || result.reaction_type === 'concern') {
-        setUserVotes((prev) => ({ ...prev, [id]: result.reaction_type as 'agree' | 'concern' }));
-      }
+      const result = await putReactionState(id, nextVote, baseCounts);
+      setUserVotes((prev) => {
+        if (result.reaction_type === 'agree' || result.reaction_type === 'concern') {
+          return { ...prev, [id]: result.reaction_type };
+        }
+        const nextVotes = { ...prev };
+        delete nextVotes[id];
+        return nextVotes;
+      });
       setMessages((prev) =>
         prev.map((msg) => {
           if (msg.id !== id) return msg;
@@ -1109,9 +1117,17 @@ export default function LineChatModal({
           type === 'agree' ? '賛成の声' : '懸念の声',
           result.counts[type],
         );
+      } else if (result.changed && result.reaction_type === null) {
+        setEbpmToast(`リアクションを取り消しました（集計: ${result.counts[type]}件）`);
+        setTimeout(() => setEbpmToast(null), 4000);
+      } else if (result.changed) {
+        const typeLabel = type === 'agree' ? '賛成の声' : '懸念の声';
+        setEbpmToast(`リアクションを「${typeLabel}」に変更しました（集計: ${result.counts[type]}件）`);
+        setTimeout(() => setEbpmToast(null), 4000);
       }
     } catch {
-      // Keep the existing screen unchanged when the API is unavailable.
+      setEbpmToast('投票を保存できませんでした。通信状況を確認して、もう一度お試しください。');
+      setTimeout(() => setEbpmToast(null), 4000);
     } finally {
       reactionRequestsInFlight.current.delete(requestKey);
     }
