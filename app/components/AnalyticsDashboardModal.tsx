@@ -21,11 +21,7 @@ import {
   PartyPolicyStance,
   MemberScorecard,
 } from '../types/analytics';
-import {
-  SHINJUKU_SICK_CHILD_CARE_ISSUE_ID,
-  SHINJUKU_SICK_CHILD_CARE_QUESTION,
-  SHINJUKU_SICK_CHILD_CARE_QUESTION_ID,
-} from '../data/citizenQuestions';
+import { getCitizenQuestionByAssemblyId } from '../data/citizenQuestions';
 
 interface AnalyticsDashboardModalProps {
   readonly assembly: Assembly;
@@ -111,6 +107,7 @@ export default function AnalyticsDashboardModal({
   assembly,
   onClose,
 }: AnalyticsDashboardModalProps) {
+  const citizenQuestion = getCitizenQuestionByAssemblyId(assembly.id);
   const [mounted, setMounted] = useState(false);
   const [activeTab, setActiveTab] = useState<TabType>('overview');
   const [loading, setLoading] = useState(true);
@@ -123,7 +120,7 @@ export default function AnalyticsDashboardModal({
   });
   const [isCountUpdated, setIsCountUpdated] = useState(false);
   const [citizenQuestionResult, setCitizenQuestionResult] = useState<CitizenQuestionAdminResult | null>(null);
-  const [citizenQuestionLoading, setCitizenQuestionLoading] = useState(assembly.id === 'shinjuku-ward');
+  const [citizenQuestionLoading, setCitizenQuestionLoading] = useState(Boolean(citizenQuestion));
   const [citizenQuestionError, setCitizenQuestionError] = useState(false);
   const lastServerReactionCountRef = useRef<number | null>(null);
 
@@ -165,12 +162,12 @@ export default function AnalyticsDashboardModal({
       refreshInFlight = true;
 
       try {
-        if (assembly.id === 'shinjuku-ward') {
+        if (citizenQuestion) {
           setCitizenQuestionLoading(true);
           setCitizenQuestionError(false);
           const citizenQuery = new URLSearchParams({
-            issue_id: SHINJUKU_SICK_CHILD_CARE_ISSUE_ID,
-            question_id: SHINJUKU_SICK_CHILD_CARE_QUESTION_ID,
+            issue_id: citizenQuestion.issueId,
+            question_id: citizenQuestion.questionId,
           });
           try {
             const citizenResponse = await fetch(
@@ -371,7 +368,7 @@ export default function AnalyticsDashboardModal({
       clearInterval(pollingTimer);
       window.removeEventListener('ebpm_count_updated', handleCountUpdate);
     };
-  }, [assembly]);
+  }, [assembly, citizenQuestion]);
 
   if (!mounted) return null;
 
@@ -644,7 +641,7 @@ export default function AnalyticsDashboardModal({
                     </span>
                   </div>
 
-                  {assembly.id === 'shinjuku-ward' && (
+                  {citizenQuestion && (
                     <section
                       data-testid="admin-citizen-question-results"
                       className="rounded-xl border border-emerald-200 bg-emerald-50/80 p-4 dark:border-emerald-800 dark:bg-emerald-950/30"
@@ -652,13 +649,13 @@ export default function AnalyticsDashboardModal({
                       <div className="flex flex-wrap items-start justify-between gap-2">
                         <div>
                           <p className="text-xs font-bold text-emerald-700 dark:text-emerald-300">
-                            {citizenQuestionResult?.municipality || '新宿区'}・議題別市民回答
+                            {citizenQuestionResult?.municipality || citizenQuestion.municipality}・議題別市民回答
                           </p>
                           <h5 className="mt-1 text-sm font-bold text-slate-900 dark:text-white">
-                            {citizenQuestionResult?.theme || '病児保育の利用拡充と予約・空き状況の改善'}
+                            {citizenQuestionResult?.theme || citizenQuestion.theme}
                           </h5>
                           <p className="mt-1 text-xs text-slate-600 dark:text-slate-300">
-                            {SHINJUKU_SICK_CHILD_CARE_QUESTION.question}
+                            {citizenQuestion.question}
                           </p>
                         </div>
                         {citizenQuestionResult && (
@@ -705,11 +702,11 @@ export default function AnalyticsDashboardModal({
                             ) : (
                               <div className="mt-2 space-y-2">
                                 {citizenQuestionResult.responses.map((response, index) => {
-                                  const answerLabel = SHINJUKU_SICK_CHILD_CARE_QUESTION.answers.find(
+                                  const answerLabel = citizenQuestion.answers.find(
                                     (answer) => answer.id === response.selected_answer,
                                   )?.label || response.selected_answer;
                                   const reasonLabels = response.selected_reasons.map((reasonId) => (
-                                    SHINJUKU_SICK_CHILD_CARE_QUESTION.reasons.find(
+                                    citizenQuestion.reasons.find(
                                       (reason) => reason.id === reasonId,
                                     )?.label || reasonId
                                   ));

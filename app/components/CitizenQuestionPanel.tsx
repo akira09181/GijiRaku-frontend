@@ -4,7 +4,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { CheckCircle2, RefreshCw, Send } from 'lucide-react';
 import {
   CITIZEN_RESPONSE_SUCCESS_MESSAGE,
-  SHINJUKU_SICK_CHILD_CARE_QUESTION,
+  type CitizenQuestionDefinition,
 } from '../data/citizenQuestions';
 
 interface MyResponse {
@@ -44,8 +44,11 @@ function getOrCreateAnonymousUserId() {
   return generated;
 }
 
-export default function CitizenQuestionPanel() {
-  const config = SHINJUKU_SICK_CHILD_CARE_QUESTION;
+interface CitizenQuestionPanelProps {
+  readonly config: CitizenQuestionDefinition;
+}
+
+export default function CitizenQuestionPanel({ config }: CitizenQuestionPanelProps) {
   const [selectedAnswer, setSelectedAnswer] = useState('');
   const [selectedReasons, setSelectedReasons] = useState<string[]>([]);
   const [freeText, setFreeText] = useState('');
@@ -208,7 +211,7 @@ export default function CitizenQuestionPanel() {
               setAccepted(false);
             }}
             className={`mt-2 w-full rounded-xl border bg-white p-3 text-sm outline-none ${textIsTooLong ? 'border-red-500' : 'border-slate-200 focus:border-emerald-500'}`}
-            placeholder="例：朝の時点で空きが分かると、仕事の調整がしやすいです"
+            placeholder="この議題についての具体的な経験や希望を入力してください"
           />
           <p className={`text-right text-xs ${textIsTooLong ? 'font-bold text-red-600' : 'text-slate-500'}`}>
             {freeText.length}/500文字

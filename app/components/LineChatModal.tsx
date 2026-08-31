@@ -28,7 +28,7 @@ import type { FollowTopicInput } from '../types/follow';
 import { getFollowUpDetails } from '../data/followUpDetails';
 import { createFollowTopic } from '../lib/followedTopics';
 import CitizenQuestionPanel from './CitizenQuestionPanel';
-import { SHINJUKU_SICK_CHILD_CARE_ISSUE_ID } from '../data/citizenQuestions';
+import { getCitizenQuestionByIssueId } from '../data/citizenQuestions';
 
 interface Comment {
   readonly user: string;
@@ -647,7 +647,8 @@ export default function LineChatModal({
   const reactionRequestsInFlight = useRef<Set<string>>(new Set());
   const reactionStateVersionRef = useRef(0);
   const discussionKey = activeRecord?.discussion_id || initialDiscussionId || assembly.featuredDiscussionId;
-  const usesCitizenQuestion = discussionKey === SHINJUKU_SICK_CHILD_CARE_ISSUE_ID;
+  const citizenQuestion = getCitizenQuestionByIssueId(discussionKey);
+  const usesCitizenQuestion = Boolean(citizenQuestion);
 
   const toggleSpeakerExpand = (key: string) => {
     setExpandedSpeakerKeys((prev) => ({ ...prev, [key]: !prev[key] }));
@@ -1090,7 +1091,7 @@ export default function LineChatModal({
         : initialDiscussionId
           ? []
           : initialMsgs);
-      if (discussionKey !== SHINJUKU_SICK_CHILD_CARE_ISSUE_ID) {
+      if (!usesCitizenQuestion) {
         void loadPersistedReactions();
       }
       chatContainerRef.current?.scrollTo({ top: 0 });
@@ -1531,8 +1532,11 @@ export default function LineChatModal({
                       </div>
                     )}
 
-                    {msg.structuredSummary && usesCitizenQuestion && (
-                      <CitizenQuestionPanel />
+                    {msg.structuredSummary && citizenQuestion && (
+                      <CitizenQuestionPanel
+                        key={citizenQuestion.questionId}
+                        config={citizenQuestion}
+                      />
                     )}
 
                     {/* 【主要ブロック】この議論で、誰が何を言った？ (一覧では軽く ➔ タップで無制限深掘り展開) */}

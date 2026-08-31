@@ -150,15 +150,53 @@ async function installApiMock(context: BrowserContext, store: MockReactionStore)
   });
 }
 
-async function openFirstDiscussion(page: Page) {
+async function openApp(page: Page, anonymousUserId: string) {
   await page.goto('/');
-  await page.getByRole('button', { name: /この議論を見る/ }).first().click();
-  const agreeButton = page.getByRole('button', { name: /👍 賛成/ }).first();
-  await expect(agreeButton).toBeVisible();
-  return agreeButton;
+  await page.evaluate((userId) => {
+    localStorage.setItem('gijiraku_anonymous_user_id', userId);
+  }, anonymousUserId);
 }
 
-test('全体集計を別ブラウザ・シークレットウィンドウ・再読込で共有する', async ({ browser }) => {
+async function getLegacyReactions(
+  page: Page,
+  options: { readonly includeUserState: boolean; readonly anonymousUserId?: string },
+) {
+  return page.evaluate(async ({ includeUserState, anonymousUserId }) => {
+    const query = new URLSearchParams({
+      discussion_id: 'legacy-discussion',
+      include_user_state: String(includeUserState),
+    });
+    if (anonymousUserId) query.set('anonymous_user_id', anonymousUserId);
+    const response = await fetch(`/api/reactions?${query.toString()}`);
+    if (!response.ok) throw new Error(`Legacy reaction GET failed: ${response.status}`);
+    return response.json();
+  }, options) as Promise<{
+    readonly aggregates: readonly { readonly statement_id: string; readonly live_counts: ReactionCounts }[];
+    readonly user_reactions: readonly { readonly statement_id: string; readonly reaction_type: ReactionType }[];
+  }>;
+}
+
+async function putLegacyReaction(page: Page, anonymousUserId: string) {
+  return page.evaluate(async (userId) => {
+    const response = await fetch('/api/reactions', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        discussion_id: 'legacy-discussion',
+        statement_id: 'legacy-statement',
+        reaction_type: 'agree',
+        anonymous_user_id: userId,
+      }),
+    });
+    if (!response.ok) throw new Error(`Legacy reaction PUT failed: ${response.status}`);
+    return response.json();
+  }, anonymousUserId) as Promise<{
+    readonly live_counts: ReactionCounts;
+    readonly reaction_type: ReactionType;
+  }>;
+}
+
+test('既存リアクションAPIの全体集計とユーザー別状態を別ブラウザ・再読込で共有する', async ({ browser }) => {
   const store: MockReactionStore = {
     countsByStatement: new Map(),
     userState: new Map(),
@@ -176,11 +214,12 @@ test('全体集計を別ブラウザ・シークレットウィンドウ・再�
     ]);
 
     const regularPage = await regularContext.newPage();
-    const regularAgree = await openFirstDiscussion(regularPage);
-    await expect(regularAgree).toHaveText(/\(0\)/);
-    await regularAgree.click();
-    await expect(regularAgree).toHaveText(/\(1\)/);
-    await expect(regularAgree).toHaveAttribute('aria-pressed', 'true');
+    await openApp(regularPage, 'legacy-browser-a');
+    const initial = await getLegacyReactions(regularPage, { includeUserState: false });
+    expect(initial.aggregates).toHaveLength(0);
+    const saved = await putLegacyReaction(regularPage, 'legacy-browser-a');
+    expect(saved.live_counts.agree).toBe(1);
+    expect(saved.reaction_type).toBe('agree');
 
     expect(store.aggregateOnlyRequests.length).toBeGreaterThan(0);
     expect(
@@ -188,14 +227,16 @@ test('全体集計を別ブラウザ・シークレットウィンドウ・再�
     ).toBe(true);
 
     const otherPage = await otherBrowserContext.newPage();
-    const otherAgree = await openFirstDiscussion(otherPage);
-    await expect(otherAgree).toHaveText(/\(1\)/);
-    await expect(otherAgree).toHaveAttribute('aria-pressed', 'false');
+    await openApp(otherPage, 'legacy-browser-b');
+    const otherSnapshot = await getLegacyReactions(otherPage, { includeUserState: false });
+    expect(otherSnapshot.aggregates[0].live_counts.agree).toBe(1);
+    expect(otherSnapshot.user_reactions).toHaveLength(0);
 
     const privatePage = await privateContext.newPage();
-    const privateAgree = await openFirstDiscussion(privatePage);
-    await expect(privateAgree).toHaveText(/\(1\)/);
-    await expect(privateAgree).toHaveAttribute('aria-pressed', 'false');
+    await openApp(privatePage, 'legacy-private-browser');
+    const privateSnapshot = await getLegacyReactions(privatePage, { includeUserState: false });
+    expect(privateSnapshot.aggregates[0].live_counts.agree).toBe(1);
+    expect(privateSnapshot.user_reactions).toHaveLength(0);
 
     const regularUserId = await regularPage.evaluate(() => (
       localStorage.getItem('gijiraku_anonymous_user_id')
@@ -208,9 +249,15 @@ test('全体集計を別ブラウザ・シークレットウィンドウ・再�
     expect(privateUserId).not.toBe(regularUserId);
 
     await regularPage.reload();
-    const reloadedAgree = await openFirstDiscussion(regularPage);
-    await expect(reloadedAgree).toHaveText(/\(1\)/);
-    await expect(reloadedAgree).toHaveAttribute('aria-pressed', 'true');
+    const reloaded = await getLegacyReactions(regularPage, {
+      includeUserState: true,
+      anonymousUserId: 'legacy-browser-a',
+    });
+    expect(reloaded.aggregates[0].live_counts.agree).toBe(1);
+    expect(reloaded.user_reactions).toEqual([{
+      statement_id: 'legacy-statement',
+      reaction_type: 'agree',
+    }]);
   } finally {
     await Promise.all([
       regularContext.close(),
