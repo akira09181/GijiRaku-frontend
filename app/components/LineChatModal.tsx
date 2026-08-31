@@ -29,6 +29,7 @@ import { getFollowUpDetails } from '../data/followUpDetails';
 import { createFollowTopic } from '../lib/followedTopics';
 import CitizenQuestionPanel from './CitizenQuestionPanel';
 import { getCitizenQuestionByIssueId } from '../data/citizenQuestions';
+import { getOrCreateAnonymousUserId } from '../lib/anonymousUser';
 
 interface Comment {
   readonly user: string;
@@ -110,7 +111,7 @@ interface LineChatModalProps {
   readonly initialDiscussionId?: string;
   readonly initialRecord?: AssemblyRecord;
   readonly followedDiscussionIds?: readonly string[];
-  readonly onToggleFollowTopic?: (topic: FollowTopicInput) => boolean;
+  readonly onToggleFollowTopic?: (topic: FollowTopicInput) => Promise<boolean>;
   readonly onClose: () => void;
   readonly onOpenDashboard?: () => void;
 }
@@ -153,7 +154,6 @@ interface ReactionSnapshotResponse {
   readonly data?: LegacyPersistedReactionState[];
 }
 
-const ANONYMOUS_USER_STORAGE_KEY = 'gijiraku_anonymous_user_id';
 const TOKYO_VERIFIED_MINUTES_URL = 'https://www.gikai.metro.tokyo.lg.jp/record/proceedings/2026-2/02-01.html';
 const VERIFIED_ASSEMBLY_IDS = new Set([
   'tokyo-metropolitan',
@@ -403,14 +403,6 @@ function getTokyoThemeEvidence(theme: string) {
   }
 }
 
-function getOrCreateAnonymousUserId(): string {
-  const stored = localStorage.getItem(ANONYMOUS_USER_STORAGE_KEY);
-  if (stored) return stored;
-  const anonymousUserId = crypto.randomUUID();
-  localStorage.setItem(ANONYMOUS_USER_STORAGE_KEY, anonymousUserId);
-  return anonymousUserId;
-}
-
 function getSourceExcerptUrl(sourceUrl: string, sourceExcerpt?: string): string {
   const excerpt = sourceExcerpt?.trim().replace(/^「|」$/g, '');
   if (!excerpt) return sourceUrl;
@@ -638,6 +630,7 @@ export default function LineChatModal({
   const [ebpmToast, setEbpmToast] = useState<string | null>(null);
   const [followSaveError, setFollowSaveError] = useState<string | null>(null);
   const [followFeedback, setFollowFeedback] = useState<string | null>(null);
+  const [followSaving, setFollowSaving] = useState(false);
   const [activeFollowTopic, setActiveFollowTopic] = useState<FollowTopicInput | null>(null);
   const [activeRecord, setActiveRecord] = useState<AssemblyRecord | undefined>(initialRecord);
   const [recordLoadError, setRecordLoadError] = useState<string | null>(null);
@@ -654,16 +647,22 @@ export default function LineChatModal({
     setExpandedSpeakerKeys((prev) => ({ ...prev, [key]: !prev[key] }));
   };
 
-  const handleToggleFollowTopic = () => {
-    if (!activeFollowTopic || !onToggleFollowTopic) return;
+  const handleToggleFollowTopic = async () => {
+    if (!activeFollowTopic || !onToggleFollowTopic) return false;
     const wasFollowed = followedDiscussionIds.includes(activeFollowTopic.discussion_id);
-    const saved = onToggleFollowTopic(activeFollowTopic);
-    setFollowSaveError(saved ? null : 'フォロー状態を保存できませんでした。ブラウザの保存設定を確認してください。');
-    setFollowFeedback(saved
-      ? wasFollowed
-        ? 'フォローを解除しました。'
-        : 'フォローしました。次回アクセス時に、フォロー中のテーマからすぐ確認できます。'
-      : null);
+    setFollowSaving(true);
+    try {
+      const saved = await onToggleFollowTopic(activeFollowTopic);
+      setFollowSaveError(saved ? null : 'フォロー状態を保存できませんでした。時間をおいて再試行してください。');
+      setFollowFeedback(saved
+        ? wasFollowed
+          ? 'フォローを解除しました。'
+          : 'フォローしました。マイフォローからいつでも確認できます。'
+        : null);
+      return saved;
+    } finally {
+      setFollowSaving(false);
+    }
   };
 
   const isActiveTopicFollowed = activeFollowTopic
@@ -1404,7 +1403,7 @@ export default function LineChatModal({
             </p>
             <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px] dark:text-slate-400 text-slate-500">
               <span data-testid="detail-date">{activeRecord.meeting_date.replaceAll('-', '/')}｜{activeRecord.meeting_name}</span>
-              <span data-testid="detail-discussion-id" className="font-mono break-all">{activeRecord.discussion_id}</span>
+              <span data-testid="detail-discussion-id" className="sr-only">{activeRecord.discussion_id}</span>
             </div>
           </div>
         )}
@@ -1446,6 +1445,7 @@ export default function LineChatModal({
             <button
               type="button"
               onClick={handleToggleFollowTopic}
+              disabled={followSaving}
               aria-pressed={isActiveTopicFollowed}
               className={`px-3 py-1.5 rounded-lg text-[11px] font-bold border flex items-center justify-center gap-1.5 shrink-0 transition-colors ${
                 isActiveTopicFollowed
@@ -1454,7 +1454,7 @@ export default function LineChatModal({
               }`}
             >
               {isActiveTopicFollowed ? <BookmarkCheck className="w-3.5 h-3.5" /> : <Bookmark className="w-3.5 h-3.5" />}
-              <span>{isActiveTopicFollowed ? 'フォロー中' : 'このテーマをフォローする'}</span>
+              <span>{followSaving ? '保存中…' : isActiveTopicFollowed ? 'フォロー中' : 'このテーマをフォローする'}</span>
             </button>
           </div>
         )}
@@ -1536,6 +1536,8 @@ export default function LineChatModal({
                       <CitizenQuestionPanel
                         key={citizenQuestion.questionId}
                         config={citizenQuestion}
+                        isFollowed={isActiveTopicFollowed}
+                        onFollow={handleToggleFollowTopic}
                       />
                     )}
 

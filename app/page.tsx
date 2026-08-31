@@ -1,21 +1,26 @@
 'use client';
 
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useCallback, useEffect, useState, useMemo, useRef } from 'react';
 import Header from './components/Header';
 import AssemblyMap from './components/AssemblyMap';
 import AssemblyListDrawer from './components/AssemblyListDrawer';
 import LineChatModal from './components/LineChatModal';
 import AnalyticsDashboardModal from './components/AnalyticsDashboardModal';
+import MyFollowModal from './components/MyFollowModal';
 import { Assembly, IssueTheme } from './types/assembly';
 import type { AssemblyRecord, AssemblyRecordsResponse } from './types/assemblyRecord';
 import type { FollowedTopic, FollowTopicInput } from './types/follow';
-import { getFollowTopicCtaLabel, getFollowUpDetails } from './data/followUpDetails';
 import {
   FOLLOWED_TOPICS_STORAGE_KEY,
-  hasFollowedTopics,
   loadFollowedTopics,
-  toggleFollowedTopic,
 } from './lib/followedTopics';
+import {
+  deleteFirestoreFollow,
+  listFirestoreFollows,
+  markFirestoreFollowViewed,
+  putFirestoreFollow,
+} from './lib/followApi';
+import { getCitizenQuestionByIssueId } from './data/citizenQuestions';
 import {
   MapPin,
   Filter,
@@ -31,8 +36,6 @@ import {
   Layers,
   Map as MapIcon,
   List as ListIcon,
-  Bookmark,
-  ArrowRight,
 } from 'lucide-react';
 
 /**
@@ -255,6 +258,11 @@ export default function Home() {
   const [showMapExplorer, setShowMapExplorer] = useState(false);
   const [mobileView, setMobileView] = useState<'map' | 'list'>('map');
   const [followedTopics, setFollowedTopics] = useState<FollowedTopic[]>([]);
+  const [showMyFollows, setShowMyFollows] = useState(false);
+  const [followsLoading, setFollowsLoading] = useState(true);
+  const [followsError, setFollowsError] = useState<string | null>(null);
+  const directIssueOpenedRef = useRef(false);
+  const viewedFollowRef = useRef<string | null>(null);
   const [officialStats, setOfficialStats] = useState({
     openDataSourceCount: 7,
     assemblyCount: 7,
@@ -323,17 +331,38 @@ export default function Home() {
     return () => controller.abort();
   }, []);
 
-  useEffect(() => {
-    const syncFollowedTopics = () => {
-      setFollowedTopics(loadFollowedTopics(window.localStorage));
-    };
-    queueMicrotask(syncFollowedTopics);
-    const handleStorage = (event: StorageEvent) => {
-      if (event.key === FOLLOWED_TOPICS_STORAGE_KEY) syncFollowedTopics();
-    };
-    window.addEventListener('storage', handleStorage);
-    return () => window.removeEventListener('storage', handleStorage);
+  const refreshFollows = useCallback(async () => {
+    setFollowsLoading(true);
+    setFollowsError(null);
+    try {
+      setFollowedTopics(await listFirestoreFollows());
+    } catch {
+      setFollowsError('マイフォローを取得できませんでした。');
+    } finally {
+      setFollowsLoading(false);
+    }
   }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    const migrateAndLoadFollows = async () => {
+      try {
+        const legacyFollows = loadFollowedTopics(window.localStorage);
+        if (legacyFollows.length > 0) {
+          await Promise.all(legacyFollows.map((follow) => putFirestoreFollow(follow.discussion_id)));
+          window.localStorage.removeItem(FOLLOWED_TOPICS_STORAGE_KEY);
+        }
+        if (!cancelled) await refreshFollows();
+      } catch {
+        if (!cancelled) {
+          setFollowsLoading(false);
+          setFollowsError('マイフォローを取得できませんでした。');
+        }
+      }
+    };
+    void migrateAndLoadFollows();
+    return () => { cancelled = true; };
+  }, [refreshFollows]);
 
   // 対象自治体の絞り込み
   const activeAssemblies = useMemo(() => {
@@ -370,22 +399,60 @@ export default function Home() {
     setSelectedAssemblyForModal(assembly);
   };
 
+  useEffect(() => {
+    if (directIssueOpenedRef.current) return;
+    const match = window.location.pathname.match(/^\/issues\/([^/]+)\/?$/);
+    if (!match) return;
+    const issue = getCitizenQuestionByIssueId(decodeURIComponent(match[1]));
+    const assembly = issue
+      ? TOKYO_ASSEMBLIES.find((item) => item.id === issue.assemblyId)
+      : undefined;
+    if (!issue || !assembly) return;
+    directIssueOpenedRef.current = true;
+    const record = featuredRecords[assembly.id];
+    queueMicrotask(() => {
+      setModalInitialTheme(issue.theme);
+      setModalInitialDiscussionId(issue.issueId);
+      setModalInitialRecord(record?.discussion_id === issue.issueId ? record : undefined);
+      setSelectedAssemblyForModal(assembly);
+    });
+  }, [featuredRecords]);
+
+  useEffect(() => {
+    if (!selectedAssemblyForModal || !modalInitialDiscussionId) return;
+    const followed = followedTopics.find(
+      (follow) => follow.issue_id === modalInitialDiscussionId,
+    );
+    if (!followed || viewedFollowRef.current === modalInitialDiscussionId) return;
+    viewedFollowRef.current = modalInitialDiscussionId;
+    void markFirestoreFollowViewed(modalInitialDiscussionId)
+      .then(refreshFollows)
+      .catch(() => {
+        viewedFollowRef.current = null;
+        setFollowsError('フォローの既読状態を更新できませんでした。');
+      });
+  }, [followedTopics, modalInitialDiscussionId, refreshFollows, selectedAssemblyForModal]);
+
   const openSickChildCareDemo = () => {
     const shinjukuAssembly = TOKYO_ASSEMBLIES.find((assembly) => assembly.id === 'shinjuku-ward');
     if (!shinjukuAssembly) return;
     openAssemblyModal(shinjukuAssembly, '病児保育', 'shinjuku-sick-child-care-2026-06-10');
   };
 
-  const handleToggleFollowTopic = (topic: FollowTopicInput): boolean => {
+  const handleToggleFollowTopic = async (topic: FollowTopicInput): Promise<boolean> => {
     try {
-      const nextTopics = toggleFollowedTopic(
-        window.localStorage,
-        followedTopics,
-        topic,
+      const alreadyFollowed = followedTopics.some(
+        (follow) => follow.issue_id === topic.discussion_id,
       );
-      setFollowedTopics(nextTopics);
+      if (alreadyFollowed) {
+        await deleteFirestoreFollow(topic.discussion_id);
+      } else {
+        await putFirestoreFollow(topic.discussion_id);
+      }
+      await refreshFollows();
       return true;
     } catch {
+      setFollowsError('フォロー状態を保存できませんでした。');
       return false;
     }
   };
@@ -394,17 +461,27 @@ export default function Home() {
     const assembly = TOKYO_ASSEMBLIES.find((item) => item.id === followedTopic.assembly_id);
     if (!assembly) return;
     openAssemblyModal(assembly, followedTopic.theme_name, followedTopic.discussion_id);
+    setShowMyFollows(false);
   };
 
-  const followedTopicCards = followedTopics.map((followedTopic) => ({
-    followedTopic,
-    followUpDetails: getFollowUpDetails(followedTopic.discussion_id),
-  }));
+  const deleteFollow = async (followedTopic: FollowedTopic) => {
+    try {
+      await deleteFirestoreFollow(followedTopic.issue_id);
+      await refreshFollows();
+    } catch {
+      setFollowsError('フォローを解除できませんでした。');
+    }
+  };
 
   return (
     <main className="min-h-screen flex flex-col dark:bg-slate-950 dark:text-slate-100 bg-slate-50 text-slate-900 selection:bg-emerald-500 selection:text-slate-950 transition-colors duration-200">
       {/* 共通ヘッダー */}
-      <Header onOpenAnalytics={() => setAnalyticsAssembly(TOKYO_ASSEMBLIES[0])} />
+      <Header
+        onOpenAnalytics={() => setAnalyticsAssembly(TOKYO_ASSEMBLIES[0])}
+        onOpenFollows={() => setShowMyFollows(true)}
+        followCount={followedTopics.length}
+        unreadFollowCount={followedTopics.filter((follow) => follow.has_new_status).length}
+      />
 
       {/* メインヒーローセクション */}
       <section className="px-4 pt-10 pb-8 sm:pt-14 sm:pb-10 max-w-4xl w-full mx-auto flex flex-col items-center text-center">
@@ -525,56 +602,6 @@ export default function Home() {
         </div>
       </section>
 
-      {hasFollowedTopics(followedTopics) && (
-        <section className="px-4 pb-8 max-w-4xl w-full mx-auto space-y-3">
-          <h3 className="text-sm font-bold dark:text-white text-slate-900 flex items-center gap-2">
-            <Bookmark className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-            <span>フォロー中のテーマ</span>
-          </h3>
-          <div className="space-y-3">
-            {followedTopicCards.map(({ followedTopic, followUpDetails }) => (
-              <article
-                key={followedTopic.discussion_id}
-                className="dark:bg-slate-900/90 dark:border-emerald-800/60 bg-white border-emerald-200 border rounded-2xl p-4 sm:p-5 shadow-sm space-y-3"
-              >
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <span className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400">
-                      {followedTopic.municipality_name}
-                    </span>
-                    <h4 className="mt-0.5 text-sm sm:text-base font-bold dark:text-white text-slate-900 leading-snug">
-                      {followedTopic.theme_name}
-                    </h4>
-                  </div>
-                  <span className="px-2 py-0.5 rounded-full text-[10px] bg-emerald-50 dark:bg-emerald-950/70 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 shrink-0">
-                    フォロー中
-                  </span>
-                </div>
-                {followUpDetails ? (
-                  <div className="grid grid-cols-1 sm:grid-cols-[auto_1fr] gap-1 sm:gap-x-5 text-[11px]">
-                    <span className="dark:text-slate-400 text-slate-500">最終確認日：{followUpDetails.last_checked_at}</span>
-                    <span className="dark:text-slate-300 text-slate-700">現在の状態：{followUpDetails.current_status}</span>
-                  </div>
-                ) : (
-                  <p className="text-[11px] dark:text-slate-400 text-slate-600">
-                    このブラウザにフォロー登録済みです。
-                  </p>
-                )}
-                <div className="flex justify-end">
-                  <button
-                    onClick={() => openFollowedTopic(followedTopic)}
-                    className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 transition-colors shadow-sm"
-                  >
-                    <span>{getFollowTopicCtaLabel(followedTopic.discussion_id)}</span>
-                    <ArrowRight className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-              </article>
-            ))}
-          </div>
-        </section>
-      )}
-
       {/* メインコンテンツ: あなたに関係する議論カードフィード */}
       <section className="px-4 pb-12 max-w-4xl w-full mx-auto space-y-4">
         <div className="flex items-center justify-between">
@@ -634,7 +661,7 @@ export default function Home() {
                   <p data-testid="card-topic" className="text-xs sm:text-sm font-semibold dark:text-slate-100 text-slate-900 leading-snug">
                     {featuredRecord?.topic || (hasRecordError ? '議題データを確認できません' : '議題を読み込んでいます')}
                   </p>
-                  <p data-testid="card-discussion-id" className="text-[10px] font-mono dark:text-slate-500 text-slate-500 break-all">
+                  <p data-testid="card-discussion-id" className="sr-only">
                     {featuredRecord?.discussion_id || assembly.featuredDiscussionId}
                   </p>
                 </div>
@@ -761,8 +788,23 @@ export default function Home() {
           initialRecord={modalInitialRecord}
           followedDiscussionIds={followedTopics.map((topic) => topic.discussion_id)}
           onToggleFollowTopic={handleToggleFollowTopic}
-          onClose={() => setSelectedAssemblyForModal(null)}
+          onClose={() => {
+            viewedFollowRef.current = null;
+            setSelectedAssemblyForModal(null);
+          }}
           onOpenDashboard={() => setAnalyticsAssembly(selectedAssemblyForModal)}
+        />
+      )}
+
+      {showMyFollows && (
+        <MyFollowModal
+          follows={followedTopics}
+          loading={followsLoading}
+          error={followsError}
+          onRetry={() => void refreshFollows()}
+          onOpenIssue={openFollowedTopic}
+          onDelete={(follow) => void deleteFollow(follow)}
+          onClose={() => setShowMyFollows(false)}
         />
       )}
 

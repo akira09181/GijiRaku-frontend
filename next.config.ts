@@ -1,6 +1,14 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  async rewrites() {
+    return [
+      {
+        source: '/issues/:issueId',
+        destination: '/',
+      },
+    ];
+  },
   allowedDevOrigins: [
     "172.26.161.50",
     "10.255.255.254",
