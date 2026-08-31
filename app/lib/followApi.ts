@@ -20,6 +20,7 @@ interface FollowApiItem {
   readonly last_viewed_status_at: string;
   readonly notification_enabled: boolean;
   readonly has_new_status: boolean;
+  readonly status_updates: FollowedTopic['status_updates'];
   readonly my_response: FollowedTopic['my_response'];
 }
 

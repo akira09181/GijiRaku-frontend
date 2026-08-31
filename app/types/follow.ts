@@ -20,6 +20,7 @@ export interface FollowedTopic {
   readonly question_id: string;
   readonly notification_enabled: boolean;
   readonly has_new_status: boolean;
+  readonly status_updates: readonly FollowStatusUpdate[];
   readonly my_response: {
     readonly selected_answer: string;
     readonly selected_reasons: readonly string[];
@@ -27,6 +28,13 @@ export interface FollowedTopic {
     readonly created_at: string | null;
     readonly updated_at: string | null;
   } | null;
+}
+
+export interface FollowStatusUpdate {
+  readonly updated_at: string;
+  readonly status: string;
+  readonly summary: string;
+  readonly source_url: string;
 }
 
 export interface FollowTopicInput {

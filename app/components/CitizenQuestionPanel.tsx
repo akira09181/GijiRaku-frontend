@@ -410,6 +410,7 @@ export default function CitizenQuestionPanel({
               {issueStatus && <IssueShareButton issue={config} status={issueStatus} />}
             </div>
             {followDecision === 'later' && <p className="mt-2 text-xs text-slate-500">回答のみ受け付けました。後からフォローできます。</p>}
+            {followDecision === 'followed' && <p role="status" className="mt-2 text-xs font-medium text-emerald-800">フォローしました。その後の変化をマイフォローで確認できます。</p>}
             {followError && <p role="alert" className="mt-2 text-xs font-medium text-red-700">{followError}</p>}
           </div>
         </section>

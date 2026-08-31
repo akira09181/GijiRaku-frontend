@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import { Bell, BookmarkCheck, ExternalLink, Trash2, X } from 'lucide-react';
 import { getCitizenQuestionByIssueId } from '../data/citizenQuestions';
 import { getIssueStatus } from '../data/issueStatuses';
@@ -13,7 +13,7 @@ interface MyFollowModalProps {
   readonly error: string | null;
   readonly onRetry: () => void;
   readonly onOpenIssue: (follow: FollowedTopic) => void;
-  readonly onDelete: (follow: FollowedTopic) => void;
+  readonly onDelete: (follow: FollowedTopic) => Promise<boolean>;
   readonly onClose: () => void;
 }
 
@@ -34,6 +34,24 @@ export default function MyFollowModal({
   onDelete,
   onClose,
 }: MyFollowModalProps) {
+  const [confirmingIssueId, setConfirmingIssueId] = useState<string | null>(null);
+  const [deletingIssueId, setDeletingIssueId] = useState<string | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+
+  const confirmDelete = async (follow: FollowedTopic) => {
+    setDeletingIssueId(follow.issue_id);
+    setDeleteError(null);
+    try {
+      const deleted = await onDelete(follow);
+      if (!deleted) throw new Error('Follow delete failed');
+      setConfirmingIssueId(null);
+    } catch {
+      setDeleteError('フォローを解除できませんでした。');
+    } finally {
+      setDeletingIssueId(null);
+    }
+  };
+
   return (
     <div className="fixed inset-0 z-[70] bg-slate-950/60 p-3 sm:p-6 flex items-center justify-center" role="dialog" aria-modal="true" aria-label="マイフォロー">
       <section className="w-full max-w-2xl max-h-[90vh] overflow-hidden rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 shadow-2xl flex flex-col">
@@ -59,7 +77,11 @@ export default function MyFollowModal({
             </div>
           )}
           {!loading && !error && follows.length === 0 && (
-            <p className="text-sm text-slate-600 dark:text-slate-300 py-8 text-center">フォロー中の議題はありません。</p>
+            <div className="py-8 text-center space-y-3" data-testid="my-follow-empty">
+              <p className="text-sm font-bold text-slate-800 dark:text-slate-200">フォロー中の議題はありません</p>
+              <p className="text-xs text-slate-600 dark:text-slate-300">気になる議題に回答したあと、その後の動きを追跡できます</p>
+              <button type="button" onClick={onClose} className="px-4 py-2 rounded-lg bg-emerald-600 text-white text-xs font-bold">議題一覧へ戻る</button>
+            </div>
           )}
           {!loading && !error && follows.map((follow) => {
             const question = getCitizenQuestionByIssueId(follow.issue_id);
@@ -79,6 +101,8 @@ export default function MyFollowModal({
                   )}
                 </div>
                 <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-xs">
+                  <dt className="text-slate-500">回答状況</dt>
+                  <dd className="font-semibold text-slate-800 dark:text-slate-200">{follow.my_response ? '回答済み' : '未回答'}</dd>
                   <dt className="text-slate-500">あなたの回答</dt>
                   <dd className="font-semibold text-slate-800 dark:text-slate-200">{answer?.label || '未回答'}</dd>
                   <dt className="text-slate-500">回答日</dt>
@@ -94,11 +118,26 @@ export default function MyFollowModal({
                   <a href={follow.source_url} target="_blank" rel="noreferrer" className="px-3 py-2 text-xs font-bold text-emerald-700 dark:text-emerald-400 flex items-center gap-1">
                     公式原文 <ExternalLink className="w-3 h-3" />
                   </a>
-                  <button type="button" onClick={() => onDelete(follow)} className="px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-700 text-xs font-bold flex items-center gap-1">
+                  <button type="button" onClick={() => { setConfirmingIssueId(follow.issue_id); setDeleteError(null); }} className="px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-700 text-xs font-bold flex items-center gap-1">
                     <Trash2 className="w-3 h-3" />解除
                   </button>
                   <button type="button" onClick={() => onOpenIssue(follow)} className="px-3 py-2 rounded-lg bg-emerald-600 text-white text-xs font-bold">詳しく見る</button>
                 </div>
+                {confirmingIssueId === follow.issue_id && (
+                  <div data-testid="unfollow-confirmation" className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-xs text-rose-900">
+                    <p className="font-bold">この議題のフォローを解除しますか？</p>
+                    <p className="mt-1">回答データと全体集計は削除されません。</p>
+                    <div className="mt-2 flex gap-2">
+                      <button type="button" disabled={deletingIssueId === follow.issue_id} onClick={() => void confirmDelete(follow)} className="rounded-lg bg-rose-600 px-3 py-2 font-bold text-white disabled:opacity-60">
+                        {deletingIssueId === follow.issue_id ? '解除中…' : '解除する'}
+                      </button>
+                      <button type="button" disabled={deletingIssueId === follow.issue_id} onClick={() => { setConfirmingIssueId(null); setDeleteError(null); }} className="rounded-lg border border-slate-300 bg-white px-3 py-2 font-bold text-slate-700">
+                        キャンセル
+                      </button>
+                    </div>
+                    {deleteError && <p role="alert" className="mt-2 font-medium text-rose-700">{deleteError}</p>}
+                  </div>
+                )}
               </article>
             );
           })}

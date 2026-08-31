@@ -30,6 +30,10 @@ interface MockStore {
   readonly responses: Map<string, StoredResponse>;
   follows?: Map<string, { issue_id: string; created_at: string; last_viewed_status_at: string }>;
   statusUpdatedAt?: string;
+  statusSummary?: string;
+  failFollowReads?: boolean;
+  failFollowWrites?: boolean;
+  failFollowDeletes?: boolean;
   failReads: boolean;
   failWrites: boolean;
   legacyReactionRequests: number;
@@ -37,13 +41,14 @@ interface MockStore {
 
 function publicFollow(store: MockStore, follow: { issue_id: string; created_at: string; last_viewed_status_at: string }) {
   const statusUpdatedAt = store.statusUpdatedAt || '2026-06-10T00:00:00+09:00';
+  const statusSummary = store.statusSummary || '受入体制とICTツールを検討・研究する方針が答弁されました。';
   return {
     ...follow,
     assembly_id: 'shinjuku-ward',
     municipality: '新宿区',
     title: '病児保育の利用拒否と予約・空き状況の改善',
     current_status: '議会で質問・答弁済み',
-    status_summary: '受入体制とICTツールを検討・研究する方針が答弁されました。',
+    status_summary: statusSummary,
     status_updated_at: statusUpdatedAt,
     status_checked_at: '2026-08-24T15:03:35+09:00',
     problem_summary: '病児保育の空き状況が分かりにくいことが課題です。',
@@ -53,6 +58,12 @@ function publicFollow(store: MockStore, follow: { issue_id: string; created_at: 
     question_id: QUESTION_ID,
     notification_enabled: false,
     has_new_status: Date.parse(statusUpdatedAt) > Date.parse(follow.last_viewed_status_at),
+    status_updates: [{
+      updated_at: statusUpdatedAt,
+      status: '公式ページを更新',
+      summary: statusSummary,
+      source_url: 'https://example.test/shinjuku-status-update',
+    }],
   };
 }
 
@@ -152,6 +163,10 @@ async function installApiMock(context: BrowserContext, store: MockStore) {
     const request = route.request();
     const follows = store.follows ||= new Map();
     if (request.method() === 'PUT' || request.method() === 'PATCH') {
+      if (store.failFollowWrites) {
+        await route.fulfill({ status: 500, contentType: 'application/json', body: '{"detail":"Firestore unavailable"}' });
+        return;
+      }
       const body = request.postDataJSON() as { anonymous_user_id: string; issue_id: string };
       const key = `${body.anonymous_user_id}:${body.issue_id}`;
       const previous = follows.get(key);
@@ -161,7 +176,7 @@ async function installApiMock(context: BrowserContext, store: MockStore) {
         created_at: previous?.created_at || now,
         last_viewed_status_at: request.method() === 'PATCH'
           ? now
-          : previous?.last_viewed_status_at || now,
+          : previous?.last_viewed_status_at || store.statusUpdatedAt || '2026-06-10T00:00:00+09:00',
       };
       follows.set(key, saved);
       await route.fulfill({
@@ -175,8 +190,16 @@ async function installApiMock(context: BrowserContext, store: MockStore) {
     const anonymousUserId = url.searchParams.get('anonymous_user_id') || '';
     const issueId = url.searchParams.get('issue_id') || '';
     if (request.method() === 'DELETE') {
+      if (store.failFollowDeletes) {
+        await route.fulfill({ status: 500, contentType: 'application/json', body: '{"detail":"Firestore unavailable"}' });
+        return;
+      }
       follows.delete(`${anonymousUserId}:${issueId}`);
       await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ status: 'success', storage_backend: 'firestore', deleted: true }) });
+      return;
+    }
+    if (store.failFollowReads) {
+      await route.fulfill({ status: 500, contentType: 'application/json', body: '{"detail":"Firestore unavailable"}' });
       return;
     }
     const items = Array.from(follows.entries())
@@ -445,6 +468,7 @@ test('回答からフォロー・更新確認・固有URL共有までA/Bブラ�
     await expect(pageA).toHaveURL(new RegExp(`/issues/${ISSUE_ID}$`));
     const panelA = pageA.getByTestId('citizen-question-panel');
     await expect(panelA).toBeVisible();
+    await expect(pageA.getByRole('button', { name: 'フォロー中の議題は0件です' })).toBeVisible();
     await expect(pageA.getByText('新宿区議会', { exact: true })).toBeVisible();
     await panelA.getByTestId('question-answer-needed').click();
     await panelA.getByTestId('question-reason-availability_unknown').click();
@@ -466,10 +490,24 @@ test('回答からフォロー・更新確認・固有URL共有までA/Bブラ�
 
     await receipt.getByTestId('receipt-follow-issue').click();
     await expect(receipt.getByTestId('receipt-follow-issue')).toContainText('フォロー中');
+    await expect(receipt).toContainText('フォローしました。その後の変化をマイフォローで確認できます。');
+    await expect(pageA.getByRole('button', { name: 'フォロー中の議題は1件です' })).toBeVisible();
+    expect(store.follows?.size).toBe(1);
+
+    await pageA.evaluate(async (issueId) => {
+      const anonymousUserId = window.localStorage.getItem('gijiraku_anonymous_user_id');
+      const request = () => fetch('/api/follows', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ issue_id: issueId, anonymous_user_id: anonymousUserId }),
+      });
+      await request();
+      await request();
+    }, ISSUE_ID);
     expect(store.follows?.size).toBe(1);
 
     await pageA.getByRole('button', { name: '閉じる' }).click();
-    await pageA.getByRole('button', { name: /フォロー中 1件/ }).click();
+    await pageA.getByRole('button', { name: 'フォロー中の議題は1件です' }).click();
     const myFollows = pageA.getByRole('dialog', { name: 'マイフォロー' });
     await expect(myFollows).toContainText('病児保育の利用拒否と予約・空き状況の改善');
     await expect(myFollows).toContainText('必要だと思う');
@@ -486,17 +524,116 @@ test('回答からフォロー・更新確認・固有URL共有までA/Bブラ�
     await expect(panelB.getByTestId('aggregate-total')).toHaveText('回答総数：1件');
     await expect(panelB.getByTestId('question-answer-needed')).not.toBeChecked();
     await expect(pageB.getByText('E2Eで編集した公開しない個別意見')).toHaveCount(0);
+    await expect(pageB.getByRole('button', { name: 'フォロー中の議題は0件です' })).toBeVisible();
+    await pageB.getByRole('button', { name: 'このテーマをフォローする' }).click();
+    await expect(pageB.getByRole('button', { name: 'フォロー中の議題は1件です' })).toBeVisible();
+    expect(store.follows?.size).toBe(2);
+    await expect(pageA.getByRole('button', { name: 'フォロー中の議題は1件です' })).toBeVisible();
 
     store.statusUpdatedAt = new Date().toISOString();
+    store.statusSummary = '病児保育の空き状況ページが公式に更新されました。';
     await pageA.goto('/');
-    await expect(pageA.getByTestId('header-follow-badge')).toContainText('1');
-    await pageA.getByRole('button', { name: /フォロー中 1件、新しい動き 1件/ }).click();
+    await expect(pageA.getByTestId('follow-update-notice')).toBeVisible();
+    await expect(pageA.getByRole('button', { name: 'フォロー中の議題は1件、新しい動きは1件です' })).toBeVisible();
+    await pageA.getByTestId('follow-update-notice').click();
     const updatedFollows = pageA.getByRole('dialog', { name: 'マイフォロー' });
     await expect(updatedFollows.getByTestId('follow-update-badge')).toBeVisible();
     await updatedFollows.getByRole('button', { name: '詳しく見る' }).click();
+    const statusDetail = pageA.getByTestId('follow-status-detail');
+    await expect(statusDetail).toContainText('前回確認後の更新');
+    await expect(statusDetail).toContainText('病児保育の空き状況ページが公式に更新されました。');
     await expect(pageA.getByTestId('header-follow-badge')).toHaveCount(0);
+    await expect(pageA.getByRole('button', { name: 'フォロー中の議題は1件です' })).toBeVisible();
+
+    await pageA.getByRole('button', { name: '閉じる' }).click();
+    await pageA.getByRole('button', { name: 'フォロー中の議題は1件です' }).click();
+    const followAfterRead = pageA.getByRole('dialog', { name: 'マイフォロー' });
+    await followAfterRead.getByRole('button', { name: '解除' }).click();
+    const confirmation = followAfterRead.getByTestId('unfollow-confirmation');
+    await expect(confirmation).toContainText('この議題のフォローを解除しますか？');
+    await confirmation.getByRole('button', { name: 'キャンセル' }).click();
+    await expect(followAfterRead.getByText('病児保育の利用拒否と予約・空き状況の改善')).toBeVisible();
+
+    await followAfterRead.getByRole('button', { name: '解除' }).click();
+    store.failFollowDeletes = true;
+    await followAfterRead.getByTestId('unfollow-confirmation').getByRole('button', { name: '解除する' }).click();
+    await expect(followAfterRead.getByText('フォローを解除できませんでした。')).toBeVisible();
+    expect(store.follows?.size).toBe(2);
+    store.failFollowDeletes = false;
+    await followAfterRead.getByTestId('unfollow-confirmation').getByRole('button', { name: '解除する' }).click();
+    await expect(followAfterRead.getByTestId('my-follow-empty')).toBeVisible();
+    await expect(pageA.getByRole('button', { name: 'フォロー中の議題は0件です' })).toBeVisible();
     expect(store.follows?.size).toBe(1);
+    expect(store.responses.size).toBe(1);
+    expect(aggregate(store).total_responses).toBe(1);
+    await expect(pageB.getByRole('button', { name: 'フォロー中の議題は1件です' })).toBeVisible();
   } finally {
     await Promise.all([contextA.close(), contextB.close()]);
+  }
+});
+
+test('フォロー一覧取得失敗を0件と表示せず、再試行で回復する', async ({ browser }) => {
+  const store: MockStore = {
+    responses: new Map(),
+    follows: new Map(),
+    failReads: false,
+    failWrites: false,
+    failFollowReads: true,
+    legacyReactionRequests: 0,
+  };
+  const context = await browser.newContext();
+  try {
+    await installApiMock(context, store);
+    const page = await context.newPage();
+    await page.goto('/');
+    await page.getByRole('button', { name: 'フォロー中の議題を取得できませんでした' }).click();
+    const myFollows = page.getByRole('dialog', { name: 'マイフォロー' });
+    await expect(myFollows).toContainText('フォロー中の議題を取得できませんでした');
+    await expect(myFollows.getByTestId('my-follow-empty')).toHaveCount(0);
+    store.failFollowReads = false;
+    await myFollows.getByRole('button', { name: '再試行' }).click();
+    await expect(myFollows.getByTestId('my-follow-empty')).toBeVisible();
+    await expect(page.getByRole('button', { name: 'フォロー中の議題は0件です' })).toBeVisible();
+  } finally {
+    await context.close();
+  }
+});
+
+test('フォロー登録失敗を回答保存成功と分離し、入力・集計を維持する', async ({ browser }) => {
+  const store: MockStore = {
+    responses: new Map(),
+    follows: new Map(),
+    failReads: false,
+    failWrites: false,
+    legacyReactionRequests: 0,
+  };
+  const context = await browser.newContext();
+  try {
+    await installApiMock(context, store);
+    const page = await context.newPage();
+    const panel = await openShinjukuQuestion(page);
+    await panel.getByTestId('question-answer-needed').click();
+    await panel.getByTestId('question-reason-availability_unknown').click();
+    await panel.getByTestId('skip-opinion-draft').click();
+    await panel.getByTestId('submit-citizen-response').click();
+    const receipt = panel.getByTestId('participation-receipt');
+    await expect(receipt).toBeVisible();
+    expect(store.responses.size).toBe(1);
+    expect(store.follows?.size).toBe(0);
+
+    store.failFollowWrites = true;
+    await receipt.getByTestId('receipt-follow-issue').click();
+    await expect(receipt).toContainText('回答は保存されましたが、フォローを登録できませんでした。');
+    await expect(receipt).toContainText('回答を受け付けました');
+    await expect(panel.getByTestId('aggregate-total')).toHaveText('回答総数：1件');
+    expect(store.responses.size).toBe(1);
+    expect(store.follows?.size).toBe(0);
+
+    store.failFollowWrites = false;
+    await receipt.getByTestId('receipt-follow-issue').click();
+    await expect(receipt).toContainText('フォローしました。その後の変化をマイフォローで確認できます。');
+    expect(store.follows?.size).toBe(1);
+  } finally {
+    await context.close();
   }
 });

@@ -24,7 +24,7 @@ import {
 } from 'lucide-react';
 import { Assembly } from '../types/assembly';
 import type { AssemblyRecord, AssemblyRecordsResponse } from '../types/assemblyRecord';
-import type { FollowTopicInput } from '../types/follow';
+import type { FollowedTopic, FollowTopicInput } from '../types/follow';
 import { getFollowUpDetails } from '../data/followUpDetails';
 import { createFollowTopic } from '../lib/followedTopics';
 import CitizenQuestionPanel from './CitizenQuestionPanel';
@@ -111,6 +111,7 @@ interface LineChatModalProps {
   readonly initialDiscussionId?: string;
   readonly initialRecord?: AssemblyRecord;
   readonly followedDiscussionIds?: readonly string[];
+  readonly followStatusSnapshot?: FollowedTopic;
   readonly onToggleFollowTopic?: (topic: FollowTopicInput) => Promise<boolean>;
   readonly onClose: () => void;
   readonly onOpenDashboard?: () => void;
@@ -613,6 +614,7 @@ export default function LineChatModal({
   initialDiscussionId,
   initialRecord,
   followedDiscussionIds = [],
+  followStatusSnapshot,
   onToggleFollowTopic,
   onClose,
   onOpenDashboard,
@@ -657,7 +659,7 @@ export default function LineChatModal({
       setFollowFeedback(saved
         ? wasFollowed
           ? 'フォローを解除しました。'
-          : 'フォローしました。マイフォローからいつでも確認できます。'
+          : 'フォローしました。その後の変化をマイフォローで確認できます。'
         : null);
       return saved;
     } finally {
@@ -1961,7 +1963,43 @@ export default function LineChatModal({
                       </div>
                     )}
 
-                    {followUpDetails && msg.id === (initialTheme ? 'msg-theme-reply' : 'msg-2') && (
+                    {followStatusSnapshot && msg.id === (initialTheme ? 'msg-theme-reply' : 'msg-2') && (
+                      <div data-testid="follow-status-detail" className="pt-3 border-t dark:border-slate-800/80 border-slate-200 space-y-2.5">
+                        <div className="flex items-center justify-between gap-2 flex-wrap">
+                          <div>
+                            <h4 className="text-xs font-bold dark:text-white text-slate-900">その後どうなった？</h4>
+                            <p className="text-[10px] dark:text-slate-400 text-slate-500 mt-0.5">公開情報で確認できた変更だけを表示しています。</p>
+                          </div>
+                          <span className="text-[10px] dark:text-slate-400 text-slate-500">最終確認日 {followStatusSnapshot.status_checked_at.slice(0, 10).replaceAll('-', '/')}</span>
+                        </div>
+                        {followStatusSnapshot.has_new_status ? (
+                          <div className="space-y-2">
+                            <p className="text-[11px] font-bold text-amber-700 dark:text-amber-300">前回確認後の更新</p>
+                            <ol className="space-y-2">
+                              {followStatusSnapshot.status_updates
+                                .filter((update) => Date.parse(update.updated_at) > Date.parse(followStatusSnapshot.last_viewed_status_at))
+                                .map((update) => (
+                                  <li key={`${update.updated_at}-${update.status}`} className="rounded-lg border border-amber-200 bg-amber-50/70 p-2.5 dark:border-amber-900 dark:bg-amber-950/30">
+                                    <div className="flex items-baseline gap-2 flex-wrap">
+                                      <span className="text-[10px] font-mono text-amber-700 dark:text-amber-400">{update.updated_at.slice(0, 10).replaceAll('-', '/')}</span>
+                                      <span className="text-[11px] font-bold dark:text-slate-200 text-slate-800">{update.status}</span>
+                                    </div>
+                                    <p className="mt-1 text-[10.5px] leading-relaxed dark:text-slate-300 text-slate-700">{update.summary}</p>
+                                    <a href={update.source_url} target="_blank" rel="noreferrer" className="mt-1 inline-flex items-center gap-1 text-[10px] font-bold text-emerald-700 dark:text-emerald-400">
+                                      公式原文で確認 <ExternalLink className="w-3 h-3" />
+                                    </a>
+                                  </li>
+                                ))}
+                            </ol>
+                          </div>
+                        ) : (
+                          <p className="text-[11px] dark:text-slate-300 text-slate-700">新しい対応状況はまだ確認できていません</p>
+                        )}
+                        <p className="text-[10.5px] font-semibold dark:text-slate-300 text-slate-700">現在の状態：{followStatusSnapshot.current_status}</p>
+                      </div>
+                    )}
+
+                    {!followStatusSnapshot && followUpDetails && msg.id === (initialTheme ? 'msg-theme-reply' : 'msg-2') && (
                       <div className="pt-3 border-t dark:border-slate-800/80 border-slate-200 space-y-2.5">
                         <div className="flex items-center justify-between gap-2 flex-wrap">
                           <div>

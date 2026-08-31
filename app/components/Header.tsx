@@ -7,8 +7,9 @@ import { Assembly } from '../types/assembly';
 interface HeaderProps {
   readonly onOpenAnalytics: () => void;
   readonly onOpenFollows: () => void;
-  readonly followCount: number;
+  readonly followCount: number | null;
   readonly unreadFollowCount: number;
+  readonly followUnavailable?: boolean;
   readonly defaultAssembly?: Assembly;
 }
 
@@ -20,6 +21,7 @@ export default function Header({
   onOpenFollows,
   followCount,
   unreadFollowCount,
+  followUnavailable = false,
 }: HeaderProps) {
   const [theme, setTheme] = useState<'dark' | 'light'>('light');
   const [fontSize, setFontSize] = useState<'normal' | 'large' | 'xlarge'>('normal');
@@ -67,6 +69,14 @@ export default function Header({
     window.dispatchEvent(new CustomEvent('font_size_changed', { detail: { fontSize: size } }));
   };
 
+  const followAriaLabel = followUnavailable
+    ? 'フォロー中の議題を取得できませんでした'
+    : followCount === null
+      ? 'フォロー中の議題を読み込んでいます'
+    : unreadFollowCount > 0
+      ? `フォロー中の議題は${followCount}件、新しい動きは${unreadFollowCount}件です`
+      : `フォロー中の議題は${followCount}件です`;
+
   return (
     <header className="sticky top-0 z-40 dark:bg-slate-900/90 dark:border-slate-800 bg-white/90 border-slate-200 backdrop-blur-md border-b px-4 sm:px-6 py-3 transition-colors shadow-xs">
       <div className="max-w-5xl mx-auto flex items-center justify-between gap-3">
@@ -89,15 +99,24 @@ export default function Header({
             type="button"
             onClick={onOpenFollows}
             className="relative px-2.5 py-1.5 rounded-lg bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-emerald-800 dark:bg-emerald-950/40 dark:border-emerald-800 dark:text-emerald-300 text-xs font-bold flex items-center gap-1.5"
-            aria-label={`フォロー中 ${followCount}件${unreadFollowCount ? `、新しい動き ${unreadFollowCount}件` : ''}`}
+            aria-label={followAriaLabel}
           >
             <BookmarkCheck className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">フォロー中 {followCount}件</span>
-            <span className="sm:hidden">{followCount}件</span>
+            {followCount === null ? (
+              <span>フォロー中 {followUnavailable ? '取得失敗' : '取得中'}</span>
+            ) : (
+              <>
+                <span className="hidden sm:inline">フォロー中 {followCount}件</span>
+                <span className="sm:hidden">{followCount}件</span>
+              </>
+            )}
             {unreadFollowCount > 0 && (
-              <span data-testid="header-follow-badge" className="absolute -top-2 -right-2 min-w-5 h-5 px-1 rounded-full bg-amber-500 text-white text-[10px] flex items-center justify-center" title={`新しい動き ${unreadFollowCount}件`}>
-                {unreadFollowCount}<span className="sr-only">件の新しい動き</span>
-              </span>
+              <>
+                <span aria-hidden="true" className="hidden lg:inline rounded-full bg-amber-100 text-amber-800 px-2 py-0.5">新しい動き {unreadFollowCount}件</span>
+                <span data-testid="header-follow-badge" aria-hidden="true" className="lg:hidden absolute -top-2 -right-2 min-w-5 h-5 px-1 rounded-full bg-amber-500 text-white text-[10px] flex items-center justify-center" title={`新しい動き ${unreadFollowCount}件`}>
+                  {unreadFollowCount}
+                </span>
+              </>
             )}
           </button>
           {/* 文字サイズ変更ピル */}

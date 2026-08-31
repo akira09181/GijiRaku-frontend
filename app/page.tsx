@@ -261,6 +261,7 @@ export default function Home() {
   const [showMyFollows, setShowMyFollows] = useState(false);
   const [followsLoading, setFollowsLoading] = useState(true);
   const [followsError, setFollowsError] = useState<string | null>(null);
+  const [openedFollowSnapshot, setOpenedFollowSnapshot] = useState<FollowedTopic | null>(null);
   const directIssueOpenedRef = useRef(false);
   const viewedFollowRef = useRef<string | null>(null);
   const [officialStats, setOfficialStats] = useState({
@@ -337,7 +338,7 @@ export default function Home() {
     try {
       setFollowedTopics(await listFirestoreFollows());
     } catch {
-      setFollowsError('マイフォローを取得できませんでした。');
+      setFollowsError('フォロー中の議題を取得できませんでした');
     } finally {
       setFollowsLoading(false);
     }
@@ -356,7 +357,7 @@ export default function Home() {
       } catch {
         if (!cancelled) {
           setFollowsLoading(false);
-          setFollowsError('マイフォローを取得できませんでした。');
+          setFollowsError('フォロー中の議題を取得できませんでした');
         }
       }
     };
@@ -395,6 +396,10 @@ export default function Home() {
     setModalInitialDiscussionId(
       initialDiscussionId || selectedRecord?.discussion_id || assembly.featuredDiscussionId,
     );
+    const issueId = initialDiscussionId || selectedRecord?.discussion_id || assembly.featuredDiscussionId;
+    setOpenedFollowSnapshot(
+      followedTopics.find((follow) => follow.issue_id === issueId) || null,
+    );
     setModalInitialRecord(selectedRecord);
     setSelectedAssemblyForModal(assembly);
   };
@@ -425,13 +430,16 @@ export default function Home() {
     );
     if (!followed || viewedFollowRef.current === modalInitialDiscussionId) return;
     viewedFollowRef.current = modalInitialDiscussionId;
+    if (!openedFollowSnapshot) {
+      queueMicrotask(() => setOpenedFollowSnapshot(followed));
+    }
     void markFirestoreFollowViewed(modalInitialDiscussionId)
       .then(refreshFollows)
       .catch(() => {
         viewedFollowRef.current = null;
         setFollowsError('フォローの既読状態を更新できませんでした。');
       });
-  }, [followedTopics, modalInitialDiscussionId, refreshFollows, selectedAssemblyForModal]);
+  }, [followedTopics, modalInitialDiscussionId, openedFollowSnapshot, refreshFollows, selectedAssemblyForModal]);
 
   const openSickChildCareDemo = () => {
     const shinjukuAssembly = TOKYO_ASSEMBLIES.find((assembly) => assembly.id === 'shinjuku-ward');
@@ -446,13 +454,15 @@ export default function Home() {
       );
       if (alreadyFollowed) {
         await deleteFirestoreFollow(topic.discussion_id);
+        setFollowedTopics((current) => current.filter(
+          (follow) => follow.issue_id !== topic.discussion_id,
+        ));
       } else {
         await putFirestoreFollow(topic.discussion_id);
       }
       await refreshFollows();
       return true;
     } catch {
-      setFollowsError('フォロー状態を保存できませんでした。');
       return false;
     }
   };
@@ -460,18 +470,25 @@ export default function Home() {
   const openFollowedTopic = (followedTopic: FollowedTopic) => {
     const assembly = TOKYO_ASSEMBLIES.find((item) => item.id === followedTopic.assembly_id);
     if (!assembly) return;
+    setOpenedFollowSnapshot(followedTopic);
     openAssemblyModal(assembly, followedTopic.theme_name, followedTopic.discussion_id);
     setShowMyFollows(false);
   };
 
-  const deleteFollow = async (followedTopic: FollowedTopic) => {
+  const deleteFollow = async (followedTopic: FollowedTopic): Promise<boolean> => {
     try {
       await deleteFirestoreFollow(followedTopic.issue_id);
+      setFollowedTopics((current) => current.filter(
+        (follow) => follow.issue_id !== followedTopic.issue_id,
+      ));
       await refreshFollows();
+      return true;
     } catch {
-      setFollowsError('フォローを解除できませんでした。');
+      return false;
     }
   };
+
+  const unreadFollowCount = followedTopics.filter((follow) => follow.has_new_status).length;
 
   return (
     <main className="min-h-screen flex flex-col dark:bg-slate-950 dark:text-slate-100 bg-slate-50 text-slate-900 selection:bg-emerald-500 selection:text-slate-950 transition-colors duration-200">
@@ -479,9 +496,21 @@ export default function Home() {
       <Header
         onOpenAnalytics={() => setAnalyticsAssembly(TOKYO_ASSEMBLIES[0])}
         onOpenFollows={() => setShowMyFollows(true)}
-        followCount={followedTopics.length}
-        unreadFollowCount={followedTopics.filter((follow) => follow.has_new_status).length}
+        followCount={followsLoading || followsError ? null : followedTopics.length}
+        unreadFollowCount={followsError ? 0 : unreadFollowCount}
+        followUnavailable={Boolean(followsError)}
       />
+
+      {!followsError && unreadFollowCount > 0 && (
+        <button
+          type="button"
+          onClick={() => setShowMyFollows(true)}
+          data-testid="follow-update-notice"
+          className="mx-auto mt-3 w-[calc(100%-2rem)] max-w-4xl rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-left text-sm font-bold text-amber-900 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-200"
+        >
+          フォロー中の議題に新しい動きがあります
+        </button>
+      )}
 
       {/* メインヒーローセクション */}
       <section className="px-4 pt-10 pb-8 sm:pt-14 sm:pb-10 max-w-4xl w-full mx-auto flex flex-col items-center text-center">
@@ -786,10 +815,12 @@ export default function Home() {
           initialTheme={modalInitialTheme}
           initialDiscussionId={modalInitialDiscussionId}
           initialRecord={modalInitialRecord}
+          followStatusSnapshot={openedFollowSnapshot || undefined}
           followedDiscussionIds={followedTopics.map((topic) => topic.discussion_id)}
           onToggleFollowTopic={handleToggleFollowTopic}
           onClose={() => {
             viewedFollowRef.current = null;
+            setOpenedFollowSnapshot(null);
             setSelectedAssemblyForModal(null);
           }}
           onOpenDashboard={() => setAnalyticsAssembly(selectedAssemblyForModal)}
@@ -803,7 +834,7 @@ export default function Home() {
           error={followsError}
           onRetry={() => void refreshFollows()}
           onOpenIssue={openFollowedTopic}
-          onDelete={(follow) => void deleteFollow(follow)}
+          onDelete={deleteFollow}
           onClose={() => setShowMyFollows(false)}
         />
       )}
