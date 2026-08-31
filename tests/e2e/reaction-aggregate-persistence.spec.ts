@@ -94,15 +94,59 @@ async function installApiMock(context: BrowserContext, store: MockReactionStore)
   await context.route('**/api/reactions**', (route) => fulfillReactionApi(route, store));
   await context.route('**/api/assembly-records**', async (route) => {
     const url = new URL(route.request().url());
-    const body = url.pathname.endsWith('/stats')
-      ? {
+    if (url.pathname.endsWith('/stats')) {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
           open_data_source_count: 7,
           assembly_count: 7,
           statement_count: 367,
           updated_at: '2026-08-31',
-        }
-      : { records: [] };
-    await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) });
+        }),
+      });
+      return;
+    }
+    const assemblyId = url.searchParams.get('assembly_id') || '';
+    const discussionId = url.searchParams.get('discussion_id') || '';
+    const assemblyNames: Record<string, string> = {
+      'tokyo-metropolitan': '東京都議会',
+      'shinjuku-ward': '新宿区議会',
+      'machida-city': '町田市議会',
+      'shinagawa-ward': '品川区議会',
+      'shibuya-ward': '渋谷区議会',
+      'arakawa-ward': '荒川区議会',
+      'hachioji-city': '八王子市議会',
+    };
+    const record = {
+      discussion_id: discussionId,
+      topic: `${assemblyNames[assemblyId]}の注目議題`,
+      meeting_date: '2026-06-16',
+      meeting_name: '令和8年定例会',
+      source_url: 'https://example.test/minutes',
+      what_changes: '市民向け施策について議論しました。',
+      target_audience: '地域住民',
+      current_stage: '審議済み',
+      budget_info: '会議録を確認',
+      original_quote: '施策について質問しました。',
+      statements: [{
+        statement_id: `${assemblyId}-statement`,
+        speaker_name: 'テスト議員',
+        speaker_role: '議員',
+        stance_label: '課題提起',
+        summary_quote: '施策について質問しました。',
+      }],
+    };
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        status: 'success',
+        assembly_id: assemblyId,
+        assembly_name: assemblyNames[assemblyId],
+        records: [record],
+      }),
+    });
   });
 }
 

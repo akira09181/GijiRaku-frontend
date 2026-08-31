@@ -19,6 +19,7 @@ export interface Assembly {
   readonly mayorName: string;
   readonly openDataStatus: 'ready' | 'beta' | 'planned';
   readonly totalMinutesCount: number;
+  readonly featuredDiscussionId: string;
   readonly hotTopic: string;
   readonly mainIssues: readonly AssemblyIssueStat[];
   readonly sourceUrl?: string;

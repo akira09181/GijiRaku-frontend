@@ -23,6 +23,7 @@ import {
   BookmarkCheck,
 } from 'lucide-react';
 import { Assembly } from '../types/assembly';
+import type { AssemblyRecord, AssemblyRecordsResponse } from '../types/assemblyRecord';
 import type { FollowTopicInput } from '../types/follow';
 import { getFollowUpDetails } from '../data/followUpDetails';
 import { createFollowTopic } from '../lib/followedTopics';
@@ -105,6 +106,7 @@ interface LineChatModalProps {
   readonly assembly: Assembly;
   readonly initialTheme?: string;
   readonly initialDiscussionId?: string;
+  readonly initialRecord?: AssemblyRecord;
   readonly followedDiscussionIds?: readonly string[];
   readonly onToggleFollowTopic?: (topic: FollowTopicInput) => boolean;
   readonly onClose: () => void;
@@ -147,48 +149,6 @@ interface ReactionSnapshotResponse {
   readonly aggregates?: PersistedReactionAggregate[];
   readonly user_reactions?: PersistedUserReactionState[];
   readonly data?: LegacyPersistedReactionState[];
-}
-
-interface AssemblyRecordStatement {
-  readonly statement_id: string;
-  readonly speaker_name: string;
-  readonly speaker_role: string;
-  readonly party_name?: string;
-  readonly committee_name?: string;
-  readonly stance_label: string;
-  readonly vote_record?: string;
-  readonly summary_quote: string;
-  readonly full_summary?: string;
-  readonly source_excerpt?: string;
-  readonly question_type?: string;
-  readonly avatar_color?: string;
-}
-
-interface AssemblyRecord {
-  readonly discussion_id: string;
-  readonly topic: string;
-  readonly meeting_date: string;
-  readonly meeting_name: string;
-  readonly source_url: string;
-  readonly what_changes: string;
-  readonly target_audience: string;
-  readonly current_stage: string;
-  readonly budget_info: string;
-  readonly original_quote: string;
-  readonly statements: readonly AssemblyRecordStatement[];
-}
-
-interface AssemblyRecordsResponse {
-  readonly status: 'success';
-  readonly open_data_source?: {
-    readonly title: string;
-    readonly catalog_url: string;
-    readonly resource_url: string;
-    readonly format: string;
-    readonly license_id: string;
-    readonly license_url: string;
-  };
-  readonly records: readonly AssemblyRecord[];
 }
 
 const ANONYMOUS_USER_STORAGE_KEY = 'gijiraku_anonymous_user_id';
@@ -478,6 +438,52 @@ function mapAssemblyRecordsToSpeakers(records: readonly AssemblyRecord[]): Speak
   })));
 }
 
+function applyAssemblyRecordToMessages(
+  messages: readonly Message[],
+  record: AssemblyRecord,
+): Message[] {
+  const speakers = mapAssemblyRecordsToSpeakers([record]);
+  const selectedDate = record.meeting_date.replaceAll('-', '/');
+  const timeline: TimelineItem[] = speakers.map((speaker) => ({
+    date: selectedDate,
+    event: `${speaker.speakerName}が${speaker.questionType || '本会議'}で発言`,
+    status: 'completed',
+  }));
+
+  return messages.map((message) => {
+    if (message.id === 'msg-1') {
+      return {
+        ...message,
+        date: `${selectedDate} ${record.meeting_name}`,
+        sourceUrl: record.source_url,
+        sourceVerified: true,
+      };
+    }
+    if (message.id !== 'msg-2' && message.id !== 'msg-theme-reply') return message;
+    return {
+      ...message,
+      plainText: record.what_changes,
+      structuredSummary: {
+        whatChanges: record.what_changes,
+        targetAudience: record.target_audience,
+        currentStage: record.current_stage,
+        budgetInfo: record.budget_info,
+        nextStep: '今後の行政対応・議会審議を継続確認',
+      },
+      timeline,
+      policyArguments: {
+        supporting: [speakers[0]?.summaryQuote || record.what_changes],
+        concerns: [],
+      },
+      speakerUtterances: speakers,
+      date: `${selectedDate} ${record.meeting_name}`,
+      originalQuote: record.original_quote,
+      sourceUrl: record.source_url,
+      sourceVerified: true,
+    };
+  });
+}
+
 /**
  * LINE風 議事録対話モーダル
  */
@@ -611,6 +617,7 @@ export default function LineChatModal({
   assembly,
   initialTheme,
   initialDiscussionId,
+  initialRecord,
   followedDiscussionIds = [],
   onToggleFollowTopic,
   onClose,
@@ -630,11 +637,14 @@ export default function LineChatModal({
   const [followSaveError, setFollowSaveError] = useState<string | null>(null);
   const [followFeedback, setFollowFeedback] = useState<string | null>(null);
   const [activeFollowTopic, setActiveFollowTopic] = useState<FollowTopicInput | null>(null);
+  const [activeRecord, setActiveRecord] = useState<AssemblyRecord | undefined>(initialRecord);
+  const [recordLoadError, setRecordLoadError] = useState<string | null>(null);
   const [openDataSource, setOpenDataSource] = useState<AssemblyRecordsResponse['open_data_source']>();
   const chatBottomRef = useRef<HTMLDivElement>(null);
   const anonymousUserIdRef = useRef('');
   const reactionRequestsInFlight = useRef<Set<string>>(new Set());
   const reactionStateVersionRef = useRef(0);
+  const discussionKey = activeRecord?.discussion_id || initialDiscussionId || assembly.featuredDiscussionId;
 
   const toggleSpeakerExpand = (key: string) => {
     setExpandedSpeakerKeys((prev) => ({ ...prev, [key]: !prev[key] }));
@@ -682,7 +692,7 @@ export default function LineChatModal({
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        discussion_id: assembly.id,
+        discussion_id: discussionKey,
         statement_id: statementId,
         reaction_type: reactionType,
         anonymous_user_id: getAnonymousUserId(),
@@ -698,7 +708,7 @@ export default function LineChatModal({
   ): Promise<ReactionSnapshotResponse> => {
     const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000';
     const query = new URLSearchParams({
-      discussion_id: assembly.id,
+      discussion_id: discussionKey,
       include_user_state: String(includeUserState),
     });
     if (includeUserState) {
@@ -1064,13 +1074,19 @@ export default function LineChatModal({
 
     queueMicrotask(() => {
       setOpenDataSource(undefined);
-      setActiveFollowTopic(null);
+      setActiveRecord(initialRecord);
+      setRecordLoadError(null);
+      setActiveFollowTopic(initialRecord ? createFollowTopic(assembly, initialRecord) : null);
       setFollowSaveError(null);
       setFollowFeedback(null);
       setUserVotes({});
       setUtteranceVotes({});
       setUtteranceCounts({});
-      setMessages(initialMsgs);
+      setMessages(initialRecord
+        ? applyAssemblyRecordToMessages(initialMsgs, initialRecord)
+        : initialDiscussionId
+          ? []
+          : initialMsgs);
       void loadPersistedReactions();
       chatContainerRef.current?.scrollTo({ top: 0 });
     });
@@ -1079,63 +1095,39 @@ export default function LineChatModal({
     const loadAssemblyRecords = async () => {
       try {
         const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000';
-        const query = new URLSearchParams({ assembly_id: assembly.id, limit: '100' });
+        const expectedDiscussionId = initialDiscussionId || assembly.featuredDiscussionId;
+        const query = new URLSearchParams({
+          assembly_id: assembly.id,
+          discussion_id: expectedDiscussionId,
+          limit: '1',
+        });
         const response = await fetch(`${apiBase}/api/assembly-records?${query.toString()}`, {
+          cache: 'no-store',
           signal: controller.signal,
         });
-        if (!response.ok) return;
+        if (!response.ok) throw new Error(`Assembly record API failed: ${response.status}`);
 
         const payload = await response.json() as AssemblyRecordsResponse;
-        const records = payload.records || [];
-        const selectedRecord = initialDiscussionId
-          ? records.find((record) => record.discussion_id === initialDiscussionId)
-          : records[0];
-        if (!selectedRecord) return;
+        const selectedRecord = payload.records[0];
+        if (
+          payload.assembly_id !== assembly.id
+          || payload.assembly_name !== assembly.name
+          || selectedRecord?.discussion_id !== expectedDiscussionId
+        ) {
+          throw new Error(`Discussion record mismatch: ${expectedDiscussionId}`);
+        }
+        setActiveRecord(selectedRecord);
+        setRecordLoadError(null);
         setActiveFollowTopic(createFollowTopic(assembly, selectedRecord));
         setOpenDataSource(payload.open_data_source);
-
-        const selectedSpeakers = mapAssemblyRecordsToSpeakers([selectedRecord]);
-        const selectedDate = selectedRecord.meeting_date.replaceAll('-', '/');
-        const selectedTimeline: TimelineItem[] = selectedSpeakers.map((speaker) => ({
-          date: selectedDate,
-          event: `${speaker.speakerName}が${speaker.questionType || '本会議'}で発言`,
-          status: 'completed',
-        }));
-
-        setMessages((current) => current.map((message) => {
-          if (message.id === 'msg-1') {
-            return {
-              ...message,
-              date: `${selectedDate} ${selectedRecord.meeting_name}`,
-              sourceUrl: selectedRecord.source_url,
-              sourceVerified: true,
-            };
-          }
-          if (message.id !== 'msg-2' && message.id !== 'msg-theme-reply') return message;
-          return {
-            ...message,
-            plainText: selectedRecord.what_changes,
-            structuredSummary: {
-              whatChanges: selectedRecord.what_changes,
-              targetAudience: selectedRecord.target_audience,
-              currentStage: selectedRecord.current_stage,
-              budgetInfo: selectedRecord.budget_info,
-              nextStep: '今後の行政対応・議会審議を継続確認',
-            },
-            timeline: selectedTimeline,
-            policyArguments: {
-              supporting: [selectedSpeakers[0]?.summaryQuote || selectedRecord.what_changes],
-              concerns: [],
-            },
-            speakerUtterances: selectedSpeakers,
-            date: selectedRecord.meeting_name,
-            originalQuote: selectedRecord.original_quote,
-            sourceUrl: selectedRecord.source_url,
-            sourceVerified: true,
-          };
-        }));
-      } catch {
-        // API停止時は従来の埋め込み済み表示をそのまま維持する。
+        setMessages((current) => applyAssemblyRecordToMessages(
+          current.length > 0 ? current : initialMsgs,
+          selectedRecord,
+        ));
+      } catch (error) {
+        if (controller.signal.aborted) return;
+        console.error('Discussion record could not be loaded', assembly.id, error);
+        setRecordLoadError('選択した議題の詳細データを確認できませんでした。');
       }
     };
     void loadAssemblyRecords();
@@ -1145,7 +1137,7 @@ export default function LineChatModal({
       reactionStateVersionRef.current += 1;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [assembly, initialDiscussionId, initialTheme]);
+  }, [assembly, initialDiscussionId, initialRecord, initialTheme]);
 
   const chatContainerRef = useRef<HTMLDivElement>(null);
 
@@ -1339,7 +1331,12 @@ export default function LineChatModal({
   return createPortal(
     <div className="fixed inset-0 z-50 flex items-center justify-center sm:p-4 bg-black/70 backdrop-blur-sm animate-fade-in">
       {/* モーダルコンテナ（モバイルでは全画面、PCではカード） */}
-      <div className="w-full h-full sm:h-[88vh] sm:max-w-2xl dark:bg-slate-950 dark:border-slate-800 dark:text-slate-100 bg-white border-slate-200 text-slate-900 sm:rounded-3xl border shadow-2xl flex flex-col overflow-hidden relative">
+      <div
+        data-testid="discussion-modal"
+        data-assembly-id={assembly.id}
+        data-discussion-id={activeRecord?.discussion_id || initialDiscussionId}
+        className="w-full h-full sm:h-[88vh] sm:max-w-2xl dark:bg-slate-950 dark:border-slate-800 dark:text-slate-100 bg-white border-slate-200 text-slate-900 sm:rounded-3xl border shadow-2xl flex flex-col overflow-hidden relative"
+      >
         {/* EBPMリアルタイム連動トーストバナー */}
         {ebpmToast && (
           <div className="absolute top-14 left-4 right-4 z-50 bg-emerald-500 text-slate-950 px-4 py-2.5 rounded-xl font-bold text-xs shadow-lg flex items-center justify-between animate-bounce">
@@ -1356,7 +1353,7 @@ export default function LineChatModal({
             </div>
             <div className="min-w-0">
               <div className="flex items-center gap-1.5">
-                <h3 className="font-bold text-sm sm:text-base dark:text-white text-slate-900 truncate">
+                <h3 data-testid="detail-municipality" className="font-bold text-sm sm:text-base dark:text-white text-slate-900 truncate">
                   マチボイス ({assembly.name})
                 </h3>
                 <span className="px-2 py-0.5 rounded-full text-[10px] dark:bg-slate-800 dark:text-emerald-400 dark:border-slate-700 bg-emerald-50 text-emerald-700 border-emerald-300 border font-medium shrink-0 flex items-center gap-1">
@@ -1383,6 +1380,7 @@ export default function LineChatModal({
             )}
             <button
               onClick={onClose}
+              data-testid="close-discussion-modal"
               className="w-8 h-8 rounded-xl dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-400 text-slate-500 hover:bg-slate-200 bg-slate-200/60 flex items-center justify-center transition-colors"
               aria-label="閉じる"
             >
@@ -1390,6 +1388,24 @@ export default function LineChatModal({
             </button>
           </div>
         </div>
+
+        {activeRecord && (
+          <div className="dark:bg-slate-900/80 dark:border-slate-800 bg-white border-slate-200 border-b px-4 py-2.5 sm:px-5 shrink-0 space-y-1">
+            <p data-testid="detail-topic" className="text-xs sm:text-sm font-bold dark:text-white text-slate-900 leading-snug">
+              {activeRecord.topic}
+            </p>
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px] dark:text-slate-400 text-slate-500">
+              <span data-testid="detail-date">{activeRecord.meeting_date.replaceAll('-', '/')}｜{activeRecord.meeting_name}</span>
+              <span data-testid="detail-discussion-id" className="font-mono break-all">{activeRecord.discussion_id}</span>
+            </div>
+          </div>
+        )}
+
+        {recordLoadError && (
+          <p role="alert" className="bg-rose-50 dark:bg-rose-950/40 border-b border-rose-200 dark:border-rose-900 px-4 py-2 text-xs font-semibold text-rose-700 dark:text-rose-300">
+            {recordLoadError}
+          </p>
+        )}
 
         {/* クイック質問チップ（横スクロール） */}
         <div className="dark:bg-slate-900/60 dark:border-slate-800/50 bg-slate-50 border-slate-200 border-b px-3 py-2 flex items-center gap-1.5 overflow-x-auto scrollbar-none shrink-0">
@@ -1437,6 +1453,11 @@ export default function LineChatModal({
 
         {/* チャットメッセージログ（スクロール領域） */}
         <div ref={chatContainerRef} className="flex-1 overflow-y-auto p-4 space-y-4 dark:bg-slate-950 bg-slate-50/80">
+          {messages.length === 0 && !recordLoadError && (
+            <p role="status" className="text-sm font-semibold text-center dark:text-slate-300 text-slate-600 py-8">
+              選択した議題の詳細を読み込んでいます…
+            </p>
+          )}
           {messages.map((msg) => {
             const isUser = msg.sender === 'user';
             const isQuoteExpanded = expandedQuotes[msg.id];
@@ -1486,7 +1507,7 @@ export default function LineChatModal({
                           {msg.sourceVerified ? '原文検証済み' : 'デモデータ'}
                         </span>
                       </div>
-                      <div className="text-sm sm:text-base font-bold dark:text-white text-slate-900 leading-snug">
+                      <div data-testid={msg.structuredSummary ? 'detail-summary' : undefined} className="text-sm sm:text-base font-bold dark:text-white text-slate-900 leading-snug">
                         {msg.structuredSummary ? msg.structuredSummary.whatChanges : msg.plainText}
                       </div>
                     </div>
@@ -1553,7 +1574,12 @@ export default function LineChatModal({
                                 : 'bg-purple-600 text-white';
 
                             return (
-                              <div key={itemKey} className="dark:bg-slate-950/90 dark:border-slate-800/90 bg-slate-50 border-slate-200 border rounded-xl p-3 space-y-2">
+                              <div
+                                key={itemKey}
+                                data-testid="discussion-statement"
+                                data-statement-id={utt.id}
+                                className="dark:bg-slate-950/90 dark:border-slate-800/90 bg-slate-50 border-slate-200 border rounded-xl p-3 space-y-2"
+                              >
                                 {/* 発言の出典ヘッダー（日時・会議名・質問種別） */}
                                 <div className="flex items-center justify-between border-b dark:border-slate-800/80 border-slate-200 pb-1.5 mb-1.5 text-[10px] dark:text-slate-400 text-slate-500">
                                   <div className="flex items-center gap-1.5 font-medium text-slate-700 dark:text-slate-300">

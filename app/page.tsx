@@ -7,6 +7,7 @@ import AssemblyListDrawer from './components/AssemblyListDrawer';
 import LineChatModal from './components/LineChatModal';
 import AnalyticsDashboardModal from './components/AnalyticsDashboardModal';
 import { Assembly, IssueTheme } from './types/assembly';
+import type { AssemblyRecord, AssemblyRecordsResponse } from './types/assemblyRecord';
 import type { FollowedTopic, FollowTopicInput } from './types/follow';
 import { getFollowTopicCtaLabel, getFollowUpDetails } from './data/followUpDetails';
 import {
@@ -48,6 +49,7 @@ const TOKYO_ASSEMBLIES: readonly Assembly[] = [
     mayorName: '小池 百合子',
     openDataStatus: 'ready',
     totalMinutesCount: 3,
+    featuredDiscussionId: 'tokyo-app-2026-06-16',
     hotTopic: '東京アプリの機能強化',
     mainIssues: [
       { theme: 'child', label: '子育て・介護情報の配信', count: 1 },
@@ -69,6 +71,7 @@ const TOKYO_ASSEMBLIES: readonly Assembly[] = [
     mayorName: '吉住 健一',
     openDataStatus: 'ready',
     totalMinutesCount: 4,
+    featuredDiscussionId: 'shinjuku-sick-child-care-2026-06-10',
     hotTopic: '病児保育の利用拒否・空き状況・予約改善',
     mainIssues: [
       { theme: 'child', label: '病児保育の受入体制', count: 1 },
@@ -90,6 +93,7 @@ const TOKYO_ASSEMBLIES: readonly Assembly[] = [
     mayorName: '稲垣 康治',
     openDataStatus: 'ready',
     totalMinutesCount: 3,
+    featuredDiscussionId: 'machida-regional-transport-2026-03-26',
     hotTopic: '交通不便地域の新しい地域交通モデル',
     mainIssues: [
       { theme: 'child', label: '子育て世帯の移動', count: 1 },
@@ -111,6 +115,7 @@ const TOKYO_ASSEMBLIES: readonly Assembly[] = [
     mayorName: '森澤 恭子',
     openDataStatus: 'ready',
     totalMinutesCount: 4,
+    featuredDiscussionId: 'shinagawa-inclusive-education-2026-02-19',
     hotTopic: '深い学び・多様性の包摂・教員負担軽減',
     mainIssues: [
       { theme: 'child', label: '多様性を包摂する教育', count: 1 },
@@ -132,6 +137,7 @@ const TOKYO_ASSEMBLIES: readonly Assembly[] = [
     mayorName: '長谷部 健',
     openDataStatus: 'ready',
     totalMinutesCount: 4,
+    featuredDiscussionId: 'shibuya-inflation-support-2026-01-16',
     hotTopic: '物価高騰緊急支援給付金・子育て応援手当',
     mainIssues: [
       { theme: 'child', label: '子ども1人2万円給付', count: 1 },
@@ -153,6 +159,7 @@ const TOKYO_ASSEMBLIES: readonly Assembly[] = [
     mayorName: '滝口 学',
     openDataStatus: 'ready',
     totalMinutesCount: 5,
+    featuredDiscussionId: 'arakawa-ward-auto-2026-03-17-685-6-267',
     hotTopic: '令和8年度予算・物価高対策・行政DX',
     mainIssues: [
       { theme: 'child', label: '小中一貫教育・子育て支援', count: 1 },
@@ -174,6 +181,7 @@ const TOKYO_ASSEMBLIES: readonly Assembly[] = [
     mayorName: '初宿 和夫',
     openDataStatus: 'ready',
     totalMinutesCount: 4,
+    featuredDiscussionId: 'hachioji-rag-ai-2026-06-11',
     hotTopic: '検索拡張生成AIの行政利用・市民サービス向上',
     mainIssues: [
       { theme: 'child', label: '市民サービスの質向上', count: 1 },
@@ -210,12 +218,37 @@ function getThemeKeyword(theme: IssueTheme): string | undefined {
   }
 }
 
+function formatMeetingDate(record: AssemblyRecord): string {
+  return `${record.meeting_date.replaceAll('-', '/')}｜${record.meeting_name}`;
+}
+
+function validateFeaturedRecord(
+  assembly: Assembly,
+  payload: AssemblyRecordsResponse,
+): AssemblyRecord {
+  const record = payload.records[0];
+  if (
+    payload.assembly_id !== assembly.id
+    || payload.assembly_name !== assembly.name
+    || record?.discussion_id !== assembly.featuredDiscussionId
+    || !record.topic.trim()
+    || !record.meeting_date.trim()
+    || record.statements.length === 0
+  ) {
+    throw new Error(`Featured discussion mismatch: ${assembly.id}`);
+  }
+  return record;
+}
+
 export default function Home() {
   const [selectedAssemblyId, setSelectedAssemblyId] = useState<string>('all');
   const [userTheme, setUserTheme] = useState<IssueTheme>('all');
   const [selectedAssemblyForModal, setSelectedAssemblyForModal] = useState<Assembly | null>(null);
   const [modalInitialTheme, setModalInitialTheme] = useState<string | undefined>();
   const [modalInitialDiscussionId, setModalInitialDiscussionId] = useState<string | undefined>();
+  const [modalInitialRecord, setModalInitialRecord] = useState<AssemblyRecord | undefined>();
+  const [featuredRecords, setFeaturedRecords] = useState<Record<string, AssemblyRecord>>({});
+  const [featuredRecordErrors, setFeaturedRecordErrors] = useState<ReadonlySet<string>>(new Set());
   const [analyticsAssembly, setAnalyticsAssembly] = useState<Assembly | null>(null);
   const [showMapExplorer, setShowMapExplorer] = useState(false);
   const [mobileView, setMobileView] = useState<'map' | 'list'>('map');
@@ -247,6 +280,42 @@ export default function Home() {
       })
       .catch(() => undefined);
 
+    return () => controller.abort();
+  }, []);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000';
+
+    const loadFeaturedRecords = async () => {
+      const loaded: Record<string, AssemblyRecord> = {};
+      const failed = new Set<string>();
+      await Promise.all(TOKYO_ASSEMBLIES.map(async (assembly) => {
+        const query = new URLSearchParams({
+          assembly_id: assembly.id,
+          discussion_id: assembly.featuredDiscussionId,
+          limit: '1',
+        });
+        try {
+          const response = await fetch(`${apiBase}/api/assembly-records?${query.toString()}`, {
+            cache: 'no-store',
+            signal: controller.signal,
+          });
+          if (!response.ok) throw new Error(`Assembly record API failed: ${response.status}`);
+          const payload = await response.json() as AssemblyRecordsResponse;
+          loaded[assembly.id] = validateFeaturedRecord(assembly, payload);
+        } catch (error) {
+          if (controller.signal.aborted) return;
+          console.error('Featured discussion could not be loaded', assembly.id, error);
+          failed.add(assembly.id);
+        }
+      }));
+      if (controller.signal.aborted) return;
+      setFeaturedRecords(loaded);
+      setFeaturedRecordErrors(failed);
+    };
+
+    void loadFeaturedRecords();
     return () => controller.abort();
   }, []);
 
@@ -284,8 +353,16 @@ export default function Home() {
     initialTheme = getThemeKeyword(userTheme),
     initialDiscussionId?: string,
   ) => {
+    const featuredRecord = featuredRecords[assembly.id];
+    const selectedRecord = featuredRecord?.discussion_id === initialDiscussionId
+      || initialDiscussionId === undefined
+      ? featuredRecord
+      : undefined;
     setModalInitialTheme(initialTheme);
-    setModalInitialDiscussionId(initialDiscussionId);
+    setModalInitialDiscussionId(
+      initialDiscussionId || selectedRecord?.discussion_id || assembly.featuredDiscussionId,
+    );
+    setModalInitialRecord(selectedRecord);
     setSelectedAssemblyForModal(assembly);
   };
 
@@ -516,6 +593,8 @@ export default function Home() {
         {/* 議論カード一覧 */}
         <div className="space-y-3.5">
           {activeAssemblies.map((assembly) => {
+            const featuredRecord = featuredRecords[assembly.id];
+            const hasRecordError = featuredRecordErrors.has(assembly.id);
             const relevantIssues =
               userTheme === 'all'
                 ? assembly.mainIssues
@@ -524,27 +603,35 @@ export default function Home() {
             return (
               <div
                 key={assembly.id}
+                data-testid="discussion-card"
+                data-assembly-id={assembly.id}
+                data-discussion-id={featuredRecord?.discussion_id || assembly.featuredDiscussionId}
                 className="dark:bg-slate-900/90 dark:border-slate-800 dark:hover:border-slate-700/90 bg-white border-slate-200 border rounded-2xl p-4 sm:p-5 shadow-sm hover:shadow-md space-y-3.5 transition-all"
               >
                 {/* 自治体ヘッダー */}
                 <div className="flex items-center justify-between text-xs border-b dark:border-slate-800/80 border-slate-100 pb-2.5">
                   <div className="flex items-center gap-2">
-                    <span className="font-bold dark:text-white text-slate-900 text-sm">{assembly.name}</span>
+                    <span data-testid="card-municipality" className="font-bold dark:text-white text-slate-900 text-sm">{assembly.name}</span>
                     <span className="text-[10px] px-1.5 py-0.5 rounded dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700/50 bg-slate-100 text-slate-600 border-slate-200 border font-medium">
                       {assembly.type === 'prefecture' ? '都議会' : assembly.type === 'ward' ? '特別区' : '市'}
                     </span>
                   </div>
                   <span className="dark:text-slate-400 text-slate-500 text-[11px] flex items-center gap-1">
                     <Calendar className="w-3.5 h-3.5 text-slate-400" />
-                    <span>{assembly.lastMeetingDate || '定例会'}</span>
+                    <span data-testid="card-date">
+                      {featuredRecord ? formatMeetingDate(featuredRecord) : hasRecordError ? '取得エラー' : '読み込み中'}
+                    </span>
                   </span>
                 </div>
 
                 {/* 注目話題 */}
                 <div className="space-y-1">
                   <span className="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400">直近の主な議題</span>
-                  <p className="text-xs sm:text-sm font-semibold dark:text-slate-100 text-slate-900 leading-snug">
-                    {assembly.hotTopic}
+                  <p data-testid="card-topic" className="text-xs sm:text-sm font-semibold dark:text-slate-100 text-slate-900 leading-snug">
+                    {featuredRecord?.topic || (hasRecordError ? '議題データを確認できません' : '議題を読み込んでいます')}
+                  </p>
+                  <p data-testid="card-discussion-id" className="text-[10px] font-mono dark:text-slate-500 text-slate-500 break-all">
+                    {featuredRecord?.discussion_id || assembly.featuredDiscussionId}
                   </p>
                 </div>
 
@@ -563,15 +650,20 @@ export default function Home() {
                 {/* アクションエリア */}
                 <div className="pt-2 border-t dark:border-slate-800/80 border-slate-100 flex items-center justify-between gap-3">
                   <button
-                    onClick={() => openAssemblyModal(assembly)}
-                    className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-colors shadow-sm"
+                    onClick={() => openAssemblyModal(
+                      assembly,
+                      getThemeKeyword(userTheme),
+                      featuredRecord?.discussion_id,
+                    )}
+                    disabled={!featuredRecord}
+                    className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 disabled:bg-slate-400 disabled:cursor-not-allowed text-white rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-colors shadow-sm"
                   >
                     <MessageSquare className="w-3.5 h-3.5" />
                     <span>この議論を見る（3分解説）</span>
                   </button>
 
                   <a
-                    href={assembly.sourceUrl || 'https://catalog.data.metro.tokyo.lg.jp/'}
+                    href={featuredRecord?.source_url || assembly.sourceUrl || 'https://catalog.data.metro.tokyo.lg.jp/'}
                     target="_blank"
                     rel="noreferrer"
                     className="text-xs dark:text-slate-400 dark:hover:text-slate-200 text-slate-500 hover:text-slate-700 flex items-center gap-1 font-medium transition-colors"
@@ -662,6 +754,7 @@ export default function Home() {
           assembly={selectedAssemblyForModal}
           initialTheme={modalInitialTheme}
           initialDiscussionId={modalInitialDiscussionId}
+          initialRecord={modalInitialRecord}
           followedDiscussionIds={followedTopics.map((topic) => topic.discussion_id)}
           onToggleFollowTopic={handleToggleFollowTopic}
           onClose={() => setSelectedAssemblyForModal(null)}
