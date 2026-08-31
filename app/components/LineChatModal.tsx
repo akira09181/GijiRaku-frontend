@@ -1099,7 +1099,7 @@ export default function LineChatModal({
         const query = new URLSearchParams({
           assembly_id: assembly.id,
           discussion_id: expectedDiscussionId,
-          limit: '1',
+          limit: '100',
         });
         const response = await fetch(`${apiBase}/api/assembly-records?${query.toString()}`, {
           cache: 'no-store',
@@ -1108,7 +1108,9 @@ export default function LineChatModal({
         if (!response.ok) throw new Error(`Assembly record API failed: ${response.status}`);
 
         const payload = await response.json() as AssemblyRecordsResponse;
-        const selectedRecord = payload.records[0];
+        const selectedRecord = payload.records.find((record) => (
+          record.discussion_id === expectedDiscussionId
+        ));
         if (
           payload.assembly_id !== assembly.id
           || payload.assembly_name !== assembly.name

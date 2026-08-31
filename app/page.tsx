@@ -226,7 +226,9 @@ function validateFeaturedRecord(
   assembly: Assembly,
   payload: AssemblyRecordsResponse,
 ): AssemblyRecord {
-  const record = payload.records[0];
+  const record = payload.records.find((candidate) => (
+    candidate.discussion_id === assembly.featuredDiscussionId
+  ));
   if (
     payload.assembly_id !== assembly.id
     || payload.assembly_name !== assembly.name
@@ -294,7 +296,9 @@ export default function Home() {
         const query = new URLSearchParams({
           assembly_id: assembly.id,
           discussion_id: assembly.featuredDiscussionId,
-          limit: '1',
+          // The production API may temporarily be one deployment behind and ignore
+          // discussion_id. Fetch enough records to locate the same stable ID client-side.
+          limit: '100',
         });
         try {
           const response = await fetch(`${apiBase}/api/assembly-records?${query.toString()}`, {
