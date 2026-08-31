@@ -1,11 +1,14 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Landmark, BarChart3, Sun, Moon } from 'lucide-react';
+import { Landmark, BarChart3, Sun, Moon, BookmarkCheck } from 'lucide-react';
 import { Assembly } from '../types/assembly';
 
 interface HeaderProps {
   readonly onOpenAnalytics: () => void;
+  readonly onOpenFollows: () => void;
+  readonly followCount: number;
+  readonly unreadFollowCount: number;
   readonly defaultAssembly?: Assembly;
 }
 
@@ -14,6 +17,9 @@ interface HeaderProps {
   */
 export default function Header({
   onOpenAnalytics,
+  onOpenFollows,
+  followCount,
+  unreadFollowCount,
 }: HeaderProps) {
   const [theme, setTheme] = useState<'dark' | 'light'>('light');
   const [fontSize, setFontSize] = useState<'normal' | 'large' | 'xlarge'>('normal');
@@ -79,6 +85,21 @@ export default function Header({
 
         {/* 文字サイズ変更 ＆ テーマ切替 ＆ 行政向け導線 */}
         <div className="flex items-center gap-2 shrink-0">
+          <button
+            type="button"
+            onClick={onOpenFollows}
+            className="relative px-2.5 py-1.5 rounded-lg bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-emerald-800 dark:bg-emerald-950/40 dark:border-emerald-800 dark:text-emerald-300 text-xs font-bold flex items-center gap-1.5"
+            aria-label={`フォロー中 ${followCount}件${unreadFollowCount ? `、新しい動き ${unreadFollowCount}件` : ''}`}
+          >
+            <BookmarkCheck className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">フォロー中 {followCount}件</span>
+            <span className="sm:hidden">{followCount}件</span>
+            {unreadFollowCount > 0 && (
+              <span data-testid="header-follow-badge" className="absolute -top-2 -right-2 min-w-5 h-5 px-1 rounded-full bg-amber-500 text-white text-[10px] flex items-center justify-center" title={`新しい動き ${unreadFollowCount}件`}>
+                {unreadFollowCount}<span className="sr-only">件の新しい動き</span>
+              </span>
+            )}
+          </button>
           {/* 文字サイズ変更ピル */}
           <div className="flex items-center gap-0.5 p-1 rounded-lg dark:bg-slate-800/80 dark:border-slate-700/70 bg-slate-100 border-slate-300 border text-xs">
             <span className="px-1 text-slate-500 font-bold hidden sm:inline text-[11px]">文字</span>

@@ -28,8 +28,32 @@ interface StoredResponse {
 
 interface MockStore {
   readonly responses: Map<string, StoredResponse>;
+  follows?: Map<string, { issue_id: string; created_at: string; last_viewed_status_at: string }>;
+  statusUpdatedAt?: string;
   failReads: boolean;
+  failWrites: boolean;
   legacyReactionRequests: number;
+}
+
+function publicFollow(store: MockStore, follow: { issue_id: string; created_at: string; last_viewed_status_at: string }) {
+  const statusUpdatedAt = store.statusUpdatedAt || '2026-06-10T00:00:00+09:00';
+  return {
+    ...follow,
+    assembly_id: 'shinjuku-ward',
+    municipality: '新宿区',
+    title: '病児保育の利用拒否と予約・空き状況の改善',
+    current_status: '議会で質問・答弁済み',
+    status_summary: '受入体制とICTツールを検討・研究する方針が答弁されました。',
+    status_updated_at: statusUpdatedAt,
+    status_checked_at: '2026-08-24T15:03:35+09:00',
+    problem_summary: '病児保育の空き状況が分かりにくいことが課題です。',
+    government_response_summary: '新宿区はICTツールを研究すると答弁しました。',
+    share_summary: '病児保育の予約改善について意見を集めています。',
+    source_url: 'https://example.test/shinjuku-minutes',
+    question_id: QUESTION_ID,
+    notification_enabled: false,
+    has_new_status: Date.parse(statusUpdatedAt) > Date.parse(follow.last_viewed_status_at),
+  };
 }
 
 function aggregate(store: MockStore) {
@@ -70,6 +94,10 @@ function aggregate(store: MockStore) {
 async function fulfillCitizenApi(route: Route, store: MockStore) {
   const request = route.request();
   if (request.method() === 'PUT') {
+    if (store.failWrites) {
+      await route.fulfill({ status: 500, contentType: 'application/json', body: '{"detail":"Firestore unavailable"}' });
+      return;
+    }
     const body = request.postDataJSON() as {
       anonymous_user_id: string;
       selected_answer: string;
@@ -120,6 +148,55 @@ async function fulfillCitizenApi(route: Route, store: MockStore) {
 }
 
 async function installApiMock(context: BrowserContext, store: MockStore) {
+  await context.route('**/api/follows**', async (route) => {
+    const request = route.request();
+    const follows = store.follows ||= new Map();
+    if (request.method() === 'PUT' || request.method() === 'PATCH') {
+      const body = request.postDataJSON() as { anonymous_user_id: string; issue_id: string };
+      const key = `${body.anonymous_user_id}:${body.issue_id}`;
+      const previous = follows.get(key);
+      const now = new Date().toISOString();
+      const saved = {
+        issue_id: body.issue_id,
+        created_at: previous?.created_at || now,
+        last_viewed_status_at: request.method() === 'PATCH'
+          ? now
+          : previous?.last_viewed_status_at || now,
+      };
+      follows.set(key, saved);
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ status: 'success', storage_backend: 'firestore', created: !previous, follow: publicFollow(store, saved) }),
+      });
+      return;
+    }
+    const url = new URL(request.url());
+    const anonymousUserId = url.searchParams.get('anonymous_user_id') || '';
+    const issueId = url.searchParams.get('issue_id') || '';
+    if (request.method() === 'DELETE') {
+      follows.delete(`${anonymousUserId}:${issueId}`);
+      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ status: 'success', storage_backend: 'firestore', deleted: true }) });
+      return;
+    }
+    const items = Array.from(follows.entries())
+      .filter(([key]) => key.startsWith(`${anonymousUserId}:`))
+      .map(([, follow]) => ({
+        ...publicFollow(store, follow),
+        my_response: store.responses.get(anonymousUserId) || null,
+      }));
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        status: 'success',
+        storage_backend: 'firestore',
+        follows: items,
+        total: items.length,
+        unread_total: items.filter((item) => item.has_new_status).length,
+      }),
+    });
+  });
   await context.route('**/api/citizen-question-responses**', (route) => fulfillCitizenApi(route, store));
   await context.route('**/api/admin/citizen-question-results**', async (route) => {
     await route.fulfill({
@@ -202,7 +279,7 @@ async function openShinjukuQuestion(page: Page) {
 }
 
 test('Aの回答作成・変更をBの全体集計へ反映し、A再読込で自分の回答を復元する', async ({ browser }) => {
-  const store: MockStore = { responses: new Map(), failReads: false, legacyReactionRequests: 0 };
+  const store: MockStore = { responses: new Map(), failReads: false, failWrites: false, legacyReactionRequests: 0 };
   const contextA = await browser.newContext();
   const contextB = await browser.newContext();
   try {
@@ -213,6 +290,9 @@ test('Aの回答作成・変更をBの全体集計へ反映し、A再読込で�
     await panelA.getByTestId('question-answer-needed').click();
     await panelA.getByTestId('question-reason-availability_unknown').click();
     await panelA.getByTestId('question-reason-capacity_shortage').click();
+    await expect(panelA.getByTestId('opinion-draft')).toContainText('空き状況が分かりにくいこと');
+    await expect(panelA.getByTestId('opinion-draft')).not.toContainText('利用経験がなく');
+    await panelA.getByTestId('skip-opinion-draft').click();
     await panelA.getByTestId('submit-citizen-response').click();
     await expect(panelA.getByTestId('citizen-response-success')).toBeVisible();
     await expect(panelA.getByTestId('aggregate-total')).toHaveText('回答総数：1件');
@@ -257,7 +337,7 @@ test('Aの回答作成・変更をBの全体集計へ反映し、A再読込で�
 });
 
 test('集計API失敗を0件表示にせず再試行を案内する', async ({ browser }) => {
-  const store: MockStore = { responses: new Map(), failReads: true, legacyReactionRequests: 0 };
+  const store: MockStore = { responses: new Map(), failReads: true, failWrites: false, legacyReactionRequests: 0 };
   const context = await browser.newContext();
   try {
     await installApiMock(context, store);
@@ -282,6 +362,7 @@ test('行政画面で回答・理由・自由記述を匿名集計として確�
       updated_at: now,
     }]]),
     failReads: false,
+    failWrites: false,
     legacyReactionRequests: 0,
   };
   const context = await browser.newContext();
@@ -298,5 +379,124 @@ test('行政画面で回答・理由・自由記述を匿名集計として確�
     await expect(results).not.toContainText('hidden-anonymous-id');
   } finally {
     await context.close();
+  }
+});
+
+test('下書きを編集でき、参加レシートは保存と集計取得の成功後だけ表示する', async ({ browser }) => {
+  const store: MockStore = {
+    responses: new Map(),
+    failReads: false,
+    failWrites: false,
+    legacyReactionRequests: 0,
+  };
+  const context = await browser.newContext();
+  try {
+    await installApiMock(context, store);
+    const page = await context.newPage();
+    const panel = await openShinjukuQuestion(page);
+    await panel.getByTestId('question-answer-needed').click();
+    await panel.getByTestId('question-reason-availability_unknown').click();
+    await expect(panel.getByTestId('participation-receipt')).toHaveCount(0);
+    await panel.getByTestId('edit-opinion-draft').click();
+    await expect(panel.getByTestId('question-free-text')).toContainText('病児保育');
+    await panel.getByTestId('question-free-text').fill('下書きを確認して追記した意見です。');
+    await panel.getByTestId('submit-citizen-response').click();
+    const receipt = panel.getByTestId('participation-receipt');
+    await expect(receipt).toBeVisible();
+    await expect(receipt).toContainText('回答を受け付けました');
+    await expect(receipt).toContainText('新宿区｜病児保育');
+    await expect(receipt).toContainText('自由記述');
+    await expect(receipt).toContainText('送信あり');
+
+    await panel.getByTestId('receipt-change-response').click();
+    store.failWrites = true;
+    await panel.getByTestId('submit-citizen-response').click();
+    await expect(panel.getByText('回答を保存できませんでした。入力内容を保持したまま再試行できます。')).toBeVisible();
+    await expect(panel.getByTestId('participation-receipt')).toHaveCount(0);
+    await expect(panel.getByTestId('question-free-text')).toHaveValue('下書きを確認して追記した意見です。');
+  } finally {
+    await context.close();
+  }
+});
+
+test('回答からフォロー・更新確認・固有URL共有までA/Bブラウザで継続できる', async ({ browser }) => {
+  const store: MockStore = {
+    responses: new Map(),
+    follows: new Map(),
+    failReads: false,
+    failWrites: false,
+    legacyReactionRequests: 0,
+  };
+  const contextA = await browser.newContext();
+  const contextB = await browser.newContext();
+  try {
+    await Promise.all([installApiMock(contextA, store), installApiMock(contextB, store)]);
+    await contextA.addInitScript(() => {
+      Object.defineProperty(navigator, 'share', {
+        configurable: true,
+        value: async (card: unknown) => {
+          (window as unknown as { __sharedIssueCard: unknown }).__sharedIssueCard = card;
+        },
+      });
+    });
+
+    const pageA = await contextA.newPage();
+    await pageA.goto(`/issues/${ISSUE_ID}`);
+    await expect(pageA).toHaveURL(new RegExp(`/issues/${ISSUE_ID}$`));
+    const panelA = pageA.getByTestId('citizen-question-panel');
+    await expect(panelA).toBeVisible();
+    await expect(pageA.getByText('新宿区議会', { exact: true })).toBeVisible();
+    await panelA.getByTestId('question-answer-needed').click();
+    await panelA.getByTestId('question-reason-availability_unknown').click();
+    await panelA.getByTestId('edit-opinion-draft').click();
+    await panelA.getByTestId('question-free-text').fill('E2Eで編集した公開しない個別意見');
+    await panelA.getByTestId('submit-citizen-response').click();
+    const receipt = panelA.getByTestId('participation-receipt');
+    await expect(receipt).toContainText('回答を受け付けました');
+
+    await receipt.getByTestId('share-issue-card').click();
+    const shared = await pageA.evaluate(() => (
+      window as unknown as { __sharedIssueCard: { text: string; url: string } }
+    ).__sharedIssueCard);
+    expect(shared.url).toContain(`/issues/${ISSUE_ID}`);
+    expect(shared.text).toContain('新宿区');
+    expect(shared.text).toContain('公式原文');
+    expect(shared.text).not.toContain('E2Eで編集した公開しない個別意見');
+    expect(shared.text).not.toMatch(/anonymous_user_id|gijiraku_anonymous/i);
+
+    await receipt.getByTestId('receipt-follow-issue').click();
+    await expect(receipt.getByTestId('receipt-follow-issue')).toContainText('フォロー中');
+    expect(store.follows?.size).toBe(1);
+
+    await pageA.getByRole('button', { name: '閉じる' }).click();
+    await pageA.getByRole('button', { name: /フォロー中 1件/ }).click();
+    const myFollows = pageA.getByRole('dialog', { name: 'マイフォロー' });
+    await expect(myFollows).toContainText('病児保育の利用拒否と予約・空き状況の改善');
+    await expect(myFollows).toContainText('必要だと思う');
+    await myFollows.getByRole('button', { name: 'マイフォローを閉じる' }).click();
+
+    await pageA.reload();
+    const restoredPanel = pageA.getByTestId('citizen-question-panel');
+    await expect(restoredPanel.getByTestId('question-answer-needed')).toBeChecked();
+    await expect(restoredPanel.getByTestId('question-free-text')).toHaveValue('E2Eで編集した公開しない個別意見');
+
+    const pageB = await contextB.newPage();
+    await pageB.goto(`/issues/${ISSUE_ID}`);
+    const panelB = pageB.getByTestId('citizen-question-panel');
+    await expect(panelB.getByTestId('aggregate-total')).toHaveText('回答総数：1件');
+    await expect(panelB.getByTestId('question-answer-needed')).not.toBeChecked();
+    await expect(pageB.getByText('E2Eで編集した公開しない個別意見')).toHaveCount(0);
+
+    store.statusUpdatedAt = new Date().toISOString();
+    await pageA.goto('/');
+    await expect(pageA.getByTestId('header-follow-badge')).toContainText('1');
+    await pageA.getByRole('button', { name: /フォロー中 1件、新しい動き 1件/ }).click();
+    const updatedFollows = pageA.getByRole('dialog', { name: 'マイフォロー' });
+    await expect(updatedFollows.getByTestId('follow-update-badge')).toBeVisible();
+    await updatedFollows.getByRole('button', { name: '詳しく見る' }).click();
+    await expect(pageA.getByTestId('header-follow-badge')).toHaveCount(0);
+    expect(store.follows?.size).toBe(1);
+  } finally {
+    await Promise.all([contextA.close(), contextB.close()]);
   }
 });
