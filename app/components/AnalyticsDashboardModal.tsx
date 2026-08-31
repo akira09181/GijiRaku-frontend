@@ -21,6 +21,11 @@ import {
   PartyPolicyStance,
   MemberScorecard,
 } from '../types/analytics';
+import {
+  SHINJUKU_SICK_CHILD_CARE_ISSUE_ID,
+  SHINJUKU_SICK_CHILD_CARE_QUESTION,
+  SHINJUKU_SICK_CHILD_CARE_QUESTION_ID,
+} from '../data/citizenQuestions';
 
 interface AnalyticsDashboardModalProps {
   readonly assembly: Assembly;
@@ -70,6 +75,33 @@ interface ReactionTotals {
   readonly helpful: number;
 }
 
+interface CitizenQuestionAdminResult {
+  readonly storage_backend: 'firestore';
+  readonly municipality: string;
+  readonly theme: string;
+  readonly aggregate: {
+    readonly total_responses: number;
+    readonly answers: readonly {
+      readonly id: string;
+      readonly label: string;
+      readonly count: number;
+      readonly percentage: number;
+    }[];
+    readonly reasons: readonly {
+      readonly id: string;
+      readonly label: string;
+      readonly count: number;
+    }[];
+  };
+  readonly responses: readonly {
+    readonly selected_answer: string;
+    readonly selected_reasons: readonly string[];
+    readonly free_text: string;
+    readonly created_at: string | null;
+    readonly updated_at: string | null;
+  }[];
+}
+
 /**
  * 議員・行政向け EBPM分析ダッシュボードモーダル
  * - 行政・議員向けEBPM分析・議事録トピック抽出・市民世論スコア
@@ -90,6 +122,9 @@ export default function AnalyticsDashboardModal({
     helpful: 0,
   });
   const [isCountUpdated, setIsCountUpdated] = useState(false);
+  const [citizenQuestionResult, setCitizenQuestionResult] = useState<CitizenQuestionAdminResult | null>(null);
+  const [citizenQuestionLoading, setCitizenQuestionLoading] = useState(assembly.id === 'shinjuku-ward');
+  const [citizenQuestionError, setCitizenQuestionError] = useState(false);
   const lastServerReactionCountRef = useRef<number | null>(null);
 
   useEffect(() => {
@@ -130,6 +165,40 @@ export default function AnalyticsDashboardModal({
       refreshInFlight = true;
 
       try {
+        if (assembly.id === 'shinjuku-ward') {
+          setCitizenQuestionLoading(true);
+          setCitizenQuestionError(false);
+          const citizenQuery = new URLSearchParams({
+            issue_id: SHINJUKU_SICK_CHILD_CARE_ISSUE_ID,
+            question_id: SHINJUKU_SICK_CHILD_CARE_QUESTION_ID,
+          });
+          try {
+            const citizenResponse = await fetch(
+              `${apiBase}/api/admin/citizen-question-results?${citizenQuery.toString()}`,
+              { cache: 'no-store' },
+            );
+            if (!citizenResponse.ok) {
+              throw new Error(`Citizen question admin API failed: ${citizenResponse.status}`);
+            }
+            const citizenPayload = await citizenResponse.json() as CitizenQuestionAdminResult;
+            if (citizenPayload.storage_backend !== 'firestore') {
+              throw new Error('Unexpected citizen question storage backend');
+            }
+            if (!cancelled) setCitizenQuestionResult(citizenPayload);
+          } catch {
+            if (!cancelled) {
+              setCitizenQuestionResult(null);
+              setCitizenQuestionError(true);
+            }
+          } finally {
+            if (!cancelled) setCitizenQuestionLoading(false);
+          }
+        } else if (!cancelled) {
+          setCitizenQuestionResult(null);
+          setCitizenQuestionError(false);
+          setCitizenQuestionLoading(false);
+        }
+
         const records = await loadAssemblyRecords();
         const reactionByStatement = new Map<string, ReactionTotals>();
         let reactionRequestSucceeded = false;
@@ -574,6 +643,96 @@ export default function AnalyticsDashboardModal({
                       Firestore Live Sync
                     </span>
                   </div>
+
+                  {assembly.id === 'shinjuku-ward' && (
+                    <section
+                      data-testid="admin-citizen-question-results"
+                      className="rounded-xl border border-emerald-200 bg-emerald-50/80 p-4 dark:border-emerald-800 dark:bg-emerald-950/30"
+                    >
+                      <div className="flex flex-wrap items-start justify-between gap-2">
+                        <div>
+                          <p className="text-xs font-bold text-emerald-700 dark:text-emerald-300">
+                            {citizenQuestionResult?.municipality || '新宿区'}・議題別市民回答
+                          </p>
+                          <h5 className="mt-1 text-sm font-bold text-slate-900 dark:text-white">
+                            {citizenQuestionResult?.theme || '病児保育の利用拡充と予約・空き状況の改善'}
+                          </h5>
+                          <p className="mt-1 text-xs text-slate-600 dark:text-slate-300">
+                            {SHINJUKU_SICK_CHILD_CARE_QUESTION.question}
+                          </p>
+                        </div>
+                        {citizenQuestionResult && (
+                          <strong data-testid="admin-aggregate-total" className="text-lg text-emerald-700 dark:text-emerald-300">
+                            回答総数 {citizenQuestionResult.aggregate.total_responses}件
+                          </strong>
+                        )}
+                      </div>
+
+                      {citizenQuestionLoading && <p className="mt-4 text-sm text-slate-500">回答集計を読み込んでいます…</p>}
+                      {!citizenQuestionLoading && citizenQuestionError && (
+                        <p className="mt-4 rounded-lg bg-white p-3 text-sm font-medium text-red-700 dark:bg-slate-900">
+                          市民回答の集計を取得できませんでした
+                        </p>
+                      )}
+                      {!citizenQuestionLoading && citizenQuestionResult && (
+                        <div className="mt-4 space-y-4">
+                          <div className="grid gap-2 sm:grid-cols-3">
+                            {citizenQuestionResult.aggregate.answers.map((answer) => (
+                              <div key={answer.id} className="rounded-lg bg-white p-3 text-xs dark:bg-slate-900">
+                                <span className="block text-slate-600 dark:text-slate-300">{answer.label}</span>
+                                <strong className="mt-1 block text-sm text-slate-900 dark:text-white">
+                                  {answer.count}件（{answer.percentage}%）
+                                </strong>
+                              </div>
+                            ))}
+                          </div>
+
+                          <div>
+                            <h6 className="text-xs font-bold text-slate-800 dark:text-slate-200">理由別の件数</h6>
+                            <div className="mt-2 grid gap-1.5 sm:grid-cols-2">
+                              {citizenQuestionResult.aggregate.reasons.map((reason) => (
+                                <div key={reason.id} data-testid={`admin-reason-${reason.id}`} className="flex justify-between rounded-lg bg-white px-3 py-2 text-xs dark:bg-slate-900">
+                                  <span>{reason.label}</span><strong>{reason.count}件</strong>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+
+                          <div>
+                            <h6 className="text-xs font-bold text-slate-800 dark:text-slate-200">自由記述・回答日時</h6>
+                            {citizenQuestionResult.responses.length === 0 ? (
+                              <p className="mt-2 text-xs text-slate-600 dark:text-slate-400">まだ回答はありません。</p>
+                            ) : (
+                              <div className="mt-2 space-y-2">
+                                {citizenQuestionResult.responses.map((response, index) => {
+                                  const answerLabel = SHINJUKU_SICK_CHILD_CARE_QUESTION.answers.find(
+                                    (answer) => answer.id === response.selected_answer,
+                                  )?.label || response.selected_answer;
+                                  const reasonLabels = response.selected_reasons.map((reasonId) => (
+                                    SHINJUKU_SICK_CHILD_CARE_QUESTION.reasons.find(
+                                      (reason) => reason.id === reasonId,
+                                    )?.label || reasonId
+                                  ));
+                                  return (
+                                    <article key={`${response.updated_at}-${index}`} data-testid="admin-citizen-response" className="rounded-lg bg-white p-3 text-xs dark:bg-slate-900">
+                                      <div className="flex flex-wrap justify-between gap-2">
+                                        <strong>{answerLabel}</strong>
+                                        <time>{response.updated_at ? new Date(response.updated_at).toLocaleString('ja-JP') : '日時不明'}</time>
+                                      </div>
+                                      <p className="mt-1 text-slate-600 dark:text-slate-300">理由：{reasonLabels.join('、')}</p>
+                                      <p className="mt-2 whitespace-pre-wrap text-slate-800 dark:text-slate-100">
+                                        {response.free_text || '自由記述なし'}
+                                      </p>
+                                    </article>
+                                  );
+                                })}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                    </section>
+                  )}
 
                   {/* 実証目標KPIカード */}
                   <div className="dark:bg-gradient-to-r dark:from-emerald-950/40 dark:to-slate-900 dark:border-emerald-500/30 bg-emerald-50/90 border-emerald-200 border rounded-xl p-4 space-y-2">

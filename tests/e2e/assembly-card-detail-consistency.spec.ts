@@ -180,6 +180,23 @@ async function installApiMock(context: BrowserContext) {
       }),
     });
   });
+  await context.route('**/api/citizen-question-responses**', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        status: 'success',
+        storage_backend: 'firestore',
+        my_response: null,
+        aggregate: {
+          total_responses: 0,
+          answers: [],
+          reasons: [],
+          top_reasons: [],
+        },
+      }),
+    });
+  });
 }
 
 test('全7地域で一覧カードと詳細が同じ議題レコードを表示する', async ({ browser }) => {

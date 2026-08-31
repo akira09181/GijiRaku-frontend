@@ -27,6 +27,8 @@ import type { AssemblyRecord, AssemblyRecordsResponse } from '../types/assemblyR
 import type { FollowTopicInput } from '../types/follow';
 import { getFollowUpDetails } from '../data/followUpDetails';
 import { createFollowTopic } from '../lib/followedTopics';
+import CitizenQuestionPanel from './CitizenQuestionPanel';
+import { SHINJUKU_SICK_CHILD_CARE_ISSUE_ID } from '../data/citizenQuestions';
 
 interface Comment {
   readonly user: string;
@@ -645,6 +647,7 @@ export default function LineChatModal({
   const reactionRequestsInFlight = useRef<Set<string>>(new Set());
   const reactionStateVersionRef = useRef(0);
   const discussionKey = activeRecord?.discussion_id || initialDiscussionId || assembly.featuredDiscussionId;
+  const usesCitizenQuestion = discussionKey === SHINJUKU_SICK_CHILD_CARE_ISSUE_ID;
 
   const toggleSpeakerExpand = (key: string) => {
     setExpandedSpeakerKeys((prev) => ({ ...prev, [key]: !prev[key] }));
@@ -1087,7 +1090,9 @@ export default function LineChatModal({
         : initialDiscussionId
           ? []
           : initialMsgs);
-      void loadPersistedReactions();
+      if (discussionKey !== SHINJUKU_SICK_CHILD_CARE_ISSUE_ID) {
+        void loadPersistedReactions();
+      }
       chatContainerRef.current?.scrollTo({ top: 0 });
     });
 
@@ -1526,6 +1531,10 @@ export default function LineChatModal({
                       </div>
                     )}
 
+                    {msg.structuredSummary && usesCitizenQuestion && (
+                      <CitizenQuestionPanel />
+                    )}
+
                     {/* 【主要ブロック】この議論で、誰が何を言った？ (一覧では軽く ➔ タップで無制限深掘り展開) */}
                     {msg.speakerUtterances && msg.speakerUtterances.length > 0 && (
                       <div className="pt-3 border-t dark:border-slate-800/80 border-slate-200 space-y-2.5">
@@ -1625,6 +1634,7 @@ export default function LineChatModal({
                                  </div>
 
                                  {/* 下段: 発言単位の市民リアクションバー (👍 賛成 / ⚠️ 気になる / 💡 参考 / 💬 理由・意見) */}
+                                 {!usesCitizenQuestion && (
                                  <div className="pt-2 border-t dark:border-slate-900/80 border-slate-200 space-y-2">
                                    {(() => {
                                      const defaultCounts = {
@@ -1740,6 +1750,7 @@ export default function LineChatModal({
                                      );
                                    })()}
                                  </div>
+                                 )}
 
                                   {isExpanded && (
                                     <div className="w-full mt-2.5 space-y-2 text-xs dark:bg-slate-900/90 dark:border-slate-800 bg-white border-slate-200 border p-3 rounded-lg dark:text-slate-300 text-slate-800 animate-fade-in shadow-xs">
@@ -1787,7 +1798,7 @@ export default function LineChatModal({
                     )}
 
                     {/* 市民参加: 発言と答弁を確認した直後に意思を届ける */}
-                    {(msg.agreeCount !== undefined || msg.disagreeCount !== undefined) && (
+                    {!usesCitizenQuestion && (msg.agreeCount !== undefined || msg.disagreeCount !== undefined) && (
                       <div className="pt-2.5 border-t dark:border-slate-800/80 border-slate-200 space-y-2 text-xs">
                         <p className="text-[10.5px] dark:text-slate-400 text-slate-600 leading-relaxed">
                           この議題全体について、今後どうしてほしいか教えてください。このブラウザでは「進めてほしい」「もっと議論してほしい」のどちらか1つを選択でき、変更・取り消しもできます。
