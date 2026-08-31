@@ -128,10 +128,25 @@ interface ReactionStateResponse {
   readonly counts: ReactionCounts;
 }
 
-interface PersistedReactionState {
+interface PersistedReactionAggregate {
   readonly statement_id: string;
-  readonly reaction_type: ReactionType | null;
   readonly counts: ReactionCounts;
+  readonly live_counts?: ReactionCounts;
+}
+
+interface PersistedUserReactionState {
+  readonly statement_id: string;
+  readonly reaction_type: ReactionType;
+}
+
+interface LegacyPersistedReactionState extends PersistedReactionAggregate {
+  readonly reaction_type: ReactionType | null;
+}
+
+interface ReactionSnapshotResponse {
+  readonly aggregates?: PersistedReactionAggregate[];
+  readonly user_reactions?: PersistedUserReactionState[];
+  readonly data?: LegacyPersistedReactionState[];
 }
 
 interface AssemblyRecordStatement {
@@ -619,6 +634,7 @@ export default function LineChatModal({
   const chatBottomRef = useRef<HTMLDivElement>(null);
   const anonymousUserIdRef = useRef('');
   const reactionRequestsInFlight = useRef<Set<string>>(new Set());
+  const reactionStateVersionRef = useRef(0);
 
   const toggleSpeakerExpand = (key: string) => {
     setExpandedSpeakerKeys((prev) => ({ ...prev, [key]: !prev[key] }));
@@ -677,57 +693,105 @@ export default function LineChatModal({
     return response.json();
   };
 
+  const fetchReactionSnapshot = async (
+    includeUserState: boolean,
+  ): Promise<ReactionSnapshotResponse> => {
+    const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000';
+    const query = new URLSearchParams({
+      discussion_id: assembly.id,
+      include_user_state: String(includeUserState),
+    });
+    if (includeUserState) {
+      query.set('anonymous_user_id', getAnonymousUserId());
+    }
+    const response = await fetch(`${apiBase}/api/reactions?${query.toString()}`, {
+      cache: 'no-store',
+    });
+    if (!response.ok) throw new Error(`Reaction API failed: ${response.status}`);
+    return response.json();
+  };
+
+  const reactionAggregatesFrom = (payload: ReactionSnapshotResponse) => (
+    payload.aggregates || payload.data || []
+  );
+
+  const userReactionStatesFrom = (payload: ReactionSnapshotResponse) => (
+    payload.user_reactions
+    || (payload.data || []).flatMap((state) => (
+      state.reaction_type
+        ? [{ statement_id: state.statement_id, reaction_type: state.reaction_type }]
+        : []
+    ))
+  );
+
+  const applyReactionAggregates = (aggregates: readonly PersistedReactionAggregate[]) => {
+    const statementCounts: Record<string, ReactionCounts> = {};
+    const topicAggregates = new Map<string, PersistedReactionAggregate>();
+    const countsByStatement = new Map<string, ReactionCounts>();
+
+    aggregates.forEach((aggregate) => {
+      countsByStatement.set(aggregate.statement_id, aggregate.counts);
+      if (aggregate.statement_id.includes('-speaker-')) {
+        statementCounts[aggregate.statement_id] = aggregate.counts;
+      } else {
+        topicAggregates.set(aggregate.statement_id, aggregate);
+      }
+    });
+
+    setUtteranceCounts(statementCounts);
+    setMessages((prev) => prev.map((message) => {
+      const aggregate = topicAggregates.get(message.id);
+      if (!aggregate) return message;
+      return {
+        ...message,
+        agreeCount: aggregate.counts.agree,
+        disagreeCount: aggregate.counts.concern,
+      };
+    }));
+    return countsByStatement;
+  };
+
   const loadPersistedReactions = async () => {
+    const requestVersion = ++reactionStateVersionRef.current;
     try {
-      const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000';
-      const query = new URLSearchParams({
-        discussion_id: assembly.id,
-        anonymous_user_id: getAnonymousUserId(),
-      });
-      const response = await fetch(`${apiBase}/api/reactions?${query.toString()}`);
-      if (!response.ok) return;
-      const payload = await response.json() as { data?: PersistedReactionState[] };
-      const persisted = payload.data || [];
+      const payload = await fetchReactionSnapshot(true);
+      if (requestVersion !== reactionStateVersionRef.current) return;
+      const aggregates = reactionAggregatesFrom(payload);
+      const userReactions = userReactionStatesFrom(payload);
       const topicVotes: Record<string, 'agree' | 'concern'> = {};
       const statementVotes: Record<string, ReactionType | null> = {};
-      const statementCounts: Record<string, ReactionCounts> = {};
-      const topicStates = new Map<string, PersistedReactionState>();
 
-      persisted.forEach((state) => {
+      userReactions.forEach((state) => {
         if (state.statement_id.includes('-speaker-')) {
           statementVotes[state.statement_id] = state.reaction_type;
-          statementCounts[state.statement_id] = state.counts;
-        } else {
-          topicStates.set(state.statement_id, state);
-          if (state.reaction_type === 'agree' || state.reaction_type === 'concern') {
-            topicVotes[state.statement_id] = state.reaction_type;
-          }
+        } else if (state.reaction_type === 'agree' || state.reaction_type === 'concern') {
+          topicVotes[state.statement_id] = state.reaction_type;
         }
       });
 
+      applyReactionAggregates(aggregates);
       setUserVotes(topicVotes);
       setUtteranceVotes(statementVotes);
-      setUtteranceCounts(statementCounts);
-      setMessages((prev) => prev.map((message) => {
-        const persistedState = topicStates.get(message.id);
-        if (!persistedState) return message;
-        return {
-          ...message,
-          agreeCount: persistedState.counts.agree,
-          disagreeCount: persistedState.counts.concern,
-        };
-      }));
 
       try {
         localStorage.setItem('gijiraku_voted_statements_v2', JSON.stringify(statementVotes));
-        localStorage.setItem('gijiraku_statement_counts_v2', JSON.stringify(statementCounts));
+        localStorage.removeItem('gijiraku_statement_counts_v2');
       } catch {
         // ignore
       }
     } catch {
+      if (requestVersion !== reactionStateVersionRef.current) return;
       setEbpmToast('リアクション履歴を読み込めませんでした。通信状況を確認してください。');
       setTimeout(() => setEbpmToast(null), 4000);
     }
+  };
+
+  const refreshReactionAggregates = async () => {
+    const requestVersion = ++reactionStateVersionRef.current;
+    const payload = await fetchReactionSnapshot(false);
+    const aggregates = reactionAggregatesFrom(payload);
+    if (requestVersion !== reactionStateVersionRef.current) return new Map<string, ReactionCounts>();
+    return applyReactionAggregates(aggregates);
   };
 
   const handleUtteranceVote = async (
@@ -744,6 +808,7 @@ export default function LineChatModal({
 
     try {
       const result = await putReactionState(uttKey, nextVote, defaultCounts);
+      reactionStateVersionRef.current += 1;
       setUtteranceVotes((prev) => {
         const nextVotes = { ...prev, [uttKey]: result.reaction_type };
         try {
@@ -753,23 +818,25 @@ export default function LineChatModal({
         }
         return nextVotes;
       });
-      setUtteranceCounts((prev) => {
-        const nextCounts = { ...prev, [uttKey]: result.counts };
-        try {
-          localStorage.setItem('gijiraku_statement_counts_v2', JSON.stringify(nextCounts));
-        } catch {
-          // ignore
-        }
-        return nextCounts;
-      });
+
+      let confirmedCounts = result.counts;
+      try {
+        const refreshedCounts = await refreshReactionAggregates();
+        confirmedCounts = refreshedCounts.get(uttKey) || result.counts;
+      } catch {
+        setUtteranceCounts((prev) => ({ ...prev, [uttKey]: result.counts }));
+        setEbpmToast('リアクションは保存されましたが、最新の全体集計を再取得できませんでした。');
+        setTimeout(() => setEbpmToast(null), 4000);
+        return;
+      }
 
       const typeLabel = type === 'agree' ? '👍 賛成' : type === 'concern' ? '⚠️ 気になる' : '💡 参考';
       if (result.changed && result.reaction_type === null) {
-        setEbpmToast(`ℹ️ 「${speakerName}」議員の発言へのリアクションを取り消しました（集計: ${result.counts[type]}件）`);
+        setEbpmToast(`ℹ️ 「${speakerName}」議員の発言へのリアクションを取り消しました（集計: ${confirmedCounts[type]}件）`);
       } else if (result.changed && result.previous_reaction_type !== null) {
-        setEbpmToast(`👍 「${speakerName}」議員の発言へのリアクションを【${typeLabel}】に変更しました！（集計: ${result.counts[type]}件）`);
+        setEbpmToast(`👍 「${speakerName}」議員の発言へのリアクションを【${typeLabel}】に変更しました！（集計: ${confirmedCounts[type]}件）`);
       } else if (result.changed) {
-        triggerEbpmFeedbackNotification(speakerName, typeLabel, result.counts[type]);
+        triggerEbpmFeedbackNotification(speakerName, typeLabel, confirmedCounts[type]);
       }
       setTimeout(() => setEbpmToast(null), 4000);
     } catch {
@@ -1067,14 +1134,16 @@ export default function LineChatModal({
             sourceVerified: true,
           };
         }));
-        void loadPersistedReactions();
       } catch {
         // API停止時は従来の埋め込み済み表示をそのまま維持する。
       }
     };
     void loadAssemblyRecords();
 
-    return () => controller.abort();
+    return () => {
+      controller.abort();
+      reactionStateVersionRef.current += 1;
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [assembly, initialDiscussionId, initialTheme]);
 
@@ -1113,6 +1182,7 @@ export default function LineChatModal({
 
     try {
       const result = await putReactionState(id, nextVote, baseCounts);
+      reactionStateVersionRef.current += 1;
       setUserVotes((prev) => {
         if (result.reaction_type === 'agree' || result.reaction_type === 'concern') {
           return { ...prev, [id]: result.reaction_type };
@@ -1121,27 +1191,36 @@ export default function LineChatModal({
         delete nextVotes[id];
         return nextVotes;
       });
-      setMessages((prev) =>
-        prev.map((msg) => {
-          if (msg.id !== id) return msg;
-          return {
-            ...msg,
-            agreeCount: result.counts.agree,
-            disagreeCount: result.counts.concern,
-          };
-        })
-      );
+
+      let confirmedCounts = result.counts;
+      try {
+        const refreshedCounts = await refreshReactionAggregates();
+        confirmedCounts = refreshedCounts.get(id) || result.counts;
+      } catch {
+        setMessages((prev) => prev.map((msg) => (
+          msg.id === id
+            ? {
+                ...msg,
+                agreeCount: result.counts.agree,
+                disagreeCount: result.counts.concern,
+              }
+            : msg
+        )));
+        setEbpmToast('投票は保存されましたが、最新の全体集計を再取得できませんでした。');
+        setTimeout(() => setEbpmToast(null), 4000);
+        return;
+      }
 
       if (result.changed && result.previous_reaction_type === null) {
         const typeLabel = type === 'agree' ? '進めてほしい' : 'もっと議論してほしい';
-        setEbpmToast(`この議題に【${typeLabel}】を届けました！（集計: ${result.counts[type]}件）`);
+        setEbpmToast(`この議題に【${typeLabel}】を届けました！（集計: ${confirmedCounts[type]}件）`);
         setTimeout(() => setEbpmToast(null), 4000);
       } else if (result.changed && result.reaction_type === null) {
-        setEbpmToast(`リアクションを取り消しました（集計: ${result.counts[type]}件）`);
+        setEbpmToast(`リアクションを取り消しました（集計: ${confirmedCounts[type]}件）`);
         setTimeout(() => setEbpmToast(null), 4000);
       } else if (result.changed) {
         const typeLabel = type === 'agree' ? '進めてほしい' : 'もっと議論してほしい';
-        setEbpmToast(`リアクションを「${typeLabel}」に変更しました（集計: ${result.counts[type]}件）`);
+        setEbpmToast(`リアクションを「${typeLabel}」に変更しました（集計: ${confirmedCounts[type]}件）`);
         setTimeout(() => setEbpmToast(null), 4000);
       }
     } catch {

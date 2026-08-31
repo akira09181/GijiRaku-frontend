@@ -135,7 +135,6 @@ export default function AnalyticsDashboardModal({
         let reactionRequestSucceeded = false;
         const query = new URLSearchParams({
           discussion_id: assembly.id,
-          anonymous_user_id: 'analytics-dashboard',
           include_user_state: 'false',
         });
         try {
@@ -144,8 +143,11 @@ export default function AnalyticsDashboardModal({
           });
           if (response.ok) {
             reactionRequestSucceeded = true;
-            const payload = await response.json() as { data?: ReactionAggregate[] };
-            (payload.data || []).forEach((aggregate) => {
+            const payload = await response.json() as {
+              aggregates?: ReactionAggregate[];
+              data?: ReactionAggregate[];
+            };
+            (payload.aggregates || payload.data || []).forEach((aggregate) => {
               reactionByStatement.set(
                 aggregate.statement_id,
                 aggregate.live_counts || { agree: 0, concern: 0, helpful: 0 },
