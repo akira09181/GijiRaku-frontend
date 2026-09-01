@@ -21,10 +21,15 @@ import {
   PartyPolicyStance,
   MemberScorecard,
 } from '../types/analytics';
-import { getCitizenQuestionByAssemblyId } from '../data/citizenQuestions';
+import {
+  getCitizenQuestionByAssemblyId,
+  getCitizenQuestionByIssueId,
+} from '../data/citizenQuestions';
+import { normalizeCitizenResponseSnapshot } from '../lib/citizenResponse';
 
 interface AnalyticsDashboardModalProps {
   readonly assembly: Assembly;
+  readonly issueId?: string;
   readonly onClose: () => void;
 }
 
@@ -105,9 +110,12 @@ interface CitizenQuestionAdminResult {
  */
 export default function AnalyticsDashboardModal({
   assembly,
+  issueId,
   onClose,
 }: AnalyticsDashboardModalProps) {
-  const citizenQuestion = getCitizenQuestionByAssemblyId(assembly.id);
+  const citizenQuestion = issueId
+    ? getCitizenQuestionByIssueId(issueId)
+    : getCitizenQuestionByAssemblyId(assembly.id);
   const [mounted, setMounted] = useState(false);
   const [activeTab, setActiveTab] = useState<TabType>('overview');
   const [loading, setLoading] = useState(true);
@@ -177,12 +185,38 @@ export default function AnalyticsDashboardModal({
             if (!citizenResponse.ok) {
               throw new Error(`Citizen question admin API failed: ${citizenResponse.status}`);
             }
-            const citizenPayload = await citizenResponse.json() as CitizenQuestionAdminResult;
-            if (citizenPayload.storage_backend !== 'firestore') {
-              throw new Error('Unexpected citizen question storage backend');
-            }
+            const rawPayload = await citizenResponse.json() as Record<string, unknown>;
+            const snapshot = normalizeCitizenResponseSnapshot(
+              rawPayload,
+              citizenQuestion.issueId,
+              citizenQuestion.questionId,
+            );
+            const responses = Array.isArray(rawPayload.responses)
+              ? rawPayload.responses.filter((item): item is CitizenQuestionAdminResult['responses'][number] => (
+                  Boolean(item)
+                  && typeof item === 'object'
+                  && typeof (item as { selected_answer?: unknown }).selected_answer === 'string'
+                  && Array.isArray((item as { selected_reasons?: unknown }).selected_reasons)
+                ))
+              : [];
+            const citizenPayload: CitizenQuestionAdminResult = {
+              storage_backend: 'firestore',
+              municipality: typeof rawPayload.municipality === 'string' ? rawPayload.municipality : citizenQuestion.municipality,
+              theme: typeof rawPayload.theme === 'string' ? rawPayload.theme : citizenQuestion.theme,
+              aggregate: {
+                total_responses: snapshot.aggregate.total_responses,
+                answers: snapshot.aggregate.answers.map((answer) => ({ ...answer, percentage: answer.percentage ?? 0 })),
+                reasons: snapshot.aggregate.reasons,
+              },
+              responses,
+            };
             if (!cancelled) setCitizenQuestionResult(citizenPayload);
-          } catch {
+          } catch (error) {
+            console.error('Admin citizen response status could not be loaded', {
+              issue_id: citizenQuestion.issueId,
+              question_id: citizenQuestion.questionId,
+              error,
+            });
             if (!cancelled) {
               setCitizenQuestionResult(null);
               setCitizenQuestionError(true);
@@ -384,7 +418,7 @@ export default function AnalyticsDashboardModal({
   return createPortal(
     <div className="fixed inset-0 z-50 flex items-center justify-center sm:p-4 bg-black/75 backdrop-blur-sm animate-fade-in">
       {/* モーダル枠 */}
-      <div className="w-full h-full sm:h-[90vh] sm:max-w-4xl dark:bg-slate-950 dark:border-slate-800 dark:text-slate-100 bg-white border-slate-200 text-slate-900 sm:rounded-3xl border shadow-2xl flex flex-col overflow-hidden">
+      <div data-testid="analytics-modal" className="w-full h-full sm:h-[90vh] sm:max-w-4xl dark:bg-slate-950 dark:border-slate-800 dark:text-slate-100 bg-white border-slate-200 text-slate-900 sm:rounded-3xl border shadow-2xl flex flex-col overflow-hidden">
         {/* モーダルヘッダー */}
         <div className="dark:bg-slate-900 dark:border-slate-800/80 bg-slate-100 border-slate-200 border-b px-4 py-3 sm:px-6 sm:py-4 flex items-center justify-between shrink-0">
           <div className="flex items-center gap-3 min-w-0">
@@ -660,7 +694,7 @@ export default function AnalyticsDashboardModal({
                         </div>
                         {citizenQuestionResult && (
                           <strong data-testid="admin-aggregate-total" className="text-lg text-emerald-700 dark:text-emerald-300">
-                            回答総数 {citizenQuestionResult.aggregate.total_responses}件
+                            市民回答 {citizenQuestionResult.aggregate.total_responses}件
                           </strong>
                         )}
                       </div>
@@ -668,7 +702,7 @@ export default function AnalyticsDashboardModal({
                       {citizenQuestionLoading && <p className="mt-4 text-sm text-slate-500">回答集計を読み込んでいます…</p>}
                       {!citizenQuestionLoading && citizenQuestionError && (
                         <p className="mt-4 rounded-lg bg-white p-3 text-sm font-medium text-red-700 dark:bg-slate-900">
-                          市民回答の集計を取得できませんでした
+                          回答状況を確認できません
                         </p>
                       )}
                       {!citizenQuestionLoading && citizenQuestionResult && (

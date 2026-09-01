@@ -58,6 +58,7 @@ function publicFollow(store: MockStore, follow: { issue_id: string; created_at: 
     source_url: 'https://example.test/shinjuku-minutes',
     question_id: QUESTION_ID,
     notification_enabled: false,
+    current_response_count: store.responses.size,
     has_new_status: Date.parse(statusUpdatedAt) > Date.parse(follow.last_viewed_status_at),
     status_updates: [{
       updated_at: statusUpdatedAt,
@@ -132,6 +133,7 @@ async function fulfillCitizenApi(route: Route, store: MockStore) {
       body: JSON.stringify({
         status: 'success',
         storage_backend: 'firestore',
+        issue_id: ISSUE_ID,
         question_id: QUESTION_ID,
         my_response: saved,
         aggregate: aggregate(store),
@@ -152,6 +154,7 @@ async function fulfillCitizenApi(route: Route, store: MockStore) {
     body: JSON.stringify({
       status: 'success',
       storage_backend: 'firestore',
+      issue_id: ISSUE_ID,
       question_id: QUESTION_ID,
       my_response: store.responses.get(anonymousUserId) || null,
       aggregate: aggregate(store),
@@ -310,8 +313,13 @@ test('Aの回答作成・変更をBの全体集計へ反映し、A再読込で�
   try {
     await Promise.all([installApiMock(contextA, store), installApiMock(contextB, store)]);
     const pageA = await contextA.newPage();
-    const panelA = await openShinjukuQuestion(pageA);
-    await expect(panelA.getByTestId('aggregate-total')).toHaveText('回答総数：0件');
+    await pageA.goto('/');
+    const listCardA = pageA.locator(`[data-testid="issue-card"][data-issue-id="${ISSUE_ID}"]`);
+    await expect(listCardA.getByTestId('answer-count')).toHaveText('市民回答 0件');
+    await listCardA.getByRole('button', { name: '詳細を見る' }).click();
+    const panelA = pageA.getByTestId('citizen-question-panel');
+    await expect(panelA).toBeVisible();
+    await expect(panelA.getByTestId('aggregate-total')).toHaveText('市民回答 0件');
     await panelA.getByTestId('question-answer-needed').click();
     await panelA.getByTestId('question-reason-availability_unknown').click();
     await panelA.getByTestId('question-reason-capacity_shortage').click();
@@ -320,7 +328,10 @@ test('Aの回答作成・変更をBの全体集計へ反映し、A再読込で�
     await panelA.getByTestId('skip-opinion-draft').click();
     await panelA.getByTestId('submit-citizen-response').click();
     await expect(panelA.getByTestId('citizen-response-success')).toBeVisible();
-    await expect(panelA.getByTestId('aggregate-total')).toHaveText('回答総数：1件');
+    await expect(panelA.getByTestId('aggregate-total')).toHaveText('市民回答 1件');
+    await pageA.getByTestId('close-discussion-modal').click();
+    await expect(listCardA.getByTestId('answer-count')).toHaveText('市民回答 1件');
+    await listCardA.getByRole('button', { name: '詳細を見る' }).click();
 
     expect(store.responses.size).toBe(1);
     expect(Array.from(store.responses.values())[0].selected_reasons).toEqual([
@@ -368,11 +379,39 @@ test('集計API失敗を0件表示にせず再試行を案内する', async ({ b
     await installApiMock(context, store);
     const page = await context.newPage();
     const panel = await openShinjukuQuestion(page);
-    await expect(panel.getByTestId('aggregate-error')).toContainText('集計を取得できませんでした');
+    await expect(panel.getByTestId('aggregate-error')).toContainText('回答状況を確認できません');
     await expect(panel.getByTestId('retry-aggregate')).toBeVisible();
     await expect(panel.getByTestId('aggregate-total')).toHaveCount(0);
   } finally {
     await context.close();
+  }
+});
+
+test('回答APIがnull・空配列・タイムアウトでも一覧と詳細がクラッシュしない', async ({ browser }) => {
+  const cases = [
+    { name: 'null', fulfill: (route: Route) => route.fulfill({ status: 200, contentType: 'application/json', body: 'null' }) },
+    { name: 'empty-array', fulfill: (route: Route) => route.fulfill({ status: 200, contentType: 'application/json', body: '[]' }) },
+    { name: 'timeout', fulfill: (route: Route) => route.abort('timedout') },
+  ] as const;
+
+  for (const testCase of cases) {
+    const store: MockStore = { responses: new Map(), failReads: false, failWrites: false, legacyReactionRequests: 0 };
+    const context = await browser.newContext();
+    try {
+      await installApiMock(context, store);
+      await context.unroute('**/api/citizen-question-responses**');
+      await context.route('**/api/citizen-question-responses**', (route) => testCase.fulfill(route));
+      const page = await context.newPage();
+      await page.goto('/');
+      const card = page.locator(`[data-testid="issue-card"][data-issue-id="${ISSUE_ID}"]`);
+      await expect(card.getByTestId('answer-count-error'), testCase.name).toHaveText('回答状況を確認できません');
+      await card.getByRole('button', { name: '詳細を見る' }).click();
+      await expect(page.getByTestId('discussion-modal')).toHaveAttribute('data-discussion-id', ISSUE_ID);
+      await expect(page.getByTestId('aggregate-error')).toContainText('回答状況を確認できません');
+      await expect(page.getByTestId('detail-topic')).toHaveText('病児保育の利用拒否と予約・空き状況の改善');
+    } finally {
+      await context.close();
+    }
   }
 });
 
@@ -398,7 +437,7 @@ test('行政画面で回答・理由・自由記述を匿名集計として確�
     await page.getByRole('button', { name: '議員ダッシュボード' }).click();
     await page.getByRole('button', { name: /市民世論フィードバック/ }).click();
     const results = page.getByTestId('admin-citizen-question-results');
-    await expect(results.getByTestId('admin-aggregate-total')).toHaveText('回答総数 1件');
+    await expect(results.getByTestId('admin-aggregate-total')).toHaveText('市民回答 1件');
     await expect(results.getByTestId('admin-reason-availability_unknown')).toContainText('1件');
     await expect(results.getByTestId('admin-citizen-response')).toContainText('朝に空きが確認できると助かります。');
     await expect(results).not.toContainText('hidden-anonymous-id');
@@ -471,7 +510,7 @@ test('回答からフォロー・更新確認・固有URL共有までA/Bブラ�
     const panelA = pageA.getByTestId('citizen-question-panel');
     await expect(panelA).toBeVisible();
     await expect(pageA.getByRole('button', { name: 'フォロー中の議題は0件です' })).toBeVisible();
-    await expect(pageA.getByText('新宿区議会', { exact: true })).toBeVisible();
+    await expect(pageA.getByTestId('detail-municipality')).toContainText('新宿区議会');
     await panelA.getByTestId('question-answer-needed').click();
     await panelA.getByTestId('question-reason-availability_unknown').click();
     await panelA.getByTestId('edit-opinion-draft').click();
@@ -513,6 +552,9 @@ test('回答からフォロー・更新確認・固有URL共有までA/Bブラ�
     const myFollows = pageA.getByRole('dialog', { name: 'マイフォロー' });
     await expect(myFollows).toContainText('病児保育の利用拒否と予約・空き状況の改善');
     await expect(myFollows).toContainText('必要だと思う');
+    await expect(myFollows.getByTestId('follow-current-response-count')).toHaveText('市民回答 1件');
+    await expect(myFollows).toContainText('最終更新日');
+    await expect(myFollows).toContainText('現在の状態');
     await myFollows.getByRole('button', { name: 'マイフォローを閉じる' }).click();
 
     await pageA.reload();
@@ -523,12 +565,12 @@ test('回答からフォロー・更新確認・固有URL共有までA/Bブラ�
     const pageB = await contextB.newPage();
     await pageB.goto(`/issues/${ISSUE_ID}`);
     const panelB = pageB.getByTestId('citizen-question-panel');
-    await expect(panelB.getByTestId('aggregate-total')).toHaveText('回答総数：1件');
+    await expect(panelB.getByTestId('aggregate-total')).toHaveText('市民回答 1件');
     await expect(panelB.getByTestId('question-answer-needed')).not.toBeChecked();
     await expect(pageB.getByText('E2Eで編集した公開しない個別意見')).toHaveCount(0);
     await expect(pageB.getByRole('button', { name: 'フォロー中の議題は0件です' })).toBeVisible();
     await pageB.getByRole('button', { name: 'このテーマをフォローする' }).click();
-    await expect(pageB.getByRole('button', { name: 'フォロー中の議題は1件です' })).toBeVisible();
+    await expect(pageB.getByRole('button', { name: /フォロー中の議題は1件/ })).toBeVisible();
     expect(store.follows?.size).toBe(2);
     await expect(pageA.getByRole('button', { name: 'フォロー中の議題は1件です' })).toBeVisible();
 
@@ -539,7 +581,8 @@ test('回答からフォロー・更新確認・固有URL共有までA/Bブラ�
     await expect(pageA.getByRole('button', { name: 'フォロー中の議題は1件、新しい動きは1件です' })).toBeVisible();
     await pageA.getByTestId('follow-update-notice').click();
     const updatedFollows = pageA.getByRole('dialog', { name: 'マイフォロー' });
-    await expect(updatedFollows.getByTestId('follow-update-badge')).toBeVisible();
+    await expect(updatedFollows.getByTestId('follow-update-badge')).toHaveText(/前回から更新あり/);
+    await expect(updatedFollows.getByTestId('follow-update-details')).toContainText('病児保育の空き状況ページが公式に更新されました。');
     await updatedFollows.getByRole('button', { name: '詳しく見る' }).click();
     const statusDetail = pageA.getByTestId('follow-status-detail');
     await expect(statusDetail).toContainText('前回確認後の更新');
@@ -568,7 +611,7 @@ test('回答からフォロー・更新確認・固有URL共有までA/Bブラ�
     expect(store.follows?.size).toBe(1);
     expect(store.responses.size).toBe(1);
     expect(aggregate(store).total_responses).toBe(1);
-    await expect(pageB.getByRole('button', { name: 'フォロー中の議題は1件です' })).toBeVisible();
+    await expect(pageB.getByRole('button', { name: /フォロー中の議題は1件/ })).toBeVisible();
   } finally {
     await Promise.all([contextA.close(), contextB.close()]);
   }
@@ -627,7 +670,7 @@ test('フォロー登録失敗を回答保存成功と分離し、入力・集�
     await receipt.getByTestId('receipt-follow-issue').click();
     await expect(receipt).toContainText('回答は保存されましたが、フォローを登録できませんでした。');
     await expect(receipt).toContainText('回答を受け付けました');
-    await expect(panel.getByTestId('aggregate-total')).toHaveText('回答総数：1件');
+    await expect(panel.getByTestId('aggregate-total')).toHaveText('市民回答 1件');
     expect(store.responses.size).toBe(1);
     expect(store.follows?.size).toBe(0);
 

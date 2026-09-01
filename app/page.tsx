@@ -254,6 +254,7 @@ export default function Home() {
   const [modalInitialRecord, setModalInitialRecord] = useState<AssemblyRecord | undefined>();
   const [featuredRecords, setFeaturedRecords] = useState<Record<string, AssemblyRecord>>({});
   const [analyticsAssembly, setAnalyticsAssembly] = useState<Assembly | null>(null);
+  const [analyticsIssueId, setAnalyticsIssueId] = useState<string | null>(null);
   const [showMapExplorer, setShowMapExplorer] = useState(false);
   const [mobileView, setMobileView] = useState<'map' | 'list'>('map');
   const [followedTopics, setFollowedTopics] = useState<FollowedTopic[]>([]);
@@ -533,7 +534,10 @@ export default function Home() {
     <main className="min-h-screen flex flex-col dark:bg-slate-950 dark:text-slate-100 bg-slate-50 text-slate-900 selection:bg-emerald-500 selection:text-slate-950 transition-colors duration-200">
       {/* 共通ヘッダー */}
       <Header
-        onOpenAnalytics={() => setAnalyticsAssembly(TOKYO_ASSEMBLIES[0])}
+        onOpenAnalytics={() => {
+          setAnalyticsIssueId(null);
+          setAnalyticsAssembly(TOKYO_ASSEMBLIES[0]);
+        }}
         onOpenFollows={() => setShowMyFollows(true)}
         followCount={followsLoading || followsError ? null : followedTopics.length}
         unreadFollowCount={followsError ? 0 : unreadFollowCount}
@@ -776,7 +780,10 @@ export default function Home() {
             setOpenedFollowSnapshot(null);
             setSelectedAssemblyForModal(null);
           }}
-          onOpenDashboard={() => setAnalyticsAssembly(selectedAssemblyForModal)}
+          onOpenDashboard={() => {
+            setAnalyticsIssueId(modalInitialDiscussionId || null);
+            setAnalyticsAssembly(selectedAssemblyForModal);
+          }}
         />
       )}
 
@@ -796,7 +803,11 @@ export default function Home() {
       {analyticsAssembly && (
         <AnalyticsDashboardModal
           assembly={analyticsAssembly}
-          onClose={() => setAnalyticsAssembly(null)}
+          issueId={analyticsIssueId || undefined}
+          onClose={() => {
+            setAnalyticsIssueId(null);
+            setAnalyticsAssembly(null);
+          }}
         />
       )}
 

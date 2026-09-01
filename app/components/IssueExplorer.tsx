@@ -12,6 +12,10 @@ import {
 } from 'lucide-react';
 import type { Assembly } from '../types/assembly';
 import type { IssueCatalogItem, IssueCatalogTheme } from '../types/issueCatalog';
+import {
+  CITIZEN_RESPONSE_COUNT_EVENT,
+  normalizeCitizenResponseSnapshot,
+} from '../lib/citizenResponse';
 
 interface IssueExplorerProps {
   readonly assemblies: readonly Assembly[];
@@ -34,12 +38,16 @@ function formatDate(value: string): string {
   return value.replaceAll('-', '/');
 }
 
-function ResponseCount({ count, enabled }: { readonly count?: number; readonly enabled: boolean }) {
-  if (!enabled) return <span>市民回答は準備中</span>;
-  if (count === undefined) return <span>回答数を取得できません</span>;
-  if (count === 0) return <span title="実数 0件">この議題への最初の声を届けませんか？</span>;
-  if (count <= 2) return <span title={`実数 ${count}件`}>声が集まり始めています <small>（実数 {count}件）</small></span>;
-  return <span>{count}件の回答</span>;
+type AnswerCountState =
+  | { readonly status: 'loading' }
+  | { readonly status: 'success'; readonly count: number }
+  | { readonly status: 'error' };
+
+function ResponseCount({ state, enabled }: { readonly state?: AnswerCountState; readonly enabled: boolean }) {
+  if (!enabled) return <span data-testid="citizen-question-unavailable">市民質問は準備中</span>;
+  if (!state || state.status === 'loading') return <span data-testid="answer-count-loading">回答状況を読み込み中</span>;
+  if (state.status === 'error') return <span data-testid="answer-count-error">回答状況を確認できません</span>;
+  return <span data-testid="answer-count">市民回答 {state.count}件</span>;
 }
 
 export default function IssueExplorer({
@@ -60,34 +68,82 @@ export default function IssueExplorer({
   const [sort, setSort] = useState<'newest' | 'oldest'>('newest');
   const [followedOnly, setFollowedOnly] = useState(false);
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
-  const [answerCounts, setAnswerCounts] = useState<Record<string, number>>({});
+  const [answerCountStates, setAnswerCountStates] = useState<Record<string, AnswerCountState>>({});
 
   useEffect(() => {
     const controller = new AbortController();
+    let cancelled = false;
+    let timedOut = false;
+    const timeout = window.setTimeout(() => {
+      timedOut = true;
+      controller.abort();
+    }, 10_000);
     const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000';
     const loadCounts = async () => {
-      const entries = await Promise.all(issues.filter((issue) => issue.question_id).map(async (issue) => {
-        const query = new URLSearchParams({ issue_id: issue.issue_id, question_id: issue.question_id! });
+      const configuredIssues = issues.filter((issue) => issue.question_id);
+      setAnswerCountStates(Object.fromEntries(
+        configuredIssues.map((issue) => [issue.issue_id, { status: 'loading' } satisfies AnswerCountState]),
+      ));
+      const entries = await Promise.all(configuredIssues.map(async (issue) => {
+        const query = new URLSearchParams({
+          issue_id: issue.issue_id,
+          question_id: issue.question_id!,
+          include_my_response: 'false',
+        });
         try {
           const response = await fetch(`${apiBase}/api/citizen-question-responses?${query}`, {
             cache: 'no-store',
             signal: controller.signal,
           });
-          if (!response.ok) return null;
-          const payload = await response.json() as { total?: number; aggregate?: { total_responses?: number } };
-          const count = payload.total ?? payload.aggregate?.total_responses;
-          return typeof count === 'number' ? [issue.issue_id, count] as const : null;
-        } catch {
-          return null;
+          if (!response.ok) throw new Error(`Citizen response API failed: ${response.status}`);
+          const snapshot = normalizeCitizenResponseSnapshot(
+            await response.json(),
+            issue.issue_id,
+            issue.question_id!,
+          );
+          return [issue.issue_id, {
+            status: 'success',
+            count: snapshot.aggregate.total_responses,
+          } satisfies AnswerCountState] as const;
+        } catch (error) {
+          if (!cancelled) {
+            console.error('Citizen response count could not be loaded', {
+              issue_id: issue.issue_id,
+              question_id: issue.question_id,
+              timed_out: timedOut,
+              error,
+            });
+          }
+          return [issue.issue_id, { status: 'error' } satisfies AnswerCountState] as const;
         }
       }));
-      if (!controller.signal.aborted) {
-        setAnswerCounts(Object.fromEntries(entries.filter((entry): entry is readonly [string, number] => entry !== null)));
+      if (!cancelled) {
+        setAnswerCountStates(Object.fromEntries(entries));
       }
+      window.clearTimeout(timeout);
     };
     void loadCounts();
-    return () => controller.abort();
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timeout);
+      controller.abort();
+    };
   }, [issues]);
+
+  useEffect(() => {
+    const handleCountUpdate = (event: Event) => {
+      const detail = (event as CustomEvent<{ issueId?: unknown; count?: unknown }>).detail;
+      if (typeof detail?.issueId !== 'string' || typeof detail.count !== 'number') return;
+      const issueId = detail.issueId;
+      const count = detail.count;
+      setAnswerCountStates((current) => ({
+        ...current,
+        [issueId]: { status: 'success', count: Math.max(0, count) },
+      }));
+    };
+    window.addEventListener(CITIZEN_RESPONSE_COUNT_EVENT, handleCountUpdate);
+    return () => window.removeEventListener(CITIZEN_RESPONSE_COUNT_EVENT, handleCountUpdate);
+  }, []);
 
   const stages = useMemo(() => Array.from(new Set(issues.map((issue) => issue.stage))), [issues]);
   const filteredIssues = useMemo(() => {
@@ -207,7 +263,7 @@ export default function IssueExplorer({
                 </div>
                 <div className="mt-3 space-y-1 text-[11px] text-slate-500">
                   <p><Users className="mr-1 inline h-3 w-3" />{issue.people.join('、')}（発言者 {issue.speaker_count}人）</p>
-                  <p className="font-medium text-slate-700 dark:text-slate-300"><ResponseCount count={answerCounts[issue.issue_id]} enabled={Boolean(issue.question_id)} /></p>
+                  <p className="font-medium text-slate-700 dark:text-slate-300"><ResponseCount state={answerCountStates[issue.issue_id]} enabled={Boolean(issue.question_id)} /></p>
                 </div>
                 <div className="mt-auto flex items-center justify-between gap-3 border-t border-slate-100 pt-3 dark:border-slate-800">
                   <button type="button" onClick={() => onOpenIssue(issue)} className="inline-flex items-center gap-1 rounded-lg bg-emerald-600 px-3 py-2 text-xs font-bold text-white hover:bg-emerald-500">

@@ -57,7 +57,7 @@ test('公開環境で回答作成・復元・別ブラウザ集計・回答変�
     if (!(await availability.isChecked())) await availability.click();
     await panelA.getByTestId('submit-citizen-response').click();
     await expect(panelA.getByTestId('citizen-response-success')).toBeVisible();
-    await expect(panelA.getByTestId('aggregate-total')).toHaveText('回答総数：1件');
+    await expect(panelA.getByTestId('aggregate-total')).toHaveText('市民回答 1件');
     await expect(panelA.getByTestId('aggregate-answer-needed')).toContainText('1件（100%）');
 
     await pageA.reload();
@@ -66,7 +66,7 @@ test('公開環境で回答作成・復元・別ブラウザ集計・回答変�
 
     const pageB = await contextB.newPage();
     let panelB = await openQuestion(pageB);
-    await expect(panelB.getByTestId('aggregate-total')).toHaveText('回答総数：1件');
+    await expect(panelB.getByTestId('aggregate-total')).toHaveText('市民回答 1件');
     await expect(panelB.getByTestId('aggregate-answer-needed')).toContainText('1件（100%）');
 
     await panelA.getByTestId('question-answer-current_is_enough').click();

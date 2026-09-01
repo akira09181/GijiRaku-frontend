@@ -29,6 +29,7 @@ import { getFollowUpDetails } from '../data/followUpDetails';
 import { createFollowTopic } from '../lib/followedTopics';
 import CitizenQuestionPanel from './CitizenQuestionPanel';
 import { getCitizenQuestionByIssueId } from '../data/citizenQuestions';
+import { getIssueFaqByIssueId } from '../data/issueFaqs';
 import { getOrCreateAnonymousUserId } from '../lib/anonymousUser';
 
 interface Comment {
@@ -1287,10 +1288,17 @@ export default function LineChatModal({
       const res = await fetch(`${apiBase}/api/translate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ question: userText, assembly_id: assembly.id }),
+        body: JSON.stringify({
+          question: userText,
+          assembly_id: assembly.id,
+          discussion_id: discussionKey,
+        }),
       });
       if (res.ok) {
         const data = await res.json();
+        if (data.issue_id !== discussionKey) {
+          throw new Error(`Translated answer issue_id mismatch: ${String(data.issue_id)}`);
+        }
         const assistantReply: Message = {
           id: `assistant-${Date.now()}`,
           sender: 'assistant',
@@ -1302,7 +1310,7 @@ export default function LineChatModal({
           timestamp: nowStr,
           agreeCount: 0,
           disagreeCount: 0,
-          sourceUrl: data.source_url || 'https://catalog.data.metro.tokyo.lg.jp/',
+          sourceUrl: data.source_url || activeRecord?.source_url || assembly.sourceUrl,
           sourceVerified: data.source_verified === true,
           aiChainSteps: data.ai_chain_steps || DEMO_CHAIN_STEPS,
         };
@@ -1321,7 +1329,7 @@ export default function LineChatModal({
         timestamp: nowStr,
         agreeCount: 0,
         disagreeCount: 0,
-        sourceUrl: assembly.sourceUrl || 'https://catalog.data.metro.tokyo.lg.jp/',
+        sourceUrl: activeRecord?.source_url || assembly.sourceUrl || 'https://catalog.data.metro.tokyo.lg.jp/',
         sourceVerified: false,
         aiChainSteps: DEMO_CHAIN_STEPS,
       };
@@ -1331,9 +1339,8 @@ export default function LineChatModal({
     }
   };
 
-  const quickPrompts = assembly.id === 'tokyo-metropolitan'
-    ? ['東京アプリで何が変わる？', 'どんな支援情報が届く？', '生成AI案内は何をする？']
-    : assembly.mainIssues.slice(0, 3).map((issue) => `${issue.label}は？`);
+  const issueFaq = getIssueFaqByIssueId(discussionKey);
+  const quickPrompts = issueFaq?.issueId === discussionKey ? issueFaq.questions : [];
 
   if (!mounted) return null;
 
@@ -1415,21 +1422,23 @@ export default function LineChatModal({
           </p>
         )}
 
-        {/* クイック質問チップ（横スクロール） */}
-        <div className="dark:bg-slate-900/60 dark:border-slate-800/50 bg-slate-50 border-slate-200 border-b px-3 py-2 flex items-center gap-1.5 overflow-x-auto scrollbar-none shrink-0">
-          <span className="text-[11px] dark:text-slate-400 text-slate-500 font-medium shrink-0 pl-1">
-            よくある質問:
-          </span>
-          {quickPrompts.map((prompt, i) => (
-            <button
-              key={i}
-              onClick={() => setInputQuestion(prompt)}
-              className="px-2.5 py-1 dark:bg-slate-800 dark:hover:bg-slate-700 dark:border-slate-700 dark:text-slate-200 bg-white hover:bg-slate-100 border-slate-300 text-slate-700 border text-xs rounded-lg whitespace-nowrap shrink-0 transition-colors shadow-2xs"
-            >
-              {prompt}
-            </button>
-          ))}
-        </div>
+        {/* 議題IDに紐付くFAQだけを表示する。未設定の議題ではセクションごと隠す。 */}
+        {quickPrompts.length > 0 && (
+          <div data-testid="issue-faq" data-issue-id={discussionKey} className="dark:bg-slate-900/60 dark:border-slate-800/50 bg-slate-50 border-slate-200 border-b px-3 py-2 flex items-center gap-1.5 overflow-x-auto scrollbar-none shrink-0">
+            <span className="text-[11px] dark:text-slate-400 text-slate-500 font-medium shrink-0 pl-1">
+              よくある質問:
+            </span>
+            {quickPrompts.map((prompt) => (
+              <button
+                key={`${discussionKey}:${prompt}`}
+                onClick={() => setInputQuestion(prompt)}
+                className="px-2.5 py-1 dark:bg-slate-800 dark:hover:bg-slate-700 dark:border-slate-700 dark:text-slate-200 bg-white hover:bg-slate-100 border-slate-300 text-slate-700 border text-xs rounded-lg whitespace-nowrap shrink-0 transition-colors shadow-2xs"
+              >
+                {prompt}
+              </button>
+            ))}
+          </div>
+        )}
 
         {activeFollowTopic && onToggleFollowTopic && (
           <div className="dark:bg-emerald-950/30 dark:border-emerald-900/60 bg-emerald-50/80 border-emerald-200 border-b px-4 py-2.5 sm:px-5 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 shrink-0">
@@ -1505,8 +1514,20 @@ export default function LineChatModal({
                   {/* 要約本文カード (4大主要ブロック構成) */}
                   <div className="dark:bg-slate-900 dark:border-slate-800 bg-white border-slate-200 border rounded-2xl rounded-tl-sm p-4 sm:p-5 text-xs sm:text-sm dark:text-slate-200 text-slate-800 leading-relaxed space-y-3.5 shadow-md">
                     
-                    {/* 【ブロック1】何に困っているのか */}
-                    <div className="space-y-1">
+                    {/* 【ブロック1】誰に関係する？ */}
+                    {msg.structuredSummary && (
+                      <div>
+                        <div className="dark:bg-slate-950 dark:border-slate-800/80 bg-slate-50 border-slate-200 border p-2.5 rounded-xl space-y-1">
+                          <div className="text-[10.5px] font-semibold dark:text-slate-400 text-slate-500">📌 誰に関係する？</div>
+                          <div className="text-xs font-semibold dark:text-slate-200 text-slate-800 leading-tight">
+                            {msg.structuredSummary.targetAudience}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* 【ブロック2】何に困っているのか */}
+                    <div className="space-y-1 pt-2 border-t dark:border-slate-800/80 border-slate-200">
                       <div className="flex items-center justify-between text-[11px] font-bold text-emerald-600 dark:text-emerald-400">
                         <span className="flex items-center gap-1.5">
                           <Sparkles className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
@@ -1520,27 +1541,6 @@ export default function LineChatModal({
                         {msg.structuredSummary ? msg.structuredSummary.whatChanges : msg.plainText}
                       </div>
                     </div>
-
-                    {/* 【ブロック2】誰に関係する？ */}
-                    {msg.structuredSummary && (
-                      <div className="pt-2 border-t dark:border-slate-800/80 border-slate-200">
-                        <div className="dark:bg-slate-950 dark:border-slate-800/80 bg-slate-50 border-slate-200 border p-2.5 rounded-xl space-y-1">
-                          <div className="text-[10.5px] font-semibold dark:text-slate-400 text-slate-500">📌 誰に関係する？</div>
-                          <div className="text-xs font-semibold dark:text-slate-200 text-slate-800 leading-tight">
-                            {msg.structuredSummary.targetAudience}
-                          </div>
-                        </div>
-                      </div>
-                    )}
-
-                    {msg.structuredSummary && citizenQuestion && (
-                      <CitizenQuestionPanel
-                        key={citizenQuestion.questionId}
-                        config={citizenQuestion}
-                        isFollowed={isActiveTopicFollowed}
-                        onFollow={handleToggleFollowTopic}
-                      />
-                    )}
 
                     {/* 【主要ブロック】この議論で、誰が何を言った？ (一覧では軽く ➔ タップで無制限深掘り展開) */}
                     {msg.speakerUtterances && msg.speakerUtterances.length > 0 && (
@@ -1804,6 +1804,16 @@ export default function LineChatModal({
                       </div>
                     )}
 
+                    {/* 市民参加は議員質問・行政答弁の直後に配置する。 */}
+                    {msg.structuredSummary && citizenQuestion && (
+                      <CitizenQuestionPanel
+                        key={`${discussionKey}:${citizenQuestion.questionId}`}
+                        config={citizenQuestion}
+                        isFollowed={isActiveTopicFollowed}
+                        onFollow={handleToggleFollowTopic}
+                      />
+                    )}
+
                     {/* 市民参加: 発言と答弁を確認した直後に意思を届ける */}
                     {!usesCitizenQuestion && (msg.agreeCount !== undefined || msg.disagreeCount !== undefined) && (
                       <div className="pt-2.5 border-t dark:border-slate-800/80 border-slate-200 space-y-2 text-xs">
@@ -1925,6 +1935,20 @@ export default function LineChatModal({
                       </div>
                     )}
 
+                    {usesCitizenQuestion && msg.structuredSummary && (
+                      <details className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-xs dark:border-slate-800 dark:bg-slate-950">
+                        <summary className="cursor-pointer text-[11px] font-bold text-slate-700 dark:text-slate-300">AI検証プロセス</summary>
+                        <div className="mt-2 space-y-2">
+                          {chainSteps.map((step) => (
+                            <div key={step.step_number} className="flex items-start gap-2 text-[11px]">
+                              <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full border border-slate-300 bg-white text-[9px] font-bold text-emerald-700 dark:border-slate-700 dark:bg-slate-800 dark:text-emerald-400">{step.step_number}</span>
+                              <div><span className="font-semibold">{step.title}</span><p className="text-[10.5px] text-slate-600 dark:text-slate-400">{step.detail}</p></div>
+                            </div>
+                          ))}
+                        </div>
+                      </details>
+                    )}
+
                     {/* 【ブロック5】現在どの段階か */}
                     {msg.structuredSummary && (
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-2.5 border-t dark:border-slate-800/80 border-slate-200">
@@ -1946,12 +1970,12 @@ export default function LineChatModal({
 
                     {/* スケジュール・時間軸 (Timeline) */}
                     {msg.timeline && msg.timeline.length > 0 && (
-                      <div className="pt-2.5 border-t dark:border-slate-800/80 border-slate-200 space-y-1.5">
-                        <div className="text-[11px] font-bold dark:text-slate-300 text-slate-800 flex items-center gap-1.5">
+                      <details className="pt-2.5 border-t dark:border-slate-800/80 border-slate-200 space-y-1.5">
+                        <summary className="cursor-pointer text-[11px] font-bold dark:text-slate-300 text-slate-800 flex items-center gap-1.5">
                           <Calendar className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-                          <span>今後のスケジュール・時系列</span>
-                        </div>
-                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                          <span>詳細な時系列を確認する</span>
+                        </summary>
+                        <div className="mt-2 grid grid-cols-1 sm:grid-cols-3 gap-2">
                           {msg.timeline.map((item, idx) => (
                             <div key={idx} className="dark:bg-slate-950/80 dark:border-slate-800/80 bg-slate-50 border-slate-200 border p-2 rounded-lg text-[11px]">
                               <div className="text-[10px] text-emerald-600 dark:text-emerald-400 font-mono font-semibold">{item.date}</div>
@@ -1959,7 +1983,7 @@ export default function LineChatModal({
                             </div>
                           ))}
                         </div>
-                      </div>
+                      </details>
                     )}
 
                     {followStatusSnapshot && msg.id === (initialTheme ? 'msg-theme-reply' : 'msg-2') && (

@@ -10,32 +10,11 @@ import { buildOpinionDraft } from '../lib/opinionDraft.js';
 import { getOrCreateAnonymousUserId } from '../lib/anonymousUser';
 import { getIssueStatus } from '../data/issueStatuses';
 import IssueShareButton from './IssueShareButton';
-
-interface MyResponse {
-  readonly selected_answer: string;
-  readonly selected_reasons: readonly string[];
-  readonly free_text: string;
-}
-
-interface AggregateItem {
-  readonly id: string;
-  readonly label: string;
-  readonly count: number;
-  readonly percentage?: number;
-}
-
-interface Aggregate {
-  readonly total_responses: number;
-  readonly answers: readonly AggregateItem[];
-  readonly reasons: readonly AggregateItem[];
-  readonly top_reasons: readonly AggregateItem[];
-}
-
-interface CitizenQuestionSnapshot {
-  readonly storage_backend: 'firestore';
-  readonly my_response: MyResponse | null;
-  readonly aggregate: Aggregate;
-}
+import {
+  normalizeCitizenResponseSnapshot,
+  publishCitizenResponseCount,
+  type CitizenResponseAggregate,
+} from '../lib/citizenResponse';
 
 interface CitizenQuestionPanelProps {
   readonly config: CitizenQuestionDefinition;
@@ -57,7 +36,7 @@ export default function CitizenQuestionPanel({
   const [selectedAnswer, setSelectedAnswer] = useState('');
   const [selectedReasons, setSelectedReasons] = useState<string[]>([]);
   const [freeText, setFreeText] = useState('');
-  const [aggregate, setAggregate] = useState<Aggregate | null>(null);
+  const [aggregate, setAggregate] = useState<CitizenResponseAggregate | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -89,18 +68,25 @@ export default function CitizenQuestionPanel({
         { cache: 'no-store' },
       );
       if (!response.ok) throw new Error(`Citizen response API failed: ${response.status}`);
-      const payload = await response.json() as CitizenQuestionSnapshot;
-      if (payload.storage_backend !== 'firestore') {
-        throw new Error('Unexpected citizen response storage backend');
-      }
-      setAggregate(payload.aggregate);
-      if (restoreMyResponse && payload.my_response) {
-        setSelectedAnswer(payload.my_response.selected_answer);
-        setSelectedReasons([...payload.my_response.selected_reasons]);
-        setFreeText(payload.my_response.free_text);
+      const snapshot = normalizeCitizenResponseSnapshot(
+        await response.json(),
+        config.issueId,
+        config.questionId,
+      );
+      setAggregate(snapshot.aggregate);
+      publishCitizenResponseCount(config.issueId, snapshot.aggregate.total_responses);
+      if (restoreMyResponse && snapshot.my_response) {
+        setSelectedAnswer(snapshot.my_response.selected_answer);
+        setSelectedReasons([...snapshot.my_response.selected_reasons]);
+        setFreeText(snapshot.my_response.free_text);
       }
       return true;
-    } catch {
+    } catch (error) {
+      console.error('Citizen response status could not be loaded', {
+        issue_id: config.issueId,
+        question_id: config.questionId,
+        error,
+      });
       setAggregate(null);
       setLoadError(true);
       return false;
@@ -419,10 +405,10 @@ export default function CitizenQuestionPanel({
 
       <div ref={aggregateSectionRef} className="mt-5 border-t border-emerald-200 pt-4" aria-live="polite">
         <h4 className="text-sm font-bold text-slate-900">みんなの回答</h4>
-        {loading && <p className="mt-2 text-sm text-slate-500">集計を読み込んでいます…</p>}
+        {loading && <p className="mt-2 text-sm text-slate-500">回答状況を読み込み中</p>}
         {!loading && loadError && (
           <div data-testid="aggregate-error" className="mt-2 rounded-xl bg-white p-3">
-            <p className="text-sm font-medium text-red-700">集計を取得できませんでした</p>
+            <p className="text-sm font-medium text-red-700">回答状況を確認できません</p>
             <button
               type="button"
               data-testid="retry-aggregate"
@@ -435,20 +421,7 @@ export default function CitizenQuestionPanel({
         )}
         {!loading && aggregate && (
           <div className="mt-3">
-            {aggregate.total_responses === 0 ? (
-              <div>
-                <span data-testid="aggregate-total" className="sr-only">回答総数：0件</span>
-                <p title="回答実数 0件" className="text-sm font-bold text-emerald-800">この議題への最初の声を届けませんか？</p>
-              </div>
-            ) : aggregate.total_responses <= 2 ? (
-              <div>
-                <span data-testid="aggregate-total" className="sr-only">回答総数：{aggregate.total_responses}件</span>
-                <p className="text-sm font-bold text-emerald-800">声が集まり始めています</p>
-                <p className="mt-1 text-xs text-slate-500">現在の回答実数：{aggregate.total_responses}件</p>
-              </div>
-            ) : (
-              <p data-testid="aggregate-total" className="text-sm font-bold text-slate-800">回答総数：{aggregate.total_responses}件</p>
-            )}
+            <p data-testid="aggregate-total" className="text-sm font-bold text-slate-800">市民回答 {aggregate.total_responses}件</p>
             {aggregate.total_responses > 0 && (
               <>
                 <div className="mt-3 space-y-2">

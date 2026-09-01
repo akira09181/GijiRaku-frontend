@@ -20,6 +20,7 @@ interface FollowApiItem {
   readonly last_viewed_status_at: string;
   readonly notification_enabled: boolean;
   readonly has_new_status: boolean;
+  readonly current_response_count?: number | null;
   readonly status_updates: FollowedTopic['status_updates'];
   readonly my_response: FollowedTopic['my_response'];
 }
@@ -38,6 +39,11 @@ function assertFirestore(response: Response, payload: { storage_backend?: string
 }
 
 function normalizeFollow(item: FollowApiItem): FollowedTopic {
+  const currentResponseCount = typeof item.current_response_count === 'number'
+    && Number.isFinite(item.current_response_count)
+    && item.current_response_count >= 0
+    ? item.current_response_count
+    : null;
   return {
     ...item,
     discussion_id: item.issue_id,
@@ -45,6 +51,7 @@ function normalizeFollow(item: FollowApiItem): FollowedTopic {
     theme_name: item.title,
     followed_at: item.created_at,
     has_new_status: isFollowUnread(item.status_updated_at, item.last_viewed_status_at),
+    current_response_count: currentResponseCount,
   };
 }
 

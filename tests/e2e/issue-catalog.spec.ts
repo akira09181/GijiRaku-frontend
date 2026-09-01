@@ -145,17 +145,64 @@ test('実データ52議題を一覧化し、全カードの詳細・出典・内
   }
 });
 
-test('スマートフォンでも絞り込みともっと見るを操作できる', async ({ browser }) => {
+test('スマートフォンでも地域＋テーマの複合絞り込みともっと見るを操作できる', async ({ browser }) => {
   const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
   await mockCatalogApis(context);
   const page = await context.newPage();
   try {
     await page.goto('/');
     await page.getByLabel('地域で絞り込む').selectOption('shinjuku-ward');
+    await page.getByLabel('テーマで絞り込む').selectOption('administration');
     await expect(page.getByTestId('filtered-issue-count')).toHaveText('該当 20件');
+    await expect(page.getByTestId('issue-card').first()).toHaveAttribute('data-issue-id', /.+/);
     await expect(page.getByTestId('issue-card').first()).toBeVisible();
     await page.getByTestId('load-more-issues').click();
     await expect(page.getByTestId('issue-card')).toHaveCount(20);
+  } finally {
+    await context.close();
+  }
+});
+
+test('FAQ・発言・公式原文をissue_idで分離し、議題切替後に前のFAQを残さない', async ({ browser }) => {
+  const tokyoApp = catalogIssues.find((issue) => issue.issue_id === 'tokyo-app-2026-06-16');
+  const teacherAi = catalogIssues.find((issue) => issue.issue_id === 'tokyo-teacher-generative-ai-2026-06-17');
+  expect(tokyoApp).toBeTruthy();
+  expect(teacherAi).toBeTruthy();
+
+  const context = await browser.newContext();
+  await mockCatalogApis(context);
+  const page = await context.newPage();
+  try {
+    await page.goto('/');
+    while (await page.getByTestId('load-more-issues').isVisible().catch(() => false)) {
+      await page.getByTestId('load-more-issues').click();
+    }
+
+    const tokyoCard = page.locator(`[data-testid="issue-card"][data-issue-id="${tokyoApp!.issue_id}"]`);
+    await tokyoCard.getByRole('button', { name: '詳細を見る' }).click();
+    let modal = page.getByTestId('discussion-modal');
+    await expect(modal).toHaveAttribute('data-discussion-id', tokyoApp!.issue_id);
+    await expect(modal.getByTestId('issue-faq')).toHaveAttribute('data-issue-id', tokyoApp!.issue_id);
+    await expect(modal.getByText('東京アプリで何が変わる？')).toBeVisible();
+    await expect(modal.getByRole('link', { name: '公式会議録原文' })).toHaveAttribute('href', tokyoApp!.source_url);
+    await modal.getByTestId('close-discussion-modal').click();
+
+    const teacherCard = page.locator(`[data-testid="issue-card"][data-issue-id="${teacherAi!.issue_id}"]`);
+    await teacherCard.getByRole('button', { name: '詳細を見る' }).click();
+    modal = page.getByTestId('discussion-modal');
+    await expect(modal).toHaveAttribute('data-discussion-id', teacherAi!.issue_id);
+    await expect(modal.getByTestId('detail-topic')).toHaveText(teacherAi!.title);
+    await expect(modal.getByTestId('issue-faq')).toHaveCount(0);
+    await expect(modal.getByText('東京アプリで何が変わる？')).toHaveCount(0);
+    await expect(modal.getByRole('link', { name: '公式会議録原文' })).toHaveAttribute('href', teacherAi!.source_url);
+    for (const statement of teacherAi!.detail.statements) {
+      await expect(modal.locator(`[data-testid="discussion-statement"][data-statement-id="${statement.statement_id}"]`)).toBeVisible();
+    }
+    await modal.getByRole('button', { name: '議員ダッシュボード' }).click();
+    const analyticsModal = page.getByTestId('analytics-modal');
+    await analyticsModal.getByRole('button', { name: /市民世論フィードバック/ }).click();
+    await expect(analyticsModal.getByTestId('admin-citizen-question-results')).toHaveCount(0);
+    await expect(analyticsModal).not.toContainText('東京アプリの機能強化');
   } finally {
     await context.close();
   }

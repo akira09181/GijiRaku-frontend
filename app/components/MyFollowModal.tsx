@@ -87,6 +87,12 @@ export default function MyFollowModal({
             const question = getCitizenQuestionByIssueId(follow.issue_id);
             const issueStatus = getIssueStatus(follow.issue_id);
             const answer = question?.answers.find((choice) => choice.id === follow.my_response?.selected_answer);
+            const sortedUpdates = [...follow.status_updates].sort((left, right) => left.updated_at.localeCompare(right.updated_at));
+            const latestUpdate = sortedUpdates.at(-1);
+            const previousUpdate = sortedUpdates.at(-2);
+            const unseenUpdates = sortedUpdates.filter(
+              (update) => Date.parse(update.updated_at) > Date.parse(follow.last_viewed_status_at),
+            );
             return (
               <article key={follow.issue_id} data-testid={`my-follow-${follow.issue_id}`} className="rounded-2xl border border-slate-200 dark:border-slate-700 p-4 space-y-3 bg-slate-50 dark:bg-slate-950/60">
                 <div className="flex items-start justify-between gap-3">
@@ -96,7 +102,7 @@ export default function MyFollowModal({
                   </div>
                   {follow.has_new_status && (
                     <span data-testid="follow-update-badge" className="shrink-0 rounded-full bg-amber-100 text-amber-800 border border-amber-300 px-2 py-1 text-[10px] font-bold flex items-center gap-1">
-                      <Bell className="w-3 h-3" />新しい動き
+                      <Bell className="w-3 h-3" />前回から更新あり
                     </span>
                   )}
                 </div>
@@ -107,12 +113,29 @@ export default function MyFollowModal({
                   <dd className="font-semibold text-slate-800 dark:text-slate-200">{answer?.label || '未回答'}</dd>
                   <dt className="text-slate-500">回答日</dt>
                   <dd className="text-slate-700 dark:text-slate-300">{formatDate(follow.my_response?.updated_at)}</dd>
-                  <dt className="text-slate-500">状態確認日</dt>
+                  <dt className="text-slate-500">現在の市民回答数</dt>
+                  <dd data-testid="follow-current-response-count" className="font-semibold text-slate-800 dark:text-slate-200">
+                    {follow.current_response_count === null ? '回答状況を確認できません' : `市民回答 ${follow.current_response_count}件`}
+                  </dd>
+                  <dt className="text-slate-500">最終更新日</dt>
+                  <dd className="text-slate-700 dark:text-slate-300">{formatDate(follow.status_updated_at)}</dd>
+                  <dt className="text-slate-500">最終確認日</dt>
                   <dd className="text-slate-700 dark:text-slate-300">{formatDate(follow.status_checked_at)}</dd>
                   <dt className="text-slate-500">現在の状態</dt>
                   <dd className="font-semibold text-slate-800 dark:text-slate-200">{follow.current_status}</dd>
                 </dl>
                 <p className="text-xs leading-relaxed text-slate-700 dark:text-slate-300">{follow.status_summary}</p>
+                {follow.has_new_status && unseenUpdates.length > 0 && (
+                  <div data-testid="follow-update-details" className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-950 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-100">
+                    <p className="font-bold">更新内容</p>
+                    <ul className="mt-1 space-y-1">
+                      {unseenUpdates.map((update) => <li key={`${update.updated_at}:${update.status}`}>{update.summary}</li>)}
+                    </ul>
+                    {previousUpdate && latestUpdate && previousUpdate.status !== latestUpdate.status && (
+                      <p data-testid="follow-status-transition" className="mt-2 font-semibold">進捗変更：{previousUpdate.status} → {latestUpdate.status}</p>
+                    )}
+                  </div>
+                )}
                 <div className="flex flex-wrap justify-end gap-2">
                   {question && issueStatus && <IssueShareButton issue={question} status={issueStatus} />}
                   <a href={follow.source_url} target="_blank" rel="noreferrer" className="px-3 py-2 text-xs font-bold text-emerald-700 dark:text-emerald-400 flex items-center gap-1">

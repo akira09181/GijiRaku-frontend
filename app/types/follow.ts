@@ -20,6 +20,7 @@ export interface FollowedTopic {
   readonly question_id: string;
   readonly notification_enabled: boolean;
   readonly has_new_status: boolean;
+  readonly current_response_count: number | null;
   readonly status_updates: readonly FollowStatusUpdate[];
   readonly my_response: {
     readonly selected_answer: string;

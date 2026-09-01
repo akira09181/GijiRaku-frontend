@@ -309,7 +309,7 @@ test('全7議題で回答・復元・別ブラウザ集計・回答変更・行�
 
     for (const definition of CITIZEN_QUESTIONS) {
       let panelA = await openQuestion(pageA, definition);
-      await expect(panelA.getByTestId('aggregate-total')).toHaveText('回答総数：0件');
+      await expect(panelA.getByTestId('aggregate-total')).toHaveText('市民回答 0件');
 
       const firstAnswer = definition.answers[0];
       const changedAnswer = definition.answers[1];
@@ -321,10 +321,10 @@ test('全7議題で回答・復元・別ブラウザ集計・回答変更・行�
       await panelA.getByTestId('question-free-text').fill(`${definition.municipality}のE2E回答`);
       await panelA.getByTestId('submit-citizen-response').click();
       await expect(panelA.getByTestId('citizen-response-success')).toBeVisible();
-      await expect(panelA.getByTestId('aggregate-total')).toHaveText('回答総数：1件');
+      await expect(panelA.getByTestId('aggregate-total')).toHaveText('市民回答 1件');
 
       let panelB = await openQuestion(pageB, definition);
-      await expect(panelB.getByTestId('aggregate-total')).toHaveText('回答総数：1件');
+      await expect(panelB.getByTestId('aggregate-total')).toHaveText('市民回答 1件');
       await expect(panelB.getByTestId(`aggregate-answer-${firstAnswer.id}`)).toContainText('1件（100%）');
       await expect(panelB.getByTestId(`question-answer-${firstAnswer.id}`)).not.toBeChecked();
 
@@ -347,7 +347,7 @@ test('全7議題で回答・復元・別ブラウザ集計・回答変更・行�
       await expect(adminResults).toContainText(definition.municipality);
       await expect(adminResults).toContainText(definition.theme);
       await expect(adminResults).toContainText(definition.question);
-      await expect(adminResults.getByTestId('admin-aggregate-total')).toHaveText('回答総数 1件');
+      await expect(adminResults.getByTestId('admin-aggregate-total')).toHaveText('市民回答 1件');
       await expect(adminResults.getByTestId(`admin-reason-${firstReason.id}`)).toContainText('1件');
       await expect(adminResults.getByTestId('admin-citizen-response')).toContainText(
         `${definition.municipality}のE2E回答`,
