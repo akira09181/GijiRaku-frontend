@@ -215,7 +215,7 @@ export default function CitizenQuestionPanel({
           <p className="text-xs font-bold uppercase tracking-[0.08em] text-slate-500">アクション</p>
           <p className="mt-1 text-sm font-semibold text-slate-800">この議題について、意見を伝えたい方へ</p>
         </div>
-        <ShareButtons url={typeof window === 'undefined' ? 'https://example.com' : window.location.href} title={config.question} />
+        <ShareButtons url="" title={config.question} />
       </div>
 
       <div className="mt-4">

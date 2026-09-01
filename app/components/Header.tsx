@@ -1,7 +1,8 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Landmark, BarChart3, Sun, Moon, BookmarkCheck } from 'lucide-react';
+import Link from 'next/link';
+import { Landmark, BarChart3, Sun, Moon, BookmarkCheck, ArrowUpRight } from 'lucide-react';
 import { Assembly } from '../types/assembly';
 
 interface HeaderProps {
@@ -184,6 +185,16 @@ export default function Header({
             <span className="hidden sm:inline">議員・行政向け分析</span>
             <span className="sm:hidden">行政向け</span>
           </button>
+
+          <Link
+            href="/b2b-dashboard"
+            className="px-3 py-1.5 rounded-lg dark:bg-emerald-900/30 dark:hover:bg-emerald-900/40 dark:border-emerald-700/70 dark:text-emerald-200 bg-emerald-50 hover:bg-emerald-100 border-emerald-200 text-emerald-800 border text-xs font-medium flex items-center gap-1.5 transition-colors"
+            aria-label="B2Bダッシュボードを開く"
+          >
+            <ArrowUpRight className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">B2B dashboard</span>
+            <span className="sm:hidden">B2B</span>
+          </Link>
         </div>
       </div>
     </header>

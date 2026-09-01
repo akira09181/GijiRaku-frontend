@@ -33,10 +33,13 @@ export default function FeedbackForm() {
           value={message}
           onChange={(event) => setMessage(event.target.value)}
           rows={5}
+          maxLength={500}
           placeholder="この議案について感じたこと、改善案、賛成・反対の理由を自由にご記入ください。"
           className="w-full resize-none rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-3 text-sm text-slate-700 placeholder:text-slate-400 focus:border-sky-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-sky-100"
         />
       </div>
+
+      <p className="mb-3 text-xs text-slate-500">試作フォームのため、この入力はサーバーには保存されません。</p>
 
       <div className="flex items-center justify-end">
         <button

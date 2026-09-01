@@ -32,6 +32,11 @@ interface MockStore {
   follows?: Map<string, { issue_id: string; created_at: string; last_viewed_status_at: string }>;
   statusUpdatedAt?: string;
   statusSummary?: string;
+  notificationPreferences?: {
+    interest_themes: string[];
+    municipalities: string[];
+    keywords: string[];
+  };
   failFollowReads?: boolean;
   failFollowWrites?: boolean;
   failFollowDeletes?: boolean;
@@ -164,6 +169,49 @@ async function fulfillCitizenApi(route: Route, store: MockStore) {
 
 async function installApiMock(context: BrowserContext, store: MockStore) {
   await installIssueCatalogMock(context);
+  await context.route('**/api/notifications/**', async (route) => {
+    const request = route.request();
+    const url = new URL(request.url());
+    if (url.pathname.endsWith('/preferences')) {
+      if (request.method() === 'PUT') {
+        store.notificationPreferences = request.postDataJSON() as NonNullable<MockStore['notificationPreferences']>;
+      }
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          status: 'success',
+          storage_backend: 'firestore',
+          preferences: store.notificationPreferences || {
+            interest_themes: [],
+            municipalities: [],
+            keywords: [],
+          },
+        }),
+      });
+      return;
+    }
+    const hasConditions = Boolean(
+      store.notificationPreferences
+      && Object.values(store.notificationPreferences).some((items) => items.length > 0),
+    );
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        status: 'success',
+        storage_backend: 'firestore',
+        total: hasConditions ? 1 : 0,
+        matches: hasConditions ? [{
+          issue_id: ISSUE_ID,
+          title: '病児保育の利用拒否と予約・空き状況の改善',
+          municipality: '新宿区',
+          summary: 'ICTツールを研究する方針です。',
+          source_url: 'https://example.test/shinjuku-minutes',
+        }] : [],
+      }),
+    });
+  });
   await context.route('**/api/follows**', async (route) => {
     const request = route.request();
     const follows = store.follows ||= new Map();
@@ -555,6 +603,14 @@ test('回答からフォロー・更新確認・固有URL共有までA/Bブラ�
     await expect(myFollows.getByTestId('follow-current-response-count')).toHaveText('市民回答 1件');
     await expect(myFollows).toContainText('最終更新日');
     await expect(myFollows).toContainText('現在の状態');
+    await myFollows.getByText('関心テーマの通知条件').click();
+    const notificationPreferences = myFollows.getByTestId('notification-preferences');
+    await notificationPreferences.getByLabel('地域（読点・カンマ区切り）').fill('新宿区');
+    await notificationPreferences.getByLabel('関心テーマ').fill('子育て');
+    await notificationPreferences.getByLabel('キーワード').fill('予約');
+    await notificationPreferences.getByRole('button', { name: '通知条件を保存' }).click();
+    await expect(notificationPreferences).toContainText('通知条件を保存しました。');
+    await expect(notificationPreferences).toContainText('一致する議題 1件');
     await myFollows.getByRole('button', { name: 'マイフォローを閉じる' }).click();
 
     await pageA.reload();

@@ -6,6 +6,7 @@ import { getCitizenQuestionByIssueId } from '../data/citizenQuestions';
 import { getIssueStatus } from '../data/issueStatuses';
 import type { FollowedTopic } from '../types/follow';
 import IssueShareButton from './IssueShareButton';
+import NotificationPreferencesPanel from './NotificationPreferencesPanel';
 
 interface MyFollowModalProps {
   readonly follows: readonly FollowedTopic[];
@@ -69,6 +70,7 @@ export default function MyFollowModal({
         </header>
 
         <div className="overflow-y-auto p-4 space-y-3">
+          <NotificationPreferencesPanel />
           {loading && <p role="status" className="text-sm text-slate-600 dark:text-slate-300">フォロー情報を取得しています…</p>}
           {error && (
             <div role="alert" className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">

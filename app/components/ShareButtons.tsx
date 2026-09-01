@@ -1,30 +1,17 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
-
 interface ShareButtonsProps {
-  url: string;
-  title: string;
+  readonly url: string;
+  readonly title: string;
 }
 
 export default function ShareButtons({ url, title }: ShareButtonsProps) {
-  const [resolvedUrl, setResolvedUrl] = useState(url);
-
-  useEffect(() => {
-    if (typeof window !== 'undefined' && !url) {
-      setResolvedUrl(window.location.href);
-    }
-  }, [url]);
-
-  const xShareUrl = useMemo(() => {
+  const handleShareX = () => {
+    const resolvedUrl = url.trim() || window.location.href;
     const shareUrl = new URL('https://twitter.com/intent/tweet');
     shareUrl.searchParams.set('text', title);
-    shareUrl.searchParams.set('url', resolvedUrl || window.location.href);
-    return shareUrl.toString();
-  }, [resolvedUrl, title]);
-
-  const handleShareX = () => {
-    window.open(xShareUrl, '_blank', 'noopener,noreferrer');
+    shareUrl.searchParams.set('url', resolvedUrl);
+    window.open(shareUrl.toString(), '_blank', 'noopener,noreferrer');
   };
 
   return (
