@@ -1,7 +1,17 @@
 /**
  * 自治体・議会関連の型定義
  */
-export type IssueTheme = 'all' | 'child' | 'dx' | 'redevelop' | 'medical';
+export type IssueTheme =
+  | 'all'
+  | 'children'
+  | 'digital'
+  | 'health'
+  | 'housing'
+  | 'transport'
+  | 'economy'
+  | 'safety'
+  | 'community'
+  | 'administration';
 
 export interface AssemblyIssueStat {
   readonly theme: string;

@@ -1,4 +1,5 @@
 import { expect, test, type BrowserContext, type Page, type Route } from '@playwright/test';
+import { installIssueCatalogMock } from './issueCatalogMock';
 
 type ReactionType = 'agree' | 'concern' | 'helpful';
 type ReactionCounts = Record<ReactionType, number>;
@@ -91,6 +92,7 @@ async function fulfillReactionApi(route: Route, store: MockReactionStore) {
 }
 
 async function installApiMock(context: BrowserContext, store: MockReactionStore) {
+  await installIssueCatalogMock(context);
   await context.route('**/api/reactions**', (route) => fulfillReactionApi(route, store));
   await context.route('**/api/assembly-records**', async (route) => {
     const url = new URL(route.request().url());

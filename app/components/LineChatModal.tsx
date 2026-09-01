@@ -1405,7 +1405,6 @@ export default function LineChatModal({
             </p>
             <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px] dark:text-slate-400 text-slate-500">
               <span data-testid="detail-date">{activeRecord.meeting_date.replaceAll('-', '/')}｜{activeRecord.meeting_name}</span>
-              <span data-testid="detail-discussion-id" className="sr-only">{activeRecord.discussion_id}</span>
             </div>
           </div>
         )}

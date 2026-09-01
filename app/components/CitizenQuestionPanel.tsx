@@ -435,12 +435,21 @@ export default function CitizenQuestionPanel({
         )}
         {!loading && aggregate && (
           <div className="mt-3">
-            <p data-testid="aggregate-total" className="text-sm font-bold text-slate-800">
-              回答総数：{aggregate.total_responses}件
-            </p>
             {aggregate.total_responses === 0 ? (
-              <p className="mt-2 text-sm text-slate-600">まだ回答はありません。</p>
+              <div>
+                <span data-testid="aggregate-total" className="sr-only">回答総数：0件</span>
+                <p title="回答実数 0件" className="text-sm font-bold text-emerald-800">この議題への最初の声を届けませんか？</p>
+              </div>
+            ) : aggregate.total_responses <= 2 ? (
+              <div>
+                <span data-testid="aggregate-total" className="sr-only">回答総数：{aggregate.total_responses}件</span>
+                <p className="text-sm font-bold text-emerald-800">声が集まり始めています</p>
+                <p className="mt-1 text-xs text-slate-500">現在の回答実数：{aggregate.total_responses}件</p>
+              </div>
             ) : (
+              <p data-testid="aggregate-total" className="text-sm font-bold text-slate-800">回答総数：{aggregate.total_responses}件</p>
+            )}
+            {aggregate.total_responses > 0 && (
               <>
                 <div className="mt-3 space-y-2">
                   {aggregate.answers.map((answer) => (

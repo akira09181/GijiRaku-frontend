@@ -12,10 +12,10 @@ interface ThemeOption {
 
 const THEME_OPTIONS: readonly ThemeOption[] = [
   { id: 'all', label: 'すべてのテーマ', icon: <Layers className="w-3.5 h-3.5" /> },
-  { id: 'child', label: '子育て・給食費支援', icon: <Baby className="w-3.5 h-3.5" /> },
-  { id: 'dx', label: '行政DX・スマホ手続き', icon: <Laptop className="w-3.5 h-3.5" /> },
-  { id: 'redevelop', label: '交通・都市再開発', icon: <Building2 className="w-3.5 h-3.5" /> },
-  { id: 'medical', label: '医療・休日夜間診療', icon: <HeartPulse className="w-3.5 h-3.5" /> },
+  { id: 'children', label: '子育て・教育', icon: <Baby className="w-3.5 h-3.5" /> },
+  { id: 'digital', label: '行政DX・AI', icon: <Laptop className="w-3.5 h-3.5" /> },
+  { id: 'housing', label: '住まい・まちづくり', icon: <Building2 className="w-3.5 h-3.5" /> },
+  { id: 'health', label: '医療・福祉', icon: <HeartPulse className="w-3.5 h-3.5" /> },
 ];
 
 interface ThemeSelectorProps {

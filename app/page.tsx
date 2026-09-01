@@ -7,8 +7,10 @@ import AssemblyListDrawer from './components/AssemblyListDrawer';
 import LineChatModal from './components/LineChatModal';
 import AnalyticsDashboardModal from './components/AnalyticsDashboardModal';
 import MyFollowModal from './components/MyFollowModal';
+import IssueExplorer from './components/IssueExplorer';
 import { Assembly, IssueTheme } from './types/assembly';
 import type { AssemblyRecord, AssemblyRecordsResponse } from './types/assemblyRecord';
+import type { IssueCatalogItem, IssueCatalogResponse } from './types/issueCatalog';
 import type { FollowedTopic, FollowTopicInput } from './types/follow';
 import {
   FOLLOWED_TOPICS_STORAGE_KEY,
@@ -25,10 +27,8 @@ import {
   MapPin,
   Filter,
   MessageSquare,
-  ExternalLink,
   ChevronDown,
   Building2,
-  Calendar,
   Baby,
   Laptop,
   Building,
@@ -200,29 +200,29 @@ const TOKYO_ASSEMBLIES: readonly Assembly[] = [
 
 const THEME_OPTIONS: readonly { id: IssueTheme; label: string; icon: React.ReactNode }[] = [
   { id: 'all', label: 'すべてのテーマ', icon: <Layers className="w-3.5 h-3.5" /> },
-  { id: 'child', label: '子育て・給食費', icon: <Baby className="w-3.5 h-3.5" /> },
-  { id: 'dx', label: '行政DX・スマホ手続き', icon: <Laptop className="w-3.5 h-3.5" /> },
-  { id: 'redevelop', label: '交通・まちづくり', icon: <Building className="w-3.5 h-3.5" /> },
-  { id: 'medical', label: '医療・防災', icon: <HeartPulse className="w-3.5 h-3.5" /> },
+  { id: 'children', label: '子育て・教育', icon: <Baby className="w-3.5 h-3.5" /> },
+  { id: 'digital', label: '行政DX・AI', icon: <Laptop className="w-3.5 h-3.5" /> },
+  { id: 'health', label: '医療・福祉', icon: <HeartPulse className="w-3.5 h-3.5" /> },
+  { id: 'housing', label: '住まい・まちづくり', icon: <Building className="w-3.5 h-3.5" /> },
+  { id: 'transport', label: '交通', icon: <Building className="w-3.5 h-3.5" /> },
+  { id: 'economy', label: '暮らし・経済', icon: <Layers className="w-3.5 h-3.5" /> },
+  { id: 'safety', label: '防災・安全', icon: <HeartPulse className="w-3.5 h-3.5" /> },
+  { id: 'community', label: '地域・環境', icon: <MapPin className="w-3.5 h-3.5" /> },
 ];
 
 function getThemeKeyword(theme: IssueTheme): string | undefined {
   switch (theme) {
-    case 'child':
+    case 'children':
       return '子育て支援・給食費無償化';
-    case 'dx':
+    case 'digital':
       return '行政DX・スマホ手続き';
-    case 'redevelop':
+    case 'housing':
       return '都市再開発・交通インフラ';
-    case 'medical':
+    case 'health':
       return '医療体制・休日診療';
     default:
       return undefined;
   }
-}
-
-function formatMeetingDate(record: AssemblyRecord): string {
-  return `${record.meeting_date.replaceAll('-', '/')}｜${record.meeting_name}`;
 }
 
 function validateFeaturedRecord(
@@ -253,7 +253,6 @@ export default function Home() {
   const [modalInitialDiscussionId, setModalInitialDiscussionId] = useState<string | undefined>();
   const [modalInitialRecord, setModalInitialRecord] = useState<AssemblyRecord | undefined>();
   const [featuredRecords, setFeaturedRecords] = useState<Record<string, AssemblyRecord>>({});
-  const [featuredRecordErrors, setFeaturedRecordErrors] = useState<ReadonlySet<string>>(new Set());
   const [analyticsAssembly, setAnalyticsAssembly] = useState<Assembly | null>(null);
   const [showMapExplorer, setShowMapExplorer] = useState(false);
   const [mobileView, setMobileView] = useState<'map' | 'list'>('map');
@@ -262,11 +261,16 @@ export default function Home() {
   const [followsLoading, setFollowsLoading] = useState(true);
   const [followsError, setFollowsError] = useState<string | null>(null);
   const [openedFollowSnapshot, setOpenedFollowSnapshot] = useState<FollowedTopic | null>(null);
+  const [issueCatalog, setIssueCatalog] = useState<IssueCatalogResponse | null>(null);
+  const [issueCatalogLoading, setIssueCatalogLoading] = useState(true);
+  const [issueCatalogError, setIssueCatalogError] = useState<string | null>(null);
+  const [issueCatalogReload, setIssueCatalogReload] = useState(0);
   const directIssueOpenedRef = useRef(false);
   const viewedFollowRef = useRef<string | null>(null);
   const [officialStats, setOfficialStats] = useState({
     openDataSourceCount: 7,
     assemblyCount: 7,
+    catalogIssueCount: 0,
     statementCount: 367,
     updatedAt: '2026/08/24',
   });
@@ -285,6 +289,7 @@ export default function Home() {
         setOfficialStats({
           openDataSourceCount: payload.open_data_source_count,
           assemblyCount: payload.assembly_count,
+          catalogIssueCount: payload.catalog_issue_count ?? 0,
           statementCount: payload.statement_count,
           updatedAt: payload.updated_at?.slice(0, 10).replaceAll('-', '/') || '2026/08/24',
         });
@@ -297,10 +302,29 @@ export default function Home() {
   useEffect(() => {
     const controller = new AbortController();
     const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000';
+    void fetch(`${apiBase}/api/issues`, { cache: 'no-store', signal: controller.signal })
+      .then(async (response) => {
+        if (!response.ok) throw new Error(`Issue catalog API failed: ${response.status}`);
+        return response.json() as Promise<IssueCatalogResponse>;
+      })
+      .then((payload) => {
+        if (!controller.signal.aborted) setIssueCatalog(payload);
+      })
+      .catch(() => {
+        if (!controller.signal.aborted) setIssueCatalogError('議題を取得できませんでした');
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setIssueCatalogLoading(false);
+      });
+    return () => controller.abort();
+  }, [issueCatalogReload]);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000';
 
     const loadFeaturedRecords = async () => {
       const loaded: Record<string, AssemblyRecord> = {};
-      const failed = new Set<string>();
       await Promise.all(TOKYO_ASSEMBLIES.map(async (assembly) => {
         const query = new URLSearchParams({
           assembly_id: assembly.id,
@@ -320,12 +344,10 @@ export default function Home() {
         } catch (error) {
           if (controller.signal.aborted) return;
           console.error('Featured discussion could not be loaded', assembly.id, error);
-          failed.add(assembly.id);
         }
       }));
       if (controller.signal.aborted) return;
       setFeaturedRecords(loaded);
-      setFeaturedRecordErrors(failed);
     };
 
     void loadFeaturedRecords();
@@ -372,10 +394,15 @@ export default function Home() {
       list = list.filter((a) => a.id === selectedAssemblyId);
     }
     if (userTheme !== 'all') {
-      list = list.filter((a) => a.mainIssues.some((issue) => issue.theme === userTheme));
+      const matchingAssemblyIds = new Set(
+        issueCatalog?.issues
+          .filter((issue) => issue.theme.id === userTheme)
+          .map((issue) => issue.assembly_id) || [],
+      );
+      list = list.filter((assembly) => matchingAssemblyIds.has(assembly.id));
     }
     return list;
-  }, [selectedAssemblyId, userTheme]);
+  }, [issueCatalog, selectedAssemblyId, userTheme]);
 
   // 選択中の自治体情報
   const currentSelectedAssembly = useMemo(() => {
@@ -408,20 +435,21 @@ export default function Home() {
     if (directIssueOpenedRef.current) return;
     const match = window.location.pathname.match(/^\/issues\/([^/]+)\/?$/);
     if (!match) return;
-    const issue = getCitizenQuestionByIssueId(decodeURIComponent(match[1]));
-    const assembly = issue
-      ? TOKYO_ASSEMBLIES.find((item) => item.id === issue.assemblyId)
-      : undefined;
-    if (!issue || !assembly) return;
+    const issueId = decodeURIComponent(match[1]);
+    const questionIssue = getCitizenQuestionByIssueId(issueId);
+    const catalogIssue = issueCatalog?.issues.find((item) => item.issue_id === issueId);
+    const assemblyId = questionIssue?.assemblyId || catalogIssue?.assembly_id;
+    const assembly = TOKYO_ASSEMBLIES.find((item) => item.id === assemblyId);
+    if (!assemblyId || !assembly) return;
     directIssueOpenedRef.current = true;
     const record = featuredRecords[assembly.id];
     queueMicrotask(() => {
-      setModalInitialTheme(issue.theme);
-      setModalInitialDiscussionId(issue.issueId);
-      setModalInitialRecord(record?.discussion_id === issue.issueId ? record : undefined);
+      setModalInitialTheme(questionIssue?.theme || catalogIssue?.theme.label);
+      setModalInitialDiscussionId(issueId);
+      setModalInitialRecord(record?.discussion_id === issueId ? record : undefined);
       setSelectedAssemblyForModal(assembly);
     });
-  }, [featuredRecords]);
+  }, [featuredRecords, issueCatalog]);
 
   useEffect(() => {
     if (!selectedAssemblyForModal || !modalInitialDiscussionId) return;
@@ -445,6 +473,17 @@ export default function Home() {
     const shinjukuAssembly = TOKYO_ASSEMBLIES.find((assembly) => assembly.id === 'shinjuku-ward');
     if (!shinjukuAssembly) return;
     openAssemblyModal(shinjukuAssembly, '病児保育', 'shinjuku-sick-child-care-2026-06-10');
+  };
+
+  const openCatalogIssue = (issue: IssueCatalogItem) => {
+    const assembly = TOKYO_ASSEMBLIES.find((item) => item.id === issue.assembly_id);
+    if (!assembly) return;
+    openAssemblyModal(assembly, issue.theme.label, issue.issue_id);
+  };
+
+  const selectCatalogAssembly = (assemblyId: string) => {
+    setSelectedAssemblyId(assemblyId);
+    window.setTimeout(() => document.getElementById('issue-list')?.scrollIntoView({ behavior: 'smooth' }), 0);
   };
 
   const handleToggleFollowTopic = async (topic: FollowTopicInput): Promise<boolean> => {
@@ -613,8 +652,8 @@ export default function Home() {
         {/* 東京都全域 議会オープンデータ構造化実績 (数字の証拠) */}
         <div className="w-full mt-6 grid grid-cols-2 sm:grid-cols-4 gap-3 text-left">
           <div className="dark:bg-slate-900/90 bg-white border dark:border-slate-800 border-slate-200 p-3 rounded-xl shadow-sm">
-            <div className="text-[10px] dark:text-slate-400 text-slate-500 font-semibold mb-1">公式OD出典</div>
-            <div className="text-lg font-bold text-emerald-600 dark:text-emerald-400">{officialStats.openDataSourceCount}<span className="text-[10px] text-slate-500 font-normal ml-1">データセット</span></div>
+            <div className="text-[10px] dark:text-slate-400 text-slate-500 font-semibold mb-1">公開中の議題</div>
+            <div className="text-lg font-bold text-emerald-600 dark:text-emerald-400">{issueCatalog?.total_catalog_issue_count || officialStats.catalogIssueCount || '—'}<span className="text-[10px] text-slate-500 font-normal ml-1">件</span></div>
           </div>
           <div className="dark:bg-slate-900/90 bg-white border dark:border-slate-800 border-slate-200 p-3 rounded-xl shadow-sm">
             <div className="text-[10px] dark:text-slate-400 text-slate-500 font-semibold mb-1">実データ接続</div>
@@ -631,111 +670,25 @@ export default function Home() {
         </div>
       </section>
 
-      {/* メインコンテンツ: あなたに関係する議論カードフィード */}
-      <section className="px-4 pb-12 max-w-4xl w-full mx-auto space-y-4">
-        <div className="flex items-center justify-between">
-          <h3 className="text-sm font-bold dark:text-white text-slate-900 flex items-center gap-2">
-            <span>いま、街で動いている議論</span>
-            <span className="px-2 py-0.5 rounded-full text-[11px] font-normal dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700 bg-slate-200 text-slate-700 border-slate-300 border">
-              {activeAssemblies.length}地域
-            </span>
-          </h3>
-          {selectedAssemblyId !== 'all' && (
-            <button
-              onClick={() => setSelectedAssemblyId('all')}
-              className="text-xs text-emerald-600 dark:text-emerald-400 hover:underline font-medium"
-            >
-              条件をクリア
-            </button>
-          )}
-        </div>
-
-        {/* 議論カード一覧 */}
-        <div className="space-y-3.5">
-          {activeAssemblies.map((assembly) => {
-            const featuredRecord = featuredRecords[assembly.id];
-            const hasRecordError = featuredRecordErrors.has(assembly.id);
-            const relevantIssues =
-              userTheme === 'all'
-                ? assembly.mainIssues
-                : assembly.mainIssues.filter((i) => i.theme === userTheme);
-
-            return (
-              <div
-                key={assembly.id}
-                data-testid="discussion-card"
-                data-assembly-id={assembly.id}
-                data-discussion-id={featuredRecord?.discussion_id || assembly.featuredDiscussionId}
-                className="dark:bg-slate-900/90 dark:border-slate-800 dark:hover:border-slate-700/90 bg-white border-slate-200 border rounded-2xl p-4 sm:p-5 shadow-sm hover:shadow-md space-y-3.5 transition-all"
-              >
-                {/* 自治体ヘッダー */}
-                <div className="flex items-center justify-between text-xs border-b dark:border-slate-800/80 border-slate-100 pb-2.5">
-                  <div className="flex items-center gap-2">
-                    <span data-testid="card-municipality" className="font-bold dark:text-white text-slate-900 text-sm">{assembly.name}</span>
-                    <span className="text-[10px] px-1.5 py-0.5 rounded dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700/50 bg-slate-100 text-slate-600 border-slate-200 border font-medium">
-                      {assembly.type === 'prefecture' ? '都議会' : assembly.type === 'ward' ? '特別区' : '市'}
-                    </span>
-                  </div>
-                  <span className="dark:text-slate-400 text-slate-500 text-[11px] flex items-center gap-1">
-                    <Calendar className="w-3.5 h-3.5 text-slate-400" />
-                    <span data-testid="card-date">
-                      {featuredRecord ? formatMeetingDate(featuredRecord) : hasRecordError ? '取得エラー' : '読み込み中'}
-                    </span>
-                  </span>
-                </div>
-
-                {/* 注目話題 */}
-                <div className="space-y-1">
-                  <span className="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400">直近の主な議題</span>
-                  <p data-testid="card-topic" className="text-xs sm:text-sm font-semibold dark:text-slate-100 text-slate-900 leading-snug">
-                    {featuredRecord?.topic || (hasRecordError ? '議題データを確認できません' : '議題を読み込んでいます')}
-                  </p>
-                  <p data-testid="card-discussion-id" className="sr-only">
-                    {featuredRecord?.discussion_id || assembly.featuredDiscussionId}
-                  </p>
-                </div>
-
-                {/* 関連イシューラベル */}
-                <div className="flex items-center gap-1.5 flex-wrap">
-                  {relevantIssues.map((issue, idx) => (
-                    <span
-                      key={idx}
-                      className="px-2.5 py-1 rounded-lg text-[11px] dark:bg-slate-950 dark:text-slate-300 dark:border-slate-800 bg-slate-100 text-slate-700 border-slate-200 border"
-                    >
-                      {issue.label}
-                    </span>
-                  ))}
-                </div>
-
-                {/* アクションエリア */}
-                <div className="pt-2 border-t dark:border-slate-800/80 border-slate-100 flex items-center justify-between gap-3">
-                  <button
-                    onClick={() => openAssemblyModal(
-                      assembly,
-                      getThemeKeyword(userTheme),
-                      featuredRecord?.discussion_id,
-                    )}
-                    disabled={!featuredRecord}
-                    className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 disabled:bg-slate-400 disabled:cursor-not-allowed text-white rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-colors shadow-sm"
-                  >
-                    <MessageSquare className="w-3.5 h-3.5" />
-                    <span>この議論を見る（3分解説）</span>
-                  </button>
-
-                  <a
-                    href={featuredRecord?.source_url || assembly.sourceUrl || 'https://catalog.data.metro.tokyo.lg.jp/'}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="text-xs dark:text-slate-400 dark:hover:text-slate-200 text-slate-500 hover:text-slate-700 flex items-center gap-1 font-medium transition-colors"
-                  >
-                    <span className="hidden xs:inline">公式原文</span>
-                    <ExternalLink className="w-3 h-3" />
-                  </a>
-                </div>
-              </div>
-            );
-          })}
-        </div>
+      <section className="mx-auto w-full max-w-5xl px-4 pb-12">
+        <IssueExplorer
+          assemblies={TOKYO_ASSEMBLIES}
+          issues={issueCatalog?.issues || []}
+          themes={issueCatalog?.themes || []}
+          loading={issueCatalogLoading}
+          error={issueCatalogError}
+          selectedAssemblyId={selectedAssemblyId}
+          selectedTheme={userTheme}
+          followedIssueIds={followedTopics.map((topic) => topic.issue_id)}
+          onSelectAssembly={selectCatalogAssembly}
+          onSelectTheme={(themeId) => setUserTheme(themeId as IssueTheme)}
+          onOpenIssue={openCatalogIssue}
+          onRetry={() => {
+            setIssueCatalogLoading(true);
+            setIssueCatalogError(null);
+            setIssueCatalogReload((value) => value + 1);
+          }}
+        />
       </section>
 
       {/* セカンダリセクション: 地図 & 都内全市区町村から探す */}

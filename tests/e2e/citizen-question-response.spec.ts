@@ -1,4 +1,5 @@
 import { expect, test, type BrowserContext, type Page, type Route } from '@playwright/test';
+import { installIssueCatalogMock } from './issueCatalogMock';
 
 const ISSUE_ID = 'shinjuku-sick-child-care-2026-06-10';
 const QUESTION_ID = 'shinjuku-sick-child-care-realtime-booking-v1';
@@ -159,6 +160,7 @@ async function fulfillCitizenApi(route: Route, store: MockStore) {
 }
 
 async function installApiMock(context: BrowserContext, store: MockStore) {
+  await installIssueCatalogMock(context);
   await context.route('**/api/follows**', async (route) => {
     const request = route.request();
     const follows = store.follows ||= new Map();

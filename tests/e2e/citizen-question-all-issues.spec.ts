@@ -1,4 +1,5 @@
 import { expect, test, type BrowserContext, type Page, type Route } from '@playwright/test';
+import { installIssueCatalogMock } from './issueCatalogMock';
 import {
   CITIZEN_QUESTIONS,
   type CitizenQuestionDefinition,
@@ -34,7 +35,7 @@ const RECORD_TOPICS: Readonly<Record<string, string>> = {
   'machida-regional-transport-2026-03-26': '交通不便地域の新しい地域交通モデル',
   'shinagawa-inclusive-education-2026-02-19': '深い学び・多様性の包摂と教員負担軽減',
   'shibuya-inflation-support-2026-01-16': '物価高騰緊急支援給付金と子育て応援手当',
-  'arakawa-ward-auto-2026-03-17-685-6-267': '当初予算の内容や我が党の予算に関する特別委員会等で要望した事項',
+  'arakawa-ward-auto-2026-03-17-685-6-267': '令和8年度当初予算の重点施策',
   'hachioji-rag-ai-2026-06-11': '検索拡張生成AIの行政利用',
 };
 
@@ -228,6 +229,7 @@ async function fulfillCitizenApi(route: Route, store: MockFirestore) {
 }
 
 async function installApiMock(context: BrowserContext, store: MockFirestore) {
+  await installIssueCatalogMock(context);
   await context.route('**/api/assembly-records**', fulfillAssemblyApi);
   await context.route(
     '**/api/citizen-question-responses**',

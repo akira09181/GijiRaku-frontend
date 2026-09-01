@@ -11,6 +11,11 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
+      - name: Check out the source-verified backend dataset
+        uses: actions/checkout@v4
+        with:
+          repository: akira09181/GijiRaku-backend
+          path: gijiraku-api
       - uses: actions/setup-node@v4
         with:
           node-version: 20

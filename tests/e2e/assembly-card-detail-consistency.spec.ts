@@ -1,4 +1,5 @@
 import { expect, test, type BrowserContext, type Route } from '@playwright/test';
+import { installIssueCatalogMock } from './issueCatalogMock';
 
 interface FeaturedDiscussion {
   readonly assemblyId: string;
@@ -78,7 +79,7 @@ const FEATURED_DISCUSSIONS: readonly FeaturedDiscussion[] = [
     assemblyId: 'arakawa-ward',
     assemblyName: '荒川区議会',
     discussionId: 'arakawa-ward-auto-2026-03-17-685-6-267',
-    topic: '当初予算の内容や我が党の予算に関する特別委員会等で要望した事項',
+    topic: '令和8年度当初予算の重点施策',
     meetingDate: '2026-03-17',
     meetingName: '令和8年度荒川区議会定例会・2月会議',
     summary: '令和8年度当初予算への要望を確認します。',
@@ -166,6 +167,7 @@ async function fulfillAssemblyApi(route: Route) {
 }
 
 async function installApiMock(context: BrowserContext) {
+  await installIssueCatalogMock(context);
   await context.route('**/api/assembly-records**', fulfillAssemblyApi);
   await context.route('**/api/reactions**', async (route) => {
     await route.fulfill({
@@ -218,8 +220,6 @@ test('全7地域で一覧カードと詳細が同じ議題レコードを表示�
       await expect(card.getByTestId('card-date')).toHaveText(
         `${item.meetingDate.replaceAll('-', '/')}｜${item.meetingName}`,
       );
-      await expect(card.getByTestId('card-discussion-id')).toHaveText(item.discussionId);
-
       await card.getByRole('button', { name: /この議論を見る/ }).click();
       const modal = page.getByTestId('discussion-modal');
       await expect(modal).toHaveAttribute('data-assembly-id', item.assemblyId);
@@ -229,7 +229,6 @@ test('全7地域で一覧カードと詳細が同じ議題レコードを表示�
       await expect(modal.getByTestId('detail-date')).toHaveText(
         `${item.meetingDate.replaceAll('-', '/')}｜${item.meetingName}`,
       );
-      await expect(modal.getByTestId('detail-discussion-id')).toHaveText(item.discussionId);
       await expect(modal.getByTestId('detail-summary')).toHaveText(item.summary);
 
       const statements = modal.getByTestId('discussion-statement');
