@@ -10,6 +10,8 @@ import { buildOpinionDraft } from '../lib/opinionDraft.js';
 import { getOrCreateAnonymousUserId } from '../lib/anonymousUser';
 import { getIssueStatus } from '../data/issueStatuses';
 import IssueShareButton from './IssueShareButton';
+import ShareButtons from './ShareButtons';
+import FeedbackForm from './FeedbackForm';
 import {
   normalizeCitizenResponseSnapshot,
   publishCitizenResponseCount,
@@ -207,6 +209,18 @@ export default function CitizenQuestionPanel({
       <h3 className="mt-2 text-base font-bold leading-relaxed text-slate-900">
         {config.question}
       </h3>
+
+      <div className="mt-4 flex flex-col gap-3 rounded-2xl border border-emerald-200 bg-white/80 p-3 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <p className="text-xs font-bold uppercase tracking-[0.08em] text-slate-500">アクション</p>
+          <p className="mt-1 text-sm font-semibold text-slate-800">この議題について、意見を伝えたい方へ</p>
+        </div>
+        <ShareButtons url={typeof window === 'undefined' ? 'https://example.com' : window.location.href} title={config.question} />
+      </div>
+
+      <div className="mt-4">
+        <FeedbackForm />
+      </div>
 
       <div className="mt-4 grid gap-2">
         {config.answers.map((answer) => (
