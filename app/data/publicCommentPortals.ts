@@ -142,6 +142,41 @@ export const PUBLIC_COMMENT_PORTALS: readonly PublicCommentPortal[] = [
     portalUrl: 'https://www.city.musashimurayama.lg.jp/kusei/seisaku/publiccomment/index.html',
     guidance: '市のパブリックコメントページで、該当する募集を選んで意見を提出してください。',
   },
+  {
+    assemblyId: 'koto-ward',
+    municipality: '江東区',
+    portalLabel: '江東区 意見公募',
+    portalUrl: 'https://www.city.koto.lg.jp/kusei/seisaku/ikenkoubo/index.html',
+    guidance: '区の意見公募ページから、該当するテーマを選んで意見を送ってください。',
+  },
+  {
+    assemblyId: 'musashino-city',
+    municipality: '武蔵野市',
+    portalLabel: '武蔵野市 パブリックコメント',
+    portalUrl: 'https://www.city.musashino.lg.jp/kusei/seisaku/publiccomment/index.html',
+    guidance: '市のパブリックコメントページで、該当する募集を選んで意見を提出してください。',
+  },
+  {
+    assemblyId: 'fuchu-city',
+    municipality: '府中市',
+    portalLabel: '府中市 パブリックコメント',
+    portalUrl: 'https://www.city.fuchu.tokyo.jp/kusei/seisaku/publiccomment/index.html',
+    guidance: '市のパブリックコメントページで、該当する募集を選んで意見を提出してください。',
+  },
+  {
+    assemblyId: 'mitaka-city',
+    municipality: '三鷹市',
+    portalLabel: '三鷹市 パブリックコメント',
+    portalUrl: 'https://www.city.mitaka.lg.jp/kusei/seisaku/publiccomment/index.html',
+    guidance: '市のパブリックコメントページで、該当する募集を選んで意見を提出してください。',
+  },
+  {
+    assemblyId: 'kokubunji-city',
+    municipality: '国分寺市',
+    portalLabel: '国分寺市 パブリックコメント',
+    portalUrl: 'https://www.city.kokubunji.tokyo.jp/kusei/seisaku/publiccomment/index.html',
+    guidance: '市のパブリックコメントページで、該当する募集を選んで意見を提出してください。',
+  },
 ] as const;
 
 const PORTAL_BY_ASSEMBLY_ID = new Map(
