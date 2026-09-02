@@ -1,5 +1,6 @@
 import { getOrCreateAnonymousUserId } from '../anonymousUser';
 import { getApiBase } from '../apiBase';
+import { fetchWithRetry } from '../fetchWithRetry';
 import type {
   ReactionCounts,
   ReactionSnapshotResponse,
@@ -28,7 +29,7 @@ export async function putReactionState(
   anonymousUserId?: string,
 ): Promise<ReactionStateResponse> {
   const apiBase = getApiBase();
-  const response = await fetch(`${apiBase}/api/reactions`, {
+  const response = await fetchWithRetry(`${apiBase}/api/reactions`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -38,7 +39,7 @@ export async function putReactionState(
       anonymous_user_id: anonymousUserId ?? getOrCreateAnonymousUserId(),
       base_counts: baseCounts,
     }),
-  });
+  }, 5);
   if (!response.ok) throw new Error(`Reaction API failed: ${response.status}`);
   return response.json();
 }
@@ -56,9 +57,9 @@ export async function fetchReactionSnapshot(
   if (includeUserState) {
     query.set('anonymous_user_id', anonymousUserId ?? getOrCreateAnonymousUserId());
   }
-  const response = await fetch(`${apiBase}/api/reactions?${query.toString()}`, {
+  const response = await fetchWithRetry(`${apiBase}/api/reactions?${query.toString()}`, {
     cache: 'no-store',
-  });
+  }, 5);
   if (!response.ok) throw new Error(`Reaction API failed: ${response.status}`);
   return response.json();
 }

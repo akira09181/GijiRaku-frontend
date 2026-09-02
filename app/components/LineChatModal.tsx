@@ -767,8 +767,7 @@ export default function LineChatModal({
       }
     } catch {
       if (requestVersion !== reactionStateVersionRef.current) return;
-      setEbpmToast('リアクション履歴を読み込めませんでした。通信状況を確認してください。');
-      setTimeout(() => setEbpmToast(null), 4000);
+      console.error('Reaction history could not be loaded', discussionKey);
     }
   };
 
