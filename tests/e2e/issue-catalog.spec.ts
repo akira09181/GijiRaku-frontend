@@ -75,6 +75,36 @@ const catalogIssues = Object.entries(dataset.assemblies).flatMap(([assemblyId, a
 )).sort((left, right) => right.meeting_date.localeCompare(left.meeting_date));
 
 async function mockCatalogApis(context: BrowserContext) {
+  await context.route('**/api/search/semantic**', async (route) => {
+    const url = new URL(route.request().url());
+    const assemblyId = url.searchParams.get('assembly_id');
+    const issue = catalogIssues.find((item) => (
+      (!assemblyId || item.assembly_id === assemblyId)
+      && item.detail.statements.length > 0
+    ));
+    const statement = issue?.detail.statements[0];
+    await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({
+      status: 'success',
+      query: url.searchParams.get('q') || '',
+      assembly_id: assemblyId,
+      result_count: issue && statement ? 1 : 0,
+      results: issue && statement ? [{
+        issue_id: issue.issue_id,
+        statement_id: statement.statement_id,
+        assembly_id: issue.assembly_id,
+        assembly_name: issue.assembly_name,
+        title: issue.title,
+        meeting_name: issue.meeting_name,
+        meeting_date: issue.meeting_date,
+        speaker_name: statement.speaker_name,
+        speaker_role: '議員',
+        summary: issue.summary,
+        source_excerpt: issue.summary,
+        source_url: issue.source_url,
+        relevance_score: 0.91,
+      }] : [],
+    }) });
+  });
   await context.route('**/api/issues**', async (route) => {
     await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({
       status: 'success', updated_at: dataset.updated_at, issue_count: catalogIssues.length,
@@ -111,6 +141,114 @@ async function mockCatalogApis(context: BrowserContext) {
   await context.route('**/api/reactions**', async (route) => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ status: 'success', storage_backend: 'firestore', aggregates: [], user_reactions: [] }) }));
   await context.route('**/api/citizen-question-responses**', async (route) => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ status: 'success', storage_backend: 'firestore', my_response: null, total: 0, aggregate: { total_responses: 0, answers: [], reasons: [], top_reasons: [] } }) }));
 }
+
+test('文脈検索結果がissue_id・statement_idを保ったまま同じ議題を開く', async ({ browser }) => {
+  const context = await browser.newContext();
+  await mockCatalogApis(context);
+  const page = await context.newPage();
+  try {
+    await page.goto('/');
+    await page.getByLabel('議事録を文脈で検索').fill('子どもが急に熱を出した時の預け先');
+    await page.getByRole('button', { name: '検索', exact: true }).click();
+    const result = page.getByTestId('semantic-search-results').locator('li').first();
+    const issueId = await result.getAttribute('data-issue-id');
+    const statementId = await result.getAttribute('data-statement-id');
+    expect(issueId).toBeTruthy();
+    expect(statementId).toBeTruthy();
+    await expect(result).toContainText('関連度 91%');
+    await result.getByRole('button', { name: 'この議題を見る' }).click();
+    await expect(page.getByTestId('discussion-modal')).toHaveAttribute('data-discussion-id', issueId!);
+    await expect(page.getByTestId('discussion-modal').locator(`[data-statement-id="${statementId}"]`)).toBeVisible();
+  } finally {
+    await context.close();
+  }
+});
+
+test('要約をクリックすると同じstatement_idの原文抜粋だけを展開して強調する', async ({ browser }) => {
+  const issue = catalogIssues.find((item) => item.detail.statements.length > 1);
+  expect(issue).toBeTruthy();
+  const context = await browser.newContext();
+  await mockCatalogApis(context);
+  const page = await context.newPage();
+  try {
+    await page.goto('/');
+    while (await page.getByTestId('load-more-issues').isVisible().catch(() => false)) {
+      await page.getByTestId('load-more-issues').click();
+    }
+    await page.locator(`[data-testid="issue-card"][data-issue-id="${issue!.issue_id}"]`).getByRole('button', { name: '詳細を見る' }).click();
+    const modal = page.getByTestId('discussion-modal');
+    const targetStatement = modal.getByTestId('discussion-statement').first();
+    const otherStatement = modal.getByTestId('discussion-statement').nth(1);
+    await targetStatement.getByTestId('summary-source-link').click();
+    const targetExcerpt = targetStatement.getByTestId('source-excerpt');
+    await expect(targetExcerpt).toBeVisible();
+    await expect(targetExcerpt).toBeFocused();
+    await expect(targetExcerpt).toHaveClass(/ring-4/);
+    await expect(otherStatement.getByTestId('source-excerpt')).toHaveCount(0);
+  } finally {
+    await context.close();
+  }
+});
+
+test('リアクションを即時反映し、保存失敗時は選択と件数をロールバックする', async ({ browser }) => {
+  const issue = catalogIssues.find((item) => item.detail.statements.length > 0);
+  expect(issue).toBeTruthy();
+  const context = await browser.newContext();
+  await mockCatalogApis(context);
+  let selected: 'agree' | null = null;
+  let completedPuts = 0;
+  await context.route('**/api/reactions**', async (route) => {
+    const request = route.request();
+    if (request.method() === 'PUT') {
+      const body = request.postDataJSON() as { statement_id: string; reaction_type: 'agree' | null };
+      await new Promise((resolveDelay) => setTimeout(resolveDelay, 700));
+      completedPuts += 1;
+      if (completedPuts === 2) {
+        await route.fulfill({ status: 500, contentType: 'application/json', body: JSON.stringify({ detail: 'temporary failure' }) });
+        return;
+      }
+      const previous = selected;
+      selected = body.reaction_type;
+      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({
+        status: 'success', statement_id: body.statement_id,
+        previous_reaction_type: previous, reaction_type: selected,
+        changed: previous !== selected,
+        counts: { agree: selected ? 1 : 0, concern: 0, helpful: 0 },
+      }) });
+      return;
+    }
+    const url = new URL(request.url());
+    const statementId = `${issue!.assembly_id}-speaker-${issue!.detail.statements[0].statement_id}`;
+    await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({
+      status: 'success', discussion_id: issue!.issue_id,
+      aggregates: selected ? [{ statement_id: statementId, counts: { agree: 1, concern: 0, helpful: 0 } }] : [],
+      user_reactions: url.searchParams.get('include_user_state') === 'false' || !selected
+        ? []
+        : [{ statement_id: statementId, reaction_type: selected }],
+    }) });
+  });
+  const page = await context.newPage();
+  try {
+    await page.goto('/');
+    await page.locator(`[data-testid="issue-card"][data-issue-id="${issue!.issue_id}"]`).getByRole('button', { name: '詳細を見る' }).click();
+    const statement = page.getByTestId('discussion-modal').getByTestId('discussion-statement').first();
+    const agreeButton = statement.getByRole('button', { name: /賛成/ });
+
+    await agreeButton.click();
+    await expect(agreeButton).toHaveAttribute('aria-pressed', 'true', { timeout: 300 });
+    await expect(agreeButton).toContainText('(1)', { timeout: 300 });
+    await expect.poll(() => completedPuts).toBe(1);
+
+    await agreeButton.click();
+    await expect(agreeButton).toHaveAttribute('aria-pressed', 'false', { timeout: 300 });
+    await expect(agreeButton).toContainText('(0)', { timeout: 300 });
+    await expect(agreeButton).toHaveAttribute('aria-pressed', 'true', { timeout: 2_000 });
+    await expect(agreeButton).toContainText('(1)');
+    await expect(page.getByText('リアクションを保存できませんでした。通信状況を確認して、もう一度お試しください。')).toBeVisible();
+  } finally {
+    await context.close();
+  }
+});
 
 test('実データ52議題を一覧化し、全カードの詳細・出典・内部ID非表示を検証する', async ({ browser }) => {
   test.setTimeout(120_000);

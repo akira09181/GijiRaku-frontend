@@ -17,6 +17,7 @@ import {
   normalizeCitizenResponseSnapshot,
 } from '../lib/citizenResponse';
 import { getApiBase } from '../lib/apiBase';
+import SemanticIssueSearch from './SemanticIssueSearch';
 
 interface IssueExplorerProps {
   readonly assemblies: readonly Assembly[];
@@ -188,6 +189,12 @@ export default function IssueExplorer({
 
   return (
     <div className="space-y-8">
+      <SemanticIssueSearch
+        issues={issues}
+        selectedAssemblyId={selectedAssemblyId}
+        selectedTheme={selectedTheme}
+        onOpenIssue={onOpenIssue}
+      />
       <section aria-labelledby="region-issues-title">
         <div className="mb-3 flex items-center justify-between gap-3">
           <h3 id="region-issues-title" className="text-base font-bold text-slate-900 dark:text-white">地域ごとの直近の議題</h3>

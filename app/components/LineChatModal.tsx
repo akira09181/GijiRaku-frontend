@@ -32,6 +32,7 @@ import { getCitizenQuestionByIssueId } from '../data/citizenQuestions';
 import { getIssueFaqByIssueId } from '../data/issueFaqs';
 import { getOrCreateAnonymousUserId } from '../lib/anonymousUser';
 import { getApiBase } from '../lib/apiBase';
+import { applyOptimisticReaction } from '../lib/reactionOptimistic';
 
 interface Comment {
   readonly user: string;
@@ -626,6 +627,7 @@ export default function LineChatModal({
   const [expandedQuotes, setExpandedQuotes] = useState<Record<string, boolean>>({});
   const [expandedChains, setExpandedChains] = useState<Record<string, boolean>>({});
   const [expandedSpeakerKeys, setExpandedSpeakerKeys] = useState<Record<string, boolean>>({});
+  const [highlightedSourceKey, setHighlightedSourceKey] = useState<string | null>(null);
   const [inputQuestion, setInputQuestion] = useState('');
   const [isSending, setIsSending] = useState(false);
   const [userVotes, setUserVotes] = useState<Record<string, 'agree' | 'concern'>>({});
@@ -643,12 +645,35 @@ export default function LineChatModal({
   const anonymousUserIdRef = useRef('');
   const reactionRequestsInFlight = useRef<Set<string>>(new Set());
   const reactionStateVersionRef = useRef(0);
+  const sourceExcerptRefs = useRef<Record<string, HTMLDivElement | null>>({});
+  const highlightTimerRef = useRef<number | null>(null);
   const discussionKey = activeRecord?.discussion_id || initialDiscussionId || assembly.featuredDiscussionId;
+  const discussionKeyRef = useRef(discussionKey);
   const citizenQuestion = getCitizenQuestionByIssueId(discussionKey);
   const usesCitizenQuestion = Boolean(citizenQuestion);
 
+  useEffect(() => {
+    discussionKeyRef.current = discussionKey;
+  }, [discussionKey]);
+
   const toggleSpeakerExpand = (key: string) => {
     setExpandedSpeakerKeys((prev) => ({ ...prev, [key]: !prev[key] }));
+  };
+
+  const focusSourceExcerpt = (key: string) => {
+    setExpandedSpeakerKeys((current) => ({ ...current, [key]: true }));
+    setHighlightedSourceKey(key);
+    if (highlightTimerRef.current) window.clearTimeout(highlightTimerRef.current);
+    window.requestAnimationFrame(() => {
+      window.requestAnimationFrame(() => {
+        const target = sourceExcerptRefs.current[key];
+        target?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        target?.focus({ preventScroll: true });
+      });
+    });
+    highlightTimerRef.current = window.setTimeout(() => {
+      setHighlightedSourceKey((current) => current === key ? null : current);
+    }, 3500);
   };
 
   const handleToggleFollowTopic = async () => {
@@ -819,12 +844,19 @@ export default function LineChatModal({
   ) => {
     const currentVote = utteranceVotes[uttKey] || null;
     const nextVote: ReactionType | null = currentVote === type ? null : type;
-    const requestKey = `${assembly.id}:${uttKey}`;
+    const requestKey = `${discussionKey}:${uttKey}`;
     if (reactionRequestsInFlight.current.has(requestKey)) return;
     reactionRequestsInFlight.current.add(requestKey);
+    const requestDiscussionKey = discussionKey;
+    const previousCounts = utteranceCounts[uttKey] || defaultCounts;
+    const optimisticCounts = applyOptimisticReaction(previousCounts, currentVote, nextVote);
+
+    setUtteranceVotes((current) => ({ ...current, [uttKey]: nextVote }));
+    setUtteranceCounts((current) => ({ ...current, [uttKey]: optimisticCounts }));
 
     try {
       const result = await putReactionState(uttKey, nextVote, defaultCounts);
+      if (discussionKeyRef.current !== requestDiscussionKey) return;
       reactionStateVersionRef.current += 1;
       setUtteranceVotes((prev) => {
         const nextVotes = { ...prev, [uttKey]: result.reaction_type };
@@ -835,6 +867,7 @@ export default function LineChatModal({
         }
         return nextVotes;
       });
+      setUtteranceCounts((prev) => ({ ...prev, [uttKey]: result.counts }));
 
       let confirmedCounts = result.counts;
       try {
@@ -857,6 +890,9 @@ export default function LineChatModal({
       }
       setTimeout(() => setEbpmToast(null), 4000);
     } catch {
+      if (discussionKeyRef.current !== requestDiscussionKey) return;
+      setUtteranceVotes((current) => ({ ...current, [uttKey]: currentVote }));
+      setUtteranceCounts((current) => ({ ...current, [uttKey]: previousCounts }));
       setEbpmToast('リアクションを保存できませんでした。通信状況を確認して、もう一度お試しください。');
       setTimeout(() => setEbpmToast(null), 4000);
     } finally {
@@ -1089,6 +1125,8 @@ export default function LineChatModal({
       setUserVotes({});
       setUtteranceVotes({});
       setUtteranceCounts({});
+      setExpandedSpeakerKeys({});
+      setHighlightedSourceKey(null);
       setMessages(initialRecord
         ? applyAssemblyRecordToMessages(initialMsgs, initialRecord)
         : initialDiscussionId
@@ -1146,6 +1184,10 @@ export default function LineChatModal({
     return () => {
       controller.abort();
       reactionStateVersionRef.current += 1;
+      if (highlightTimerRef.current) {
+        window.clearTimeout(highlightTimerRef.current);
+        highlightTimerRef.current = null;
+      }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [assembly, initialDiscussionId, initialRecord, initialTheme]);
@@ -1179,12 +1221,33 @@ export default function LineChatModal({
   const handleVote = async (id: string, type: 'agree' | 'concern', baseCounts: ReactionCounts) => {
     const currentVote = userVotes[id] || null;
     const nextVote: 'agree' | 'concern' | null = currentVote === type ? null : type;
-    const requestKey = `${assembly.id}:${id}`;
+    const requestKey = `${discussionKey}:${id}`;
     if (reactionRequestsInFlight.current.has(requestKey)) return;
     reactionRequestsInFlight.current.add(requestKey);
+    const requestDiscussionKey = discussionKey;
+    const currentMessage = messages.find((message) => message.id === id);
+    const previousCounts: ReactionCounts = {
+      agree: currentMessage?.agreeCount ?? baseCounts.agree,
+      concern: currentMessage?.disagreeCount ?? baseCounts.concern,
+      helpful: baseCounts.helpful,
+    };
+    const optimisticCounts = applyOptimisticReaction(previousCounts, currentVote, nextVote);
+
+    setUserVotes((current) => {
+      if (nextVote) return { ...current, [id]: nextVote };
+      const next = { ...current };
+      delete next[id];
+      return next;
+    });
+    setMessages((current) => current.map((message) => (
+      message.id === id
+        ? { ...message, agreeCount: optimisticCounts.agree, disagreeCount: optimisticCounts.concern }
+        : message
+    )));
 
     try {
       const result = await putReactionState(id, nextVote, baseCounts);
+      if (discussionKeyRef.current !== requestDiscussionKey) return;
       reactionStateVersionRef.current += 1;
       setUserVotes((prev) => {
         if (result.reaction_type === 'agree' || result.reaction_type === 'concern') {
@@ -1194,6 +1257,11 @@ export default function LineChatModal({
         delete nextVotes[id];
         return nextVotes;
       });
+      setMessages((current) => current.map((message) => (
+        message.id === id
+          ? { ...message, agreeCount: result.counts.agree, disagreeCount: result.counts.concern }
+          : message
+      )));
 
       let confirmedCounts = result.counts;
       try {
@@ -1227,6 +1295,18 @@ export default function LineChatModal({
         setTimeout(() => setEbpmToast(null), 4000);
       }
     } catch {
+      if (discussionKeyRef.current !== requestDiscussionKey) return;
+      setUserVotes((current) => {
+        if (currentVote) return { ...current, [id]: currentVote };
+        const next = { ...current };
+        delete next[id];
+        return next;
+      });
+      setMessages((current) => current.map((message) => (
+        message.id === id
+          ? { ...message, agreeCount: previousCounts.agree, disagreeCount: previousCounts.concern }
+          : message
+      )));
       setEbpmToast('投票を保存できませんでした。通信状況を確認して、もう一度お試しください。');
       setTimeout(() => setEbpmToast(null), 4000);
     } finally {
@@ -1636,7 +1716,16 @@ export default function LineChatModal({
                                           ? '行政はどう答えたか'
                                           : '議員は何を質問したか'}
                                       </div>
-                                      <div><span className="font-semibold">{isAiSummary ? 'AIによる要約' : '公式会議録からの自動抽出'}：</span>「{utt.summaryQuote}」</div>
+                                      <button
+                                        type="button"
+                                        data-testid="summary-source-link"
+                                        aria-controls={`source-excerpt-${itemKey}`}
+                                        onClick={() => focusSourceExcerpt(itemKey)}
+                                        className="group w-full rounded-md text-left outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
+                                      >
+                                        <span><span className="font-semibold">{isAiSummary ? 'AIによる要約' : '公式会議録からの自動抽出'}：</span>「{utt.summaryQuote}」</span>
+                                        <span className="ml-1.5 whitespace-nowrap text-[10px] font-bold text-emerald-700 underline decoration-dotted underline-offset-2 group-hover:text-emerald-500 dark:text-emerald-400">対応する原文を見る</span>
+                                      </button>
                                     </div>
                                   </div>
                                  </div>
@@ -1769,7 +1858,17 @@ export default function LineChatModal({
 
                                       <div>
                                         <div className="text-[10px] dark:text-slate-400 text-slate-500 font-bold uppercase tracking-wider mb-0.5">{msg.sourceVerified ? '公式会議録の原文抜粋' : '画面体験用デモ発言'}</div>
-                                        <div className="dark:bg-slate-950 dark:border-slate-800/80 dark:text-slate-300 bg-slate-50 border-slate-200 border p-2.5 rounded text-[11.5px] italic text-slate-800 leading-relaxed">
+                                        <div
+                                          id={`source-excerpt-${itemKey}`}
+                                          ref={(element) => { sourceExcerptRefs.current[itemKey] = element; }}
+                                          data-testid="source-excerpt"
+                                          tabIndex={-1}
+                                          className={`border p-2.5 rounded text-[11.5px] italic leading-relaxed outline-none transition-all duration-300 ${
+                                            highlightedSourceKey === itemKey
+                                              ? 'border-amber-400 bg-amber-100 text-slate-950 ring-4 ring-amber-300/50 dark:border-amber-400 dark:bg-amber-950/80 dark:text-amber-50'
+                                              : 'dark:bg-slate-950 dark:border-slate-800/80 dark:text-slate-300 bg-slate-50 border-slate-200 text-slate-800'
+                                          }`}
+                                        >
                                           {utt.sourceExcerpt || `「${utt.summaryQuote}」`}
                                         </div>
                                       </div>
