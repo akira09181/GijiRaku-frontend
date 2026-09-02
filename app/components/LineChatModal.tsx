@@ -30,6 +30,7 @@ import { getCitizenQuestionByIssueId } from '../data/citizenQuestions';
 import { getIssueFaqByIssueId } from '../data/issueFaqs';
 import { getOrCreateAnonymousUserId } from '../lib/anonymousUser';
 import { getApiBase } from '../lib/apiBase';
+import { fetchAssemblyRecords, selectAssemblyRecord } from '../lib/assemblyRecordApi';
 import { applyOptimisticReaction } from '../lib/reactionOptimistic';
 import {
   fetchReactionSnapshot as fetchReactionSnapshotApi,
@@ -1085,28 +1086,14 @@ export default function LineChatModal({
     const controller = new AbortController();
     const loadAssemblyRecords = async () => {
       try {
-        const apiBase = getApiBase();
         const expectedDiscussionId = initialDiscussionId || assembly.featuredDiscussionId;
-        const query = new URLSearchParams({
-          assembly_id: assembly.id,
-          discussion_id: expectedDiscussionId,
-          limit: '100',
-        });
-        const response = await fetch(`${apiBase}/api/assembly-records?${query.toString()}`, {
-          cache: 'no-store',
-          signal: controller.signal,
-        });
-        if (!response.ok) throw new Error(`Assembly record API failed: ${response.status}`);
-
-        const payload = await response.json() as AssemblyRecordsResponse;
-        const selectedRecord = payload.records.find((record) => (
-          record.discussion_id === expectedDiscussionId
-        ));
-        if (
-          payload.assembly_id !== assembly.id
-          || payload.assembly_name !== assembly.name
-          || selectedRecord?.discussion_id !== expectedDiscussionId
-        ) {
+        const payload = await fetchAssemblyRecords({
+          assemblyId: assembly.id,
+          discussionId: expectedDiscussionId,
+          limit: 100,
+        }, controller.signal);
+        const selectedRecord = selectAssemblyRecord(payload, expectedDiscussionId);
+        if (payload.assembly_id !== assembly.id || !selectedRecord) {
           throw new Error(`Discussion record mismatch: ${expectedDiscussionId}`);
         }
         setActiveRecord(selectedRecord);

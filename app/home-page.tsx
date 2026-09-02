@@ -22,7 +22,7 @@ import {
   validAssemblyIdsForScope,
 } from './data/homeScope';
 import { isAssemblyReady, mergeTokyoAssemblies, TOKYO_PLANNED_ASSEMBLIES } from './data/tokyoPlannedAssemblies';
-import type { AssemblyRecord, AssemblyRecordsResponse } from './types/assemblyRecord';
+import type { AssemblyRecord } from './types/assemblyRecord';
 import type { IssueCatalogItem, IssueCatalogResponse } from './types/issueCatalog';
 import type { FollowedTopic, FollowTopicInput } from './types/follow';
 import {
@@ -37,7 +37,6 @@ import {
 } from './lib/followApi';
 import { getApiBase } from './lib/apiBase';
 import { fetchWithRetry } from './lib/fetchWithRetry';
-import { mapWithConcurrency } from './lib/mapWithConcurrency';
 import { loadMyArea, saveMyArea } from './lib/myArea';
 import { getUnreadNotificationCount } from './lib/notificationApi';
 import { getCitizenQuestionByIssueId } from './data/citizenQuestions';
@@ -1345,26 +1344,6 @@ function getThemeKeyword(theme: IssueTheme): string | undefined {
   }
 }
 
-function validateFeaturedRecord(
-  assembly: Assembly,
-  payload: AssemblyRecordsResponse,
-): AssemblyRecord {
-  const record = payload.records.find((candidate) => (
-    candidate.discussion_id === assembly.featuredDiscussionId
-  ));
-  if (
-    payload.assembly_id !== assembly.id
-    || payload.assembly_name !== assembly.name
-    || record?.discussion_id !== assembly.featuredDiscussionId
-    || !record.topic.trim()
-    || !record.meeting_date.trim()
-    || record.statements.length === 0
-  ) {
-    throw new Error(`Featured discussion mismatch: ${assembly.id}`);
-  }
-  return record;
-}
-
 export default function Home() {
   const router = useRouter();
   const [homeScope, setHomeScope] = useState<HomeScope>('tokyo');
@@ -1376,7 +1355,6 @@ export default function Home() {
   const [modalInitialTheme, setModalInitialTheme] = useState<string | undefined>();
   const [modalInitialDiscussionId, setModalInitialDiscussionId] = useState<string | undefined>();
   const [modalInitialRecord, setModalInitialRecord] = useState<AssemblyRecord | undefined>();
-  const [featuredRecords, setFeaturedRecords] = useState<Record<string, AssemblyRecord>>({});
   const [showMapExplorer, setShowMapExplorer] = useState(false);
   const [mobileView, setMobileView] = useState<'map' | 'list'>('map');
   const [followedTopics, setFollowedTopics] = useState<FollowedTopic[]>([]);
@@ -1437,7 +1415,7 @@ export default function Home() {
     const controller = new AbortController();
     const apiBase = getApiBase();
 
-    void fetch(`${apiBase}/api/assembly-records/stats`, {
+    void fetchWithRetry(`${apiBase}/api/assembly-records/stats`, {
       cache: 'no-store',
       signal: controller.signal,
     })
@@ -1460,7 +1438,7 @@ export default function Home() {
   useEffect(() => {
     const controller = new AbortController();
     const apiBase = getApiBase();
-    void fetch(`${apiBase}/api/issues`, { cache: 'no-store', signal: controller.signal })
+    void fetchWithRetry(`${apiBase}/api/issues`, { cache: 'no-store', signal: controller.signal })
       .then(async (response) => {
         if (!response.ok) throw new Error(`Issue catalog API failed: ${response.status}`);
         return response.json() as Promise<IssueCatalogResponse>;
@@ -1476,48 +1454,6 @@ export default function Home() {
       });
     return () => controller.abort();
   }, [issueCatalogReload]);
-
-  useEffect(() => {
-    if (!scopeHydrated || issueCatalogLoading) return;
-
-    const controller = new AbortController();
-    const apiBase = getApiBase();
-    const assembliesToLoad = (homeScope === 'diet' ? NATIONAL_ASSEMBLIES : TOKYO_ASSEMBLIES)
-      .filter(isAssemblyReady);
-
-    const loadFeaturedRecords = async () => {
-      const loaded: Record<string, AssemblyRecord> = {};
-      await mapWithConcurrency(assembliesToLoad, 4, async (assembly) => {
-        const query = new URLSearchParams({
-          assembly_id: assembly.id,
-          discussion_id: assembly.featuredDiscussionId,
-          // The production API may temporarily be one deployment behind and ignore
-          // discussion_id. Fetch enough records to locate the same stable ID client-side.
-          limit: '100',
-        });
-        try {
-          const response = await fetchWithRetry(
-            `${apiBase}/api/assembly-records?${query.toString()}`,
-            {
-              cache: 'no-store',
-              signal: controller.signal,
-            },
-          );
-          if (!response.ok) throw new Error(`Assembly record API failed: ${response.status}`);
-          const payload = await response.json() as AssemblyRecordsResponse;
-          loaded[assembly.id] = validateFeaturedRecord(assembly, payload);
-        } catch (error) {
-          if (controller.signal.aborted) return;
-          console.error('Featured discussion could not be loaded', assembly.id, error);
-        }
-      });
-      if (controller.signal.aborted) return;
-      setFeaturedRecords((previous) => ({ ...previous, ...loaded }));
-    };
-
-    void loadFeaturedRecords();
-    return () => controller.abort();
-  }, [scopeHydrated, homeScope, issueCatalogLoading]);
 
   const refreshFollows = useCallback(async () => {
     setFollowsLoading(true);
@@ -1627,20 +1563,15 @@ export default function Home() {
       setRegionRequestAssembly(assembly);
       return;
     }
-    const featuredRecord = featuredRecords[assembly.id];
-    const selectedRecord = featuredRecord?.discussion_id === initialDiscussionId
-      || initialDiscussionId === undefined
-      ? featuredRecord
-      : undefined;
     setModalInitialTheme(initialTheme);
     setModalInitialDiscussionId(
-      initialDiscussionId || selectedRecord?.discussion_id || assembly.featuredDiscussionId,
+      initialDiscussionId || assembly.featuredDiscussionId,
     );
-    const issueId = initialDiscussionId || selectedRecord?.discussion_id || assembly.featuredDiscussionId;
+    const issueId = initialDiscussionId || assembly.featuredDiscussionId;
     setOpenedFollowSnapshot(
       followedTopics.find((follow) => follow.issue_id === issueId) || null,
     );
-    setModalInitialRecord(selectedRecord);
+    setModalInitialRecord(undefined);
     setSelectedAssemblyForModal(assembly);
   };
 
@@ -1672,14 +1603,13 @@ export default function Home() {
       setHomeScope('diet');
     }
     directIssueOpenedRef.current = true;
-    const record = featuredRecords[assembly.id];
     queueMicrotask(() => {
       setModalInitialTheme(questionIssue?.theme || catalogIssue?.theme.label);
       setModalInitialDiscussionId(issueId);
-      setModalInitialRecord(record?.discussion_id === issueId ? record : undefined);
+      setModalInitialRecord(undefined);
       setSelectedAssemblyForModal(assembly);
     });
-  }, [featuredRecords, issueCatalog]);
+  }, [issueCatalog]);
 
   useEffect(() => {
     if (!selectedAssemblyForModal || !modalInitialDiscussionId) return;

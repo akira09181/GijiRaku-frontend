@@ -1,4 +1,4 @@
-const RETRYABLE_STATUSES = new Set([429, 502, 503]);
+const RETRYABLE_STATUSES = new Set([429, 502, 503, 504]);
 
 export async function fetchWithRetry(
   input: RequestInfo | URL,
@@ -15,7 +15,7 @@ export async function fetchWithRetry(
     try {
       const response = await fetch(input, init);
       if (RETRYABLE_STATUSES.has(response.status) && attempt < maxAttempts - 1) {
-        await delay(400 * (attempt + 1), init?.signal);
+        await delay(600 * (attempt + 1), init?.signal);
         continue;
       }
       return response;
@@ -23,7 +23,7 @@ export async function fetchWithRetry(
       lastError = error;
       if (init?.signal?.aborted) throw error;
       if (attempt < maxAttempts - 1) {
-        await delay(400 * (attempt + 1), init?.signal);
+        await delay(600 * (attempt + 1), init?.signal);
         continue;
       }
     }

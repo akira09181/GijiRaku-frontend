@@ -27,6 +27,7 @@ import {
 } from '../data/citizenQuestions';
 import { normalizeCitizenResponseSnapshot } from '../lib/citizenResponse';
 import { getApiBase } from '../lib/apiBase';
+import { fetchAssemblyRecords } from '../lib/assemblyRecordApi';
 
 interface AnalyticsDashboardModalProps {
   readonly assembly: Assembly;
@@ -153,12 +154,7 @@ export default function AnalyticsDashboardModal({
     const loadAssemblyRecords = async (): Promise<readonly AssemblyRecord[]> => {
       if (recordsCache !== null) return recordsCache;
       try {
-        const query = new URLSearchParams({ assembly_id: assembly.id, limit: '100' });
-        const response = await fetch(`${apiBase}/api/assembly-records?${query.toString()}`, {
-          cache: 'no-store',
-        });
-        if (!response.ok) return [];
-        const payload = await response.json() as AssemblyRecordsResponse;
+        const payload = await fetchAssemblyRecords({ assemblyId: assembly.id, limit: 100 });
         recordsCache = payload.records || [];
         return recordsCache;
       } catch {
