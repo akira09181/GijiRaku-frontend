@@ -26,6 +26,7 @@ import {
   getCitizenQuestionByIssueId,
 } from '../data/citizenQuestions';
 import { normalizeCitizenResponseSnapshot } from '../lib/citizenResponse';
+import { getApiBase } from '../lib/apiBase';
 
 interface AnalyticsDashboardModalProps {
   readonly assembly: Assembly;
@@ -147,7 +148,7 @@ export default function AnalyticsDashboardModal({
     let refreshInFlight = false;
     let recordsCache: readonly AssemblyRecord[] | null = null;
 
-    const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000';
+    const apiBase = getApiBase();
 
     const loadAssemblyRecords = async (): Promise<readonly AssemblyRecord[]> => {
       if (recordsCache !== null) return recordsCache;

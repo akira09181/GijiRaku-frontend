@@ -16,6 +16,7 @@ import {
   CITIZEN_RESPONSE_COUNT_EVENT,
   normalizeCitizenResponseSnapshot,
 } from '../lib/citizenResponse';
+import { getApiBase } from '../lib/apiBase';
 
 interface IssueExplorerProps {
   readonly assemblies: readonly Assembly[];
@@ -78,7 +79,7 @@ export default function IssueExplorer({
       timedOut = true;
       controller.abort();
     }, 10_000);
-    const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000';
+    const apiBase = getApiBase();
     const loadCounts = async () => {
       const configuredIssues = issues.filter((issue) => issue.question_id);
       setAnswerCountStates(Object.fromEntries(

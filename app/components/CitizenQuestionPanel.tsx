@@ -17,6 +17,7 @@ import {
   publishCitizenResponseCount,
   type CitizenResponseAggregate,
 } from '../lib/citizenResponse';
+import { getApiBase } from '../lib/apiBase';
 
 interface CitizenQuestionPanelProps {
   readonly config: CitizenQuestionDefinition;
@@ -58,7 +59,7 @@ export default function CitizenQuestionPanel({
     setLoading(true);
     setLoadError(false);
     try {
-      const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000';
+      const apiBase = getApiBase();
       const query = new URLSearchParams({
         issue_id: config.issueId,
         question_id: config.questionId,
@@ -136,7 +137,7 @@ export default function CitizenQuestionPanel({
     setAccepted(false);
     let responseSaved = false;
     try {
-      const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000';
+      const apiBase = getApiBase();
       const response = await fetch(`${apiBase}/api/citizen-question-responses`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },

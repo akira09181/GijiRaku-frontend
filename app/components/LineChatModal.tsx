@@ -31,6 +31,7 @@ import CitizenQuestionPanel from './CitizenQuestionPanel';
 import { getCitizenQuestionByIssueId } from '../data/citizenQuestions';
 import { getIssueFaqByIssueId } from '../data/issueFaqs';
 import { getOrCreateAnonymousUserId } from '../lib/anonymousUser';
+import { getApiBase } from '../lib/apiBase';
 
 interface Comment {
   readonly user: string;
@@ -693,7 +694,7 @@ export default function LineChatModal({
     reactionType: ReactionType | null,
     baseCounts: ReactionCounts,
   ): Promise<ReactionStateResponse> => {
-    const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000';
+    const apiBase = getApiBase();
     const response = await fetch(`${apiBase}/api/reactions`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
@@ -712,7 +713,7 @@ export default function LineChatModal({
   const fetchReactionSnapshot = async (
     includeUserState: boolean,
   ): Promise<ReactionSnapshotResponse> => {
-    const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000';
+    const apiBase = getApiBase();
     const query = new URLSearchParams({
       discussion_id: discussionKey,
       include_user_state: String(includeUserState),
@@ -881,7 +882,7 @@ export default function LineChatModal({
     setTimeout(() => setEbpmToast(null), 4500);
 
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000';
+      const apiUrl = getApiBase();
       await fetch(`${apiUrl}/api/statements/${encodeURIComponent(uttKey)}/comment`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -1102,7 +1103,7 @@ export default function LineChatModal({
     const controller = new AbortController();
     const loadAssemblyRecords = async () => {
       try {
-        const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000';
+        const apiBase = getApiBase();
         const expectedDiscussionId = initialDiscussionId || assembly.featuredDiscussionId;
         const query = new URLSearchParams({
           assembly_id: assembly.id,
@@ -1252,7 +1253,7 @@ export default function LineChatModal({
     );
     setCommentInputs((prev) => ({ ...prev, [id]: '' }));
 
-    const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000';
+    const apiBase = getApiBase();
     fetch(`${apiBase}/api/assemblies/${assembly.id}/messages/${id}/opinion`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -1283,7 +1284,7 @@ export default function LineChatModal({
 
     setMessages((prev) => [...prev, userMsg]);
 
-    const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000';
+    const apiBase = getApiBase();
     try {
       const res = await fetch(`${apiBase}/api/translate`, {
         method: 'POST',

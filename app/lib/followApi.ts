@@ -1,6 +1,7 @@
 import type { FollowedTopic } from '../types/follow';
 import { getOrCreateAnonymousUserId } from './anonymousUser';
 import { isFollowUnread } from './followStatus.js';
+import { getApiBase } from './apiBase';
 
 interface FollowApiItem {
   readonly issue_id: string;
@@ -30,7 +31,7 @@ interface FollowListResponse {
   readonly follows: readonly FollowApiItem[];
 }
 
-const apiBase = () => process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000';
+const apiBase = () => getApiBase();
 
 function assertFirestore(response: Response, payload: { storage_backend?: string }) {
   if (!response.ok || payload.storage_backend !== 'firestore') {

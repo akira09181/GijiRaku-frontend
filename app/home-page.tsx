@@ -1,11 +1,11 @@
 'use client';
 
 import React, { useCallback, useEffect, useState, useMemo, useRef } from 'react';
+import { useRouter } from 'next/navigation';
 import Header from './components/Header';
 import AssemblyMap from './components/AssemblyMap';
 import AssemblyListDrawer from './components/AssemblyListDrawer';
 import LineChatModal from './components/LineChatModal';
-import AnalyticsDashboardModal from './components/AnalyticsDashboardModal';
 import MyFollowModal from './components/MyFollowModal';
 import IssueExplorer from './components/IssueExplorer';
 import { Assembly, IssueTheme } from './types/assembly';
@@ -22,6 +22,7 @@ import {
   markFirestoreFollowViewed,
   putFirestoreFollow,
 } from './lib/followApi';
+import { getApiBase } from './lib/apiBase';
 import { getCitizenQuestionByIssueId } from './data/citizenQuestions';
 import {
   MapPin,
@@ -246,6 +247,7 @@ function validateFeaturedRecord(
 }
 
 export default function Home() {
+  const router = useRouter();
   const [selectedAssemblyId, setSelectedAssemblyId] = useState<string>('all');
   const [userTheme, setUserTheme] = useState<IssueTheme>('all');
   const [selectedAssemblyForModal, setSelectedAssemblyForModal] = useState<Assembly | null>(null);
@@ -253,8 +255,6 @@ export default function Home() {
   const [modalInitialDiscussionId, setModalInitialDiscussionId] = useState<string | undefined>();
   const [modalInitialRecord, setModalInitialRecord] = useState<AssemblyRecord | undefined>();
   const [featuredRecords, setFeaturedRecords] = useState<Record<string, AssemblyRecord>>({});
-  const [analyticsAssembly, setAnalyticsAssembly] = useState<Assembly | null>(null);
-  const [analyticsIssueId, setAnalyticsIssueId] = useState<string | null>(null);
   const [showMapExplorer, setShowMapExplorer] = useState(false);
   const [mobileView, setMobileView] = useState<'map' | 'list'>('map');
   const [followedTopics, setFollowedTopics] = useState<FollowedTopic[]>([]);
@@ -278,7 +278,7 @@ export default function Home() {
 
   useEffect(() => {
     const controller = new AbortController();
-    const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000';
+    const apiBase = getApiBase();
 
     void fetch(`${apiBase}/api/assembly-records/stats`, {
       cache: 'no-store',
@@ -302,7 +302,7 @@ export default function Home() {
 
   useEffect(() => {
     const controller = new AbortController();
-    const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000';
+    const apiBase = getApiBase();
     void fetch(`${apiBase}/api/issues`, { cache: 'no-store', signal: controller.signal })
       .then(async (response) => {
         if (!response.ok) throw new Error(`Issue catalog API failed: ${response.status}`);
@@ -322,7 +322,7 @@ export default function Home() {
 
   useEffect(() => {
     const controller = new AbortController();
-    const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000';
+    const apiBase = getApiBase();
 
     const loadFeaturedRecords = async () => {
       const loaded: Record<string, AssemblyRecord> = {};
@@ -534,10 +534,6 @@ export default function Home() {
     <main className="min-h-screen flex flex-col dark:bg-slate-950 dark:text-slate-100 bg-slate-50 text-slate-900 selection:bg-emerald-500 selection:text-slate-950 transition-colors duration-200">
       {/* 共通ヘッダー */}
       <Header
-        onOpenAnalytics={() => {
-          setAnalyticsIssueId(null);
-          setAnalyticsAssembly(TOKYO_ASSEMBLIES[0]);
-        }}
         onOpenFollows={() => setShowMyFollows(true)}
         followCount={followsLoading || followsError ? null : followedTopics.length}
         unreadFollowCount={followsError ? 0 : unreadFollowCount}
@@ -781,8 +777,14 @@ export default function Home() {
             setSelectedAssemblyForModal(null);
           }}
           onOpenDashboard={() => {
-            setAnalyticsIssueId(modalInitialDiscussionId || null);
-            setAnalyticsAssembly(selectedAssemblyForModal);
+            const issueId = modalInitialDiscussionId
+              || modalInitialRecord?.discussion_id
+              || selectedAssemblyForModal.featuredDiscussionId;
+            const query = new URLSearchParams({
+              assembly_id: selectedAssemblyForModal.id,
+              issue_id: issueId,
+            });
+            router.push(`/pro/analytics?${query.toString()}`);
           }}
         />
       )}
@@ -796,18 +798,6 @@ export default function Home() {
           onOpenIssue={openFollowedTopic}
           onDelete={deleteFollow}
           onClose={() => setShowMyFollows(false)}
-        />
-      )}
-
-      {/* EBPM分析ダッシュボードモーダル */}
-      {analyticsAssembly && (
-        <AnalyticsDashboardModal
-          assembly={analyticsAssembly}
-          issueId={analyticsIssueId || undefined}
-          onClose={() => {
-            setAnalyticsIssueId(null);
-            setAnalyticsAssembly(null);
-          }}
         />
       )}
 

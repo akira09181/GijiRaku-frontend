@@ -1,5 +1,7 @@
 import { getOrCreateAnonymousUserId } from './anonymousUser';
 
+import { getApiBase } from './apiBase';
+
 export interface NotificationPreferences {
   readonly interest_themes: readonly string[];
   readonly municipalities: readonly string[];
@@ -14,7 +16,7 @@ export interface NotificationMatch {
   readonly source_url?: string;
 }
 
-const apiBase = () => process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000';
+const apiBase = () => getApiBase();
 
 function assertFirestore(response: Response, payload: { storage_backend?: unknown }) {
   if (!response.ok || payload.storage_backend !== 'firestore') {
