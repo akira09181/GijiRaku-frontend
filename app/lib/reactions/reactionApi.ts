@@ -1,6 +1,11 @@
 import { getOrCreateAnonymousUserId } from '../anonymousUser';
 import { getApiBase } from '../apiBase';
 import { fetchWithRetry } from '../fetchWithRetry';
+import {
+  invalidateCachedReactionSnapshot,
+  readCachedReactionSnapshot,
+  writeCachedReactionSnapshot,
+} from './reactionCache';
 import type {
   ReactionCounts,
   ReactionSnapshotResponse,
@@ -41,6 +46,7 @@ export async function putReactionState(
     }),
   }, 5);
   if (!response.ok) throw new Error(`Reaction API failed: ${response.status}`);
+  invalidateCachedReactionSnapshot(discussionId);
   return response.json();
 }
 
@@ -49,6 +55,9 @@ export async function fetchReactionSnapshot(
   includeUserState: boolean,
   anonymousUserId?: string,
 ): Promise<ReactionSnapshotResponse> {
+  const cached = readCachedReactionSnapshot(discussionId);
+  if (cached) return cached;
+
   const apiBase = getApiBase();
   const query = new URLSearchParams({
     discussion_id: discussionId,
@@ -61,7 +70,9 @@ export async function fetchReactionSnapshot(
     cache: 'no-store',
   }, 5);
   if (!response.ok) throw new Error(`Reaction API failed: ${response.status}`);
-  return response.json();
+  const payload = await response.json() as ReactionSnapshotResponse;
+  writeCachedReactionSnapshot(discussionId, payload);
+  return payload;
 }
 
 export function findReactionAggregate(

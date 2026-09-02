@@ -17,6 +17,8 @@ import {
   normalizeCitizenResponseSnapshot,
 } from '../lib/citizenResponse';
 import { getApiBase } from '../lib/apiBase';
+import { mapWithConcurrency } from '../lib/mapWithConcurrency';
+import { shouldLoadCitizenAnswerCounts, shouldLoadListReactions } from '../lib/lowCostMode';
 import SemanticIssueSearch from './SemanticIssueSearch';
 import { IssueExplorerSkeleton } from './ui/IssueExplorerSkeleton';
 import { IssueCardReaction } from './reactions/IssueCardReaction';
@@ -76,66 +78,6 @@ export default function IssueExplorer({
   const [answerCountStates, setAnswerCountStates] = useState<Record<string, AnswerCountState>>({});
 
   useEffect(() => {
-    const controller = new AbortController();
-    let cancelled = false;
-    let timedOut = false;
-    const timeout = window.setTimeout(() => {
-      timedOut = true;
-      controller.abort();
-    }, 10_000);
-    const apiBase = getApiBase();
-    const loadCounts = async () => {
-      const configuredIssues = issues.filter((issue) => issue.question_id);
-      setAnswerCountStates(Object.fromEntries(
-        configuredIssues.map((issue) => [issue.issue_id, { status: 'loading' } satisfies AnswerCountState]),
-      ));
-      const entries = await Promise.all(configuredIssues.map(async (issue) => {
-        const query = new URLSearchParams({
-          issue_id: issue.issue_id,
-          question_id: issue.question_id!,
-          include_my_response: 'false',
-        });
-        try {
-          const response = await fetch(`${apiBase}/api/citizen-question-responses?${query}`, {
-            cache: 'no-store',
-            signal: controller.signal,
-          });
-          if (!response.ok) throw new Error(`Citizen response API failed: ${response.status}`);
-          const snapshot = normalizeCitizenResponseSnapshot(
-            await response.json(),
-            issue.issue_id,
-            issue.question_id!,
-          );
-          return [issue.issue_id, {
-            status: 'success',
-            count: snapshot.aggregate.total_responses,
-          } satisfies AnswerCountState] as const;
-        } catch (error) {
-          if (!cancelled) {
-            console.error('Citizen response count could not be loaded', {
-              issue_id: issue.issue_id,
-              question_id: issue.question_id,
-              timed_out: timedOut,
-              error,
-            });
-          }
-          return [issue.issue_id, { status: 'error' } satisfies AnswerCountState] as const;
-        }
-      }));
-      if (!cancelled) {
-        setAnswerCountStates(Object.fromEntries(entries));
-      }
-      window.clearTimeout(timeout);
-    };
-    void loadCounts();
-    return () => {
-      cancelled = true;
-      window.clearTimeout(timeout);
-      controller.abort();
-    };
-  }, [issues]);
-
-  useEffect(() => {
     const handleCountUpdate = (event: Event) => {
       const detail = (event as CustomEvent<{ issueId?: unknown; count?: unknown }>).detail;
       if (typeof detail?.issueId !== 'string' || typeof detail.count !== 'number') return;
@@ -164,6 +106,70 @@ export default function IssueExplorer({
         : left.meeting_date.localeCompare(right.meeting_date)
     ));
   }, [followedIssueIds, followedOnly, issues, selectedAssemblyId, selectedTheme, sort, stage]);
+
+  useEffect(() => {
+    if (!shouldLoadCitizenAnswerCounts()) return;
+
+    const controller = new AbortController();
+    let cancelled = false;
+    const configuredIssues = filteredIssues
+      .slice(0, visibleCount)
+      .filter((issue) => issue.question_id);
+
+    const loadCounts = async () => {
+      setAnswerCountStates((current) => ({
+        ...current,
+        ...Object.fromEntries(
+          configuredIssues.map((issue) => [issue.issue_id, { status: 'loading' } satisfies AnswerCountState]),
+        ),
+      }));
+      const apiBase = getApiBase();
+      const entries = await mapWithConcurrency(configuredIssues, 2, async (issue) => {
+        const query = new URLSearchParams({
+          issue_id: issue.issue_id,
+          question_id: issue.question_id!,
+          include_my_response: 'false',
+        });
+        try {
+          const response = await fetch(`${apiBase}/api/citizen-question-responses?${query}`, {
+            cache: 'no-store',
+            signal: controller.signal,
+          });
+          if (!response.ok) throw new Error(`Citizen response API failed: ${response.status}`);
+          const snapshot = normalizeCitizenResponseSnapshot(
+            await response.json(),
+            issue.issue_id,
+            issue.question_id!,
+          );
+          return [issue.issue_id, {
+            status: 'success',
+            count: snapshot.aggregate.total_responses,
+          } satisfies AnswerCountState] as const;
+        } catch (error) {
+          if (!cancelled) {
+            console.error('Citizen response count could not be loaded', {
+              issue_id: issue.issue_id,
+              question_id: issue.question_id,
+              error,
+            });
+          }
+          return [issue.issue_id, { status: 'error' } satisfies AnswerCountState] as const;
+        }
+      });
+      if (!cancelled) {
+        setAnswerCountStates((current) => ({
+          ...current,
+          ...Object.fromEntries(entries),
+        }));
+      }
+    };
+
+    void loadCounts();
+    return () => {
+      cancelled = true;
+      controller.abort();
+    };
+  }, [filteredIssues, visibleCount]);
 
   const regionCards = useMemo(() => assemblies
     .filter((assembly) => selectedAssemblyId === 'all' || assembly.id === selectedAssemblyId)
@@ -276,7 +282,7 @@ export default function IssueExplorer({
                   <p><Users className="mr-1 inline h-3 w-3" />{issue.people.join('、')}（発言者 {issue.speaker_count}人）</p>
                   <p className="font-medium text-slate-700 dark:text-slate-300"><ResponseCount state={answerCountStates[issue.issue_id]} enabled={Boolean(issue.question_id)} /></p>
                 </div>
-                {!issue.question_id && (
+                {!issue.question_id && shouldLoadListReactions() && (
                   <IssueCardReaction issueId={issue.issue_id} />
                 )}
                 <div className="mt-auto flex items-center justify-between gap-3 border-t border-slate-100 pt-3 dark:border-slate-800">

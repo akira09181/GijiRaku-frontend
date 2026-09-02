@@ -1497,6 +1497,7 @@ export default function Home() {
   }, [refreshFollows]);
 
   useEffect(() => {
+    if (!showMyFollows) return;
     void refreshNotificationInbox();
   }, [refreshNotificationInbox, showMyFollows]);
 

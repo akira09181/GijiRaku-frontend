@@ -27,6 +27,23 @@ NEXT_PUBLIC_API_BASE_URL=http://localhost:8000
 `API_BASE_URL` はServer ActionとRoute Handlerが使用します。ブラウザから呼ぶ既存B2C APIには
 `NEXT_PUBLIC_API_BASE_URL` を使用します。本番では両方を同じFastAPI URLへ設定してください。
 
+### 低コスト運用（Firebase Spark 無料枠）
+
+既定では Firestore 読取を抑える設定です。
+
+- 議題一覧のリアクション先読み: 無効（詳細モーダル内のみ）
+- 市民回答件数: 表示中のカードだけ取得（最大2並列）
+- 通知件数: 「マイフォロー」を開いたときだけ取得
+
+任意で有効化:
+
+```text
+NEXT_PUBLIC_ENABLE_LIST_REACTIONS=1
+NEXT_PUBLIC_SKIP_CITIZEN_ANSWER_COUNTS=1
+```
+
+バックエンド側は `GIJIRAKU_PREFER_MEMORY_STORE=1` を Render に設定してください（API README 参照）。
+
 ## 開発と検証
 
 ```bash
