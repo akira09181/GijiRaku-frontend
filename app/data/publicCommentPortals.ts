@@ -9,6 +9,13 @@ export interface PublicCommentPortal {
 
 export const PUBLIC_COMMENT_PORTALS: readonly PublicCommentPortal[] = [
   {
+    assemblyId: 'national-diet',
+    municipality: '日本国',
+    portalLabel: '国会会議録検索',
+    portalUrl: 'https://kokkai.ndl.go.jp/',
+    guidance: '国会議案や法案に関する意見提出は、所管省庁のパブリックコメント募集ページから行ってください。会議録原文は国会会議録検索システムで確認できます。',
+  },
+  {
     assemblyId: 'tokyo-metropolitan',
     municipality: '東京都',
     portalLabel: '東京都 パブリックコメント',

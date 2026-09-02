@@ -159,9 +159,12 @@ export default function AssemblyMap({
     filteredAssemblies.forEach((assembly) => {
       const isSelected = selectedAssemblyId === assembly.id;
       const isTokyoMet = assembly.id === 'tokyo-metropolitan';
+      const isNational = assembly.id === 'national-diet';
       const isReady = isAssemblyReady(assembly);
-      const shortName = assembly.name.replace(/(区|市|町|村)?議会$/, '');
-      const typeLabel = assembly.type === 'prefecture'
+      const shortName = assembly.name.replace(/(区|市|町|村)?議会$/, '').replace(/^国会$/, '国会');
+      const typeLabel = assembly.type === 'national'
+        ? '国'
+        : assembly.type === 'prefecture'
         ? '都'
         : assembly.type === 'ward'
           ? '区'
@@ -179,14 +182,14 @@ export default function AssemblyMap({
                 ? 'bg-slate-900 border-emerald-500 text-white shadow-emerald-950/40'
                 : 'bg-slate-900 border-amber-500 text-white shadow-amber-950/40'
               : isReady
-                ? isTokyoMet
+                ? isTokyoMet || isNational
                   ? 'bg-slate-900/95 border-amber-500/70 text-slate-100 hover:border-amber-400'
                   : 'bg-slate-900/95 border-slate-700/80 text-slate-100 hover:border-slate-500'
                 : 'bg-slate-900/90 border-dashed border-amber-500/50 text-slate-200 hover:border-amber-400'
           }">
             <span class="w-4 h-4 rounded-md ${
               isReady
-                ? isTokyoMet ? 'bg-amber-500/20 text-amber-300' : 'bg-emerald-500/20 text-emerald-400'
+                ? isTokyoMet || isNational ? 'bg-amber-500/20 text-amber-300' : 'bg-emerald-500/20 text-emerald-400'
                 : 'bg-amber-500/10 text-amber-300'
             } flex items-center justify-center font-bold text-[10px] shrink-0">
               ${typeLabel}

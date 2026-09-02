@@ -71,7 +71,7 @@ export default function AssemblyListDrawer({
                   )}
                 </span>
                 <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-800 text-slate-400 font-medium border border-slate-700/50">
-                  {assembly.type === 'prefecture' ? '都議会' : assembly.type === 'ward' ? '特別区' : assembly.type === 'city' ? '市' : '町村'}
+                  {assembly.type === 'national' ? '国会' : assembly.type === 'prefecture' ? '都議会' : assembly.type === 'ward' ? '特別区' : assembly.type === 'city' ? '市' : '町村'}
                 </span>
               </div>
 

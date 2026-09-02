@@ -51,6 +51,25 @@ import {
  */
 const TOKYO_ASSEMBLIES: readonly Assembly[] = [
   {
+    id: 'national-diet',
+    name: '国会',
+    type: 'national',
+    lat: 35.6759,
+    lng: 139.7449,
+    membersCount: 713,
+    mayorName: '内閣総理大臣',
+    openDataStatus: 'ready',
+    totalMinutesCount: 1,
+    featuredDiscussionId: 'diet-medical-cost-burden-2025-03-13',
+    hotTopic: '物価高と医療費負担の見直し',
+    mainIssues: [
+      { theme: 'health', label: '物価高と医療費負担の見直し', count: 1 },
+    ],
+    sourceUrl: 'https://kokkai.ndl.go.jp/txt/121705261X02020250313/2',
+    lastMeetingDate: '2025/3/13｜予算委員会',
+    lastUpdatedDate: '2026/09/02',
+  },
+  {
     id: 'tokyo-metropolitan',
     name: '東京都議会',
     type: 'prefecture',
@@ -1743,7 +1762,7 @@ export default function Home() {
                 <optgroup label="実データ公開中">
                   {TOKYO_ASSEMBLIES.map((a) => (
                     <option key={a.id} value={a.id}>
-                      {a.name} ({a.type === 'prefecture' ? '都議会' : a.type === 'ward' ? '特別区' : '市'})
+                      {a.name} ({a.type === 'national' ? '国会' : a.type === 'prefecture' ? '都議会' : a.type === 'ward' ? '特別区' : '市'})
                     </option>
                   ))}
                 </optgroup>

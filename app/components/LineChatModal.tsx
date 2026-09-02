@@ -456,7 +456,16 @@ function applyAssemblyRecordToMessages(
  */
 const getDynamicSpeakerUtterances = (assembly: Assembly, theme?: string): SpeakerUtterance[] => {
   const isTokyo = assembly.id === 'tokyo-metropolitan';
-  const mayorRole = isTokyo ? '東京都知事' : assembly.type === 'ward' ? '区長' : assembly.type === 'city' ? '市長' : '首長';
+  const isNational = assembly.id === 'national-diet';
+  const mayorRole = isNational
+    ? '政府答弁'
+    : isTokyo
+      ? '東京都知事'
+      : assembly.type === 'ward'
+        ? '区長'
+        : assembly.type === 'city'
+          ? '市長'
+          : '首長';
   const hotTopic = theme || assembly.hotTopic;
   const verifiedRecord = VERIFIED_ASSEMBLY_RECORDS[assembly.id];
 

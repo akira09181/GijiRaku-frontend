@@ -22,7 +22,7 @@ export interface AssemblyIssueStat {
 export interface Assembly {
   readonly id: string;
   readonly name: string;
-  readonly type: 'prefecture' | 'ward' | 'city' | 'town' | 'village';
+  readonly type: 'national' | 'prefecture' | 'ward' | 'city' | 'town' | 'village';
   readonly lat: number;
   readonly lng: number;
   readonly membersCount: number;

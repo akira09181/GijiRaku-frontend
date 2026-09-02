@@ -11,6 +11,16 @@ export interface IssueStatusDefinition {
 
 export const ISSUE_STATUSES: readonly IssueStatusDefinition[] = [
   {
+    issueId: 'diet-medical-cost-burden-2025-03-13',
+    problemSummary: '物価高により医療費負担が増え、高額療養費制度の自己負担上限が実態に追いついていないことが論点です。',
+    governmentResponseSummary: '国会会議録では、高額療養費制度の見直しと社会保障の持続可能性について質疑が行われました。',
+    currentStatus: '国会で質疑済み',
+    statusSummary: '物価高と医療費負担の見直しについて国会で質疑されました。',
+    statusUpdatedAt: '2025-03-13T00:00:00+09:00',
+    statusCheckedAt: '2026-09-02T23:10:00+09:00',
+    sourceUrl: 'https://kokkai.ndl.go.jp/txt/121705261X02020250313/2',
+  },
+  {
     issueId: 'tokyo-app-2026-06-16',
     problemSummary: '必要な支援情報や行政手続へ素早く到達できるかが論点です。',
     governmentResponseSummary: '東京都はライフステージ別配信、ログイン簡素化、デジタル都民証、生成AI案内を進めると答弁しました。',
