@@ -11,7 +11,7 @@ import { getOrCreateAnonymousUserId } from '../lib/anonymousUser';
 import { getIssueStatus } from '../data/issueStatuses';
 import IssueShareButton from './IssueShareButton';
 import ShareButtons from './ShareButtons';
-import FeedbackForm from './FeedbackForm';
+import PublicCommentPanel from './growth/PublicCommentPanel';
 import {
   normalizeCitizenResponseSnapshot,
   publishCitizenResponseCount,
@@ -222,7 +222,12 @@ export default function CitizenQuestionPanel({
       </div>
 
       <div className="mt-4">
-        <FeedbackForm />
+        <PublicCommentPanel
+          assemblyId={config.assemblyId}
+          municipality={config.municipality}
+          issueTitle={config.theme}
+          draftText={freeText.trim() || opinionDraft}
+        />
       </div>
 
       <div className="mt-4 grid gap-2">

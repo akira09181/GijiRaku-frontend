@@ -10,6 +10,7 @@ interface HeaderProps {
   readonly onOpenFollows: () => void;
   readonly followCount: number | null;
   readonly unreadFollowCount: number;
+  readonly unreadNotificationCount?: number;
   readonly followUnavailable?: boolean;
   readonly defaultAssembly?: Assembly;
 }
@@ -21,6 +22,7 @@ export default function Header({
   onOpenFollows,
   followCount,
   unreadFollowCount,
+  unreadNotificationCount = 0,
   followUnavailable = false,
 }: HeaderProps) {
   const [theme, setTheme] = useState<'dark' | 'light'>('light');
@@ -73,8 +75,8 @@ export default function Header({
     ? 'フォロー中の議題を取得できませんでした'
     : followCount === null
       ? 'フォロー中の議題を読み込んでいます'
-    : unreadFollowCount > 0
-      ? `フォロー中の議題は${followCount}件、新しい動きは${unreadFollowCount}件です`
+    : unreadFollowCount > 0 || unreadNotificationCount > 0
+      ? `フォロー中の議題は${followCount}件、未読通知は${unreadFollowCount + unreadNotificationCount}件です`
       : `フォロー中の議題は${followCount}件です`;
 
   return (
@@ -118,6 +120,15 @@ export default function Header({
                   {unreadFollowCount}
                 </span>
               </>
+            )}
+            {unreadNotificationCount > 0 && (
+              <span
+                data-testid="header-notification-badge"
+                aria-hidden="true"
+                className="rounded-full bg-indigo-100 text-indigo-800 px-2 py-0.5 text-[10px] font-bold"
+              >
+                通知 {unreadNotificationCount}件
+              </span>
             )}
           </button>
           <CitizenBadgePanel />

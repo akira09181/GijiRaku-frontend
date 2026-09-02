@@ -7,6 +7,7 @@ import { getIssueStatus } from '../data/issueStatuses';
 import type { FollowedTopic } from '../types/follow';
 import IssueShareButton from './IssueShareButton';
 import NotificationPreferencesPanel from './NotificationPreferencesPanel';
+import NotificationCenterPanel from './growth/NotificationCenterPanel';
 
 interface MyFollowModalProps {
   readonly follows: readonly FollowedTopic[];
@@ -16,6 +17,8 @@ interface MyFollowModalProps {
   readonly onOpenIssue: (follow: FollowedTopic) => void;
   readonly onDelete: (follow: FollowedTopic) => Promise<boolean>;
   readonly onClose: () => void;
+  readonly onNotificationUnreadChange?: (count: number) => void;
+  readonly onOpenIssueById?: (issueId: string) => void;
 }
 
 function formatDate(value: string | null | undefined) {
@@ -34,6 +37,8 @@ export default function MyFollowModal({
   onOpenIssue,
   onDelete,
   onClose,
+  onNotificationUnreadChange,
+  onOpenIssueById,
 }: MyFollowModalProps) {
   const [confirmingIssueId, setConfirmingIssueId] = useState<string | null>(null);
   const [deletingIssueId, setDeletingIssueId] = useState<string | null>(null);
@@ -70,6 +75,10 @@ export default function MyFollowModal({
         </header>
 
         <div className="overflow-y-auto p-4 space-y-3">
+          <NotificationCenterPanel
+            onUnreadChange={onNotificationUnreadChange}
+            onOpenIssue={onOpenIssueById}
+          />
           <NotificationPreferencesPanel />
           {loading && <p role="status" className="text-sm text-slate-600 dark:text-slate-300">フォロー情報を取得しています…</p>}
           {error && (

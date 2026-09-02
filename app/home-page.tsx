@@ -28,6 +28,7 @@ import {
 } from './lib/followApi';
 import { getApiBase } from './lib/apiBase';
 import { loadMyArea, saveMyArea } from './lib/myArea';
+import { getUnreadNotificationCount } from './lib/notificationApi';
 import { getCitizenQuestionByIssueId } from './data/citizenQuestions';
 import { unlockCitizenBadge } from './lib/citizenBadges';
 import {
@@ -268,6 +269,7 @@ export default function Home() {
   const [showMyFollows, setShowMyFollows] = useState(false);
   const [followsLoading, setFollowsLoading] = useState(true);
   const [followsError, setFollowsError] = useState<string | null>(null);
+  const [unreadNotificationCount, setUnreadNotificationCount] = useState(0);
   const [openedFollowSnapshot, setOpenedFollowSnapshot] = useState<FollowedTopic | null>(null);
   const [issueCatalog, setIssueCatalog] = useState<IssueCatalogResponse | null>(null);
   const [issueCatalogLoading, setIssueCatalogLoading] = useState(true);
@@ -391,6 +393,14 @@ export default function Home() {
     }
   }, []);
 
+  const refreshNotificationInbox = useCallback(async () => {
+    try {
+      setUnreadNotificationCount(await getUnreadNotificationCount());
+    } catch {
+      setUnreadNotificationCount(0);
+    }
+  }, []);
+
   useEffect(() => {
     let cancelled = false;
     const migrateAndLoadFollows = async () => {
@@ -411,6 +421,10 @@ export default function Home() {
     void migrateAndLoadFollows();
     return () => { cancelled = true; };
   }, [refreshFollows]);
+
+  useEffect(() => {
+    void refreshNotificationInbox();
+  }, [refreshNotificationInbox, showMyFollows]);
 
   // 地図表示用（実データ7議会 + 導入リクエスト受付中55地域）
   const mapAssemblies = useMemo(() => {
@@ -514,6 +528,13 @@ export default function Home() {
     openAssemblyModal(assembly, issue.theme.label, issue.issue_id);
   };
 
+  const openCatalogIssueById = (issueId: string) => {
+    const issue = issueCatalog?.issues.find((item) => item.issue_id === issueId);
+    if (!issue) return;
+    openCatalogIssue(issue);
+    setShowMyFollows(false);
+  };
+
   const selectCatalogAssembly = (assemblyId: string) => {
     setSelectedAssemblyId(assemblyId);
     window.setTimeout(() => document.getElementById('issue-list')?.scrollIntoView({ behavior: 'smooth' }), 0);
@@ -570,6 +591,7 @@ export default function Home() {
         onOpenFollows={() => setShowMyFollows(true)}
         followCount={followsLoading || followsError ? null : followedTopics.length}
         unreadFollowCount={followsError ? 0 : unreadFollowCount}
+        unreadNotificationCount={unreadNotificationCount}
         followUnavailable={Boolean(followsError)}
       />
       <MobileBottomNavigation
@@ -863,6 +885,8 @@ export default function Home() {
           error={followsError}
           onRetry={() => void refreshFollows()}
           onOpenIssue={openFollowedTopic}
+          onOpenIssueById={openCatalogIssueById}
+          onNotificationUnreadChange={setUnreadNotificationCount}
           onDelete={deleteFollow}
           onClose={() => setShowMyFollows(false)}
         />
