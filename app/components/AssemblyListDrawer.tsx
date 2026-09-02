@@ -97,7 +97,7 @@ export default function AssemblyListDrawer({
       <div className="p-3 bg-slate-950/60 rounded-xl border border-slate-800 text-[10px] sm:text-[11px] text-slate-400 flex items-start gap-2">
         <Info className="w-3.5 h-3.5 text-slate-400 shrink-0 mt-0.5" />
         <div>
-          <span className="text-slate-300 font-semibold">データ連携:</span> 実データ接続済み7議会と、導入リクエスト受付中の55地域を表示しています
+          <span className="text-slate-300 font-semibold">データ連携:</span> 実データ接続済みの議会と、導入リクエスト受付中の地域を表示しています
         </div>
       </div>
     </div>

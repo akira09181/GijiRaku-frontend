@@ -8,7 +8,7 @@ interface PlannedMunicipality {
   readonly lng: number;
 }
 
-/** 実データ未接続の東京都内自治体（62市区町村のうち6自治体分） */
+/** 実データ未接続の東京都内自治体（62市区町村のうち ready 以外） */
 const PLANNED_MUNICIPALITIES: readonly PlannedMunicipality[] = [
   // 特別区（19）
   { id: 'chiyoda-ward', name: '千代田区', type: 'ward', lat: 35.694, lng: 139.7536 },

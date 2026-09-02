@@ -236,7 +236,7 @@ export default function AssemblyMap({
               </span>
             </h2>
             <p className="text-[10px] sm:text-xs text-slate-400 truncate">
-              実データ7議会＋導入リクエスト受付中の地域を表示
+              実データ公開中の議会と、導入リクエスト受付中の地域を表示
             </p>
           </div>
         </div>
