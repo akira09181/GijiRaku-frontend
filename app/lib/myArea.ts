@@ -6,21 +6,29 @@ interface StorageLike {
   removeItem(key: string): void;
 }
 
-export function loadMyArea(storage: StorageLike, validAssemblyIds: readonly string[]): string {
+export function loadMyArea(
+  storage: StorageLike,
+  validAssemblyIds: readonly string[],
+  storageKey: string = MY_AREA_STORAGE_KEY,
+): string {
   try {
-    const stored = storage.getItem(MY_AREA_STORAGE_KEY);
+    const stored = storage.getItem(storageKey);
     return stored && validAssemblyIds.includes(stored) ? stored : 'all';
   } catch {
     return 'all';
   }
 }
 
-export function saveMyArea(storage: StorageLike, assemblyId: string): boolean {
+export function saveMyArea(
+  storage: StorageLike,
+  assemblyId: string,
+  storageKey: string = MY_AREA_STORAGE_KEY,
+): boolean {
   try {
     if (assemblyId === 'all') {
-      storage.removeItem(MY_AREA_STORAGE_KEY);
+      storage.removeItem(storageKey);
     } else {
-      storage.setItem(MY_AREA_STORAGE_KEY, assemblyId);
+      storage.setItem(storageKey, assemblyId);
     }
     return true;
   } catch {

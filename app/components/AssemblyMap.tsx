@@ -4,6 +4,12 @@ import React, { useEffect, useRef, useState, useMemo } from 'react';
 import { Search, MessageSquare, Compass, CheckCircle2 } from 'lucide-react';
 import { Assembly } from '../types/assembly';
 import { isAssemblyReady } from '../data/tokyoPlannedAssemblies';
+import type { HomeScope } from '../data/homeScope';
+
+const MAP_VIEW = {
+  tokyo: { center: [35.6895, 139.54] as [number, number], zoom: 11 },
+  diet: { center: [35.6759, 139.7449] as [number, number], zoom: 14 },
+} satisfies Record<HomeScope, { center: [number, number]; zoom: number }>;
 
 // Leaflet types
 declare global {
@@ -18,6 +24,7 @@ interface AssemblyMapProps {
   readonly assemblies: readonly Assembly[];
   readonly selectedAssemblyId: string | null;
   readonly onSelectAssembly: (assembly: Assembly) => void;
+  readonly mapScope?: HomeScope;
 }
 
 /**
@@ -30,6 +37,7 @@ export default function AssemblyMap({
   assemblies,
   selectedAssemblyId,
   onSelectAssembly,
+  mapScope = 'tokyo',
 }: AssemblyMapProps) {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -79,9 +87,10 @@ export default function AssemblyMap({
 
     const L = window.L;
     // 東京都中心（新宿・都庁付近）
+    const view = MAP_VIEW[mapScope];
     const map = L.map(mapContainerRef.current, {
-      center: [35.6895, 139.54],
-      zoom: 11,
+      center: view.center,
+      zoom: MAP_VIEW[mapScope].zoom,
       zoomControl: false,
     });
 
@@ -133,6 +142,20 @@ export default function AssemblyMap({
 
     mapInstanceRef.current.tileLayer = newLayer;
   }, [mapStyle]);
+
+  useEffect(() => {
+    if (!mapInstanceRef.current || !mapLoaded) return;
+    const { map } = mapInstanceRef.current;
+    const L = window.L;
+    const view = MAP_VIEW[mapScope];
+    map.setView(view.center, view.zoom, { animate: true });
+    if (mapScope === 'diet' && assemblies.length === 1) {
+      map.fitBounds(L.latLngBounds(assemblies.map((assembly) => [assembly.lat, assembly.lng])), {
+        padding: [48, 48],
+        maxZoom: 14,
+      });
+    }
+  }, [assemblies, mapLoaded, mapScope]);
 
   // 検索フィルタリング
   const filteredAssemblies = useMemo(() => {
@@ -233,13 +256,15 @@ export default function AssemblyMap({
           </div>
           <div className="min-w-0">
             <h2 className="text-xs sm:text-sm font-bold text-white tracking-tight truncate flex items-center gap-1.5">
-              <span>東京都議会・自治体マップ</span>
+              <span>{mapScope === 'diet' ? '国会マップ' : '東京都議会・自治体マップ'}</span>
               <span className="hidden xs:inline-block px-2 py-0.5 text-[10px] font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 rounded">
-                62市区町村
+                {mapScope === 'diet' ? '全国展開入口' : '62市区町村'}
               </span>
             </h2>
             <p className="text-[10px] sm:text-xs text-slate-400 truncate">
-              実データ公開中の議会と、導入リクエスト受付中の地域を表示
+              {mapScope === 'diet'
+                ? '国会会議録の実データ接続エリア'
+                : '実データ公開中の議会と、導入リクエスト受付中の地域を表示'}
             </p>
           </div>
         </div>
@@ -314,12 +339,20 @@ export default function AssemblyMap({
       {/* マップフッター凡例 */}
       <div className="relative z-20 px-4 py-2 bg-slate-950/90 backdrop-blur-md border-t border-slate-800/80 flex items-center justify-between text-[11px] text-slate-400">
         <div className="flex items-center gap-3">
-          <span className="flex items-center gap-1.5">
-            <span className="w-2 h-2 rounded-full bg-amber-400" /> 都議会（本庁）
-          </span>
-          <span className="flex items-center gap-1.5">
-            <span className="w-2 h-2 rounded-full bg-emerald-400" /> 各区市議会
-          </span>
+          {mapScope === 'diet' ? (
+            <span className="flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-full bg-amber-400" /> 国会（永田町）
+            </span>
+          ) : (
+            <>
+              <span className="flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-amber-400" /> 都議会（本庁）
+              </span>
+              <span className="flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-emerald-400" /> 各区市議会
+              </span>
+            </>
+          )}
           <span className="hidden sm:flex items-center gap-1.5 text-emerald-400">
             <CheckCircle2 className="w-3 h-3" /> オープンデータAPI連携
           </span>

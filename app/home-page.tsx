@@ -11,7 +11,16 @@ import IssueExplorer from './components/IssueExplorer';
 import MobileBottomNavigation from './components/MobileBottomNavigation';
 import OnboardingTour from './components/OnboardingTour';
 import RegionRequestModal from './components/growth/RegionRequestModal';
+import HomeScopeTabs from './components/HomeScopeTabs';
 import { Assembly, IssueTheme } from './types/assembly';
+import {
+  getMyAreaStorageKey,
+  loadHomeScope,
+  NATIONAL_DIET_ASSEMBLY_ID,
+  saveHomeScope,
+  type HomeScope,
+  validAssemblyIdsForScope,
+} from './data/homeScope';
 import { isAssemblyReady, mergeTokyoAssemblies, TOKYO_PLANNED_ASSEMBLIES } from './data/tokyoPlannedAssemblies';
 import type { AssemblyRecord, AssemblyRecordsResponse } from './types/assemblyRecord';
 import type { IssueCatalogItem, IssueCatalogResponse } from './types/issueCatalog';
@@ -27,6 +36,8 @@ import {
   putFirestoreFollow,
 } from './lib/followApi';
 import { getApiBase } from './lib/apiBase';
+import { fetchWithRetry } from './lib/fetchWithRetry';
+import { mapWithConcurrency } from './lib/mapWithConcurrency';
 import { loadMyArea, saveMyArea } from './lib/myArea';
 import { getUnreadNotificationCount } from './lib/notificationApi';
 import { getCitizenQuestionByIssueId } from './data/citizenQuestions';
@@ -47,9 +58,9 @@ import {
 } from 'lucide-react';
 
 /**
- * 東京都内 議会・自治体マスターデータ
+ * 国会（全国展開入口）
  */
-const TOKYO_ASSEMBLIES: readonly Assembly[] = [
+const NATIONAL_ASSEMBLIES: readonly Assembly[] = [
   {
     id: 'national-diet',
     name: '国会',
@@ -69,6 +80,12 @@ const TOKYO_ASSEMBLIES: readonly Assembly[] = [
     lastMeetingDate: '2025/3/13｜予算委員会',
     lastUpdatedDate: '2026/09/02',
   },
+];
+
+/**
+ * 東京都内 議会・自治体マスターデータ
+ */
+const TOKYO_ASSEMBLIES: readonly Assembly[] = [
   {
     id: 'tokyo-metropolitan',
     name: '東京都議会',
@@ -1298,6 +1315,9 @@ const TOKYO_ASSEMBLIES: readonly Assembly[] = [
   },
 ];
 
+const ALL_READY_ASSEMBLIES: readonly Assembly[] = [...NATIONAL_ASSEMBLIES, ...TOKYO_ASSEMBLIES];
+const TOKYO_PLANNED_IDS = TOKYO_PLANNED_ASSEMBLIES.map((assembly) => assembly.id);
+
 const THEME_OPTIONS: readonly { id: IssueTheme; label: string; icon: React.ReactNode }[] = [
   { id: 'all', label: 'すべてのテーマ', icon: <Layers className="w-3.5 h-3.5" /> },
   { id: 'children', label: '子育て・教育', icon: <Baby className="w-3.5 h-3.5" /> },
@@ -1347,6 +1367,8 @@ function validateFeaturedRecord(
 
 export default function Home() {
   const router = useRouter();
+  const [homeScope, setHomeScope] = useState<HomeScope>('tokyo');
+  const [scopeHydrated, setScopeHydrated] = useState(false);
   const [selectedAssemblyId, setSelectedAssemblyId] = useState<string>('all');
   const [myAreaHydrated, setMyAreaHydrated] = useState(false);
   const [userTheme, setUserTheme] = useState<IssueTheme>('all');
@@ -1382,17 +1404,34 @@ export default function Home() {
     let cancelled = false;
     queueMicrotask(() => {
       if (cancelled) return;
-      const validAssemblyIds = TOKYO_ASSEMBLIES.map((assembly) => assembly.id);
-      setSelectedAssemblyId(loadMyArea(window.localStorage, validAssemblyIds));
+      const scope = loadHomeScope(window.localStorage);
+      const validAssemblyIds = validAssemblyIdsForScope(
+        scope,
+        TOKYO_ASSEMBLIES,
+        NATIONAL_ASSEMBLIES,
+        TOKYO_PLANNED_IDS,
+      );
+      setHomeScope(scope);
+      setSelectedAssemblyId(loadMyArea(
+        window.localStorage,
+        validAssemblyIds,
+        getMyAreaStorageKey(scope),
+      ));
+      setScopeHydrated(true);
       setMyAreaHydrated(true);
     });
     return () => { cancelled = true; };
   }, []);
 
   useEffect(() => {
+    if (!scopeHydrated) return;
+    saveHomeScope(window.localStorage, homeScope);
+  }, [homeScope, scopeHydrated]);
+
+  useEffect(() => {
     if (!myAreaHydrated) return;
-    saveMyArea(window.localStorage, selectedAssemblyId);
-  }, [myAreaHydrated, selectedAssemblyId]);
+    saveMyArea(window.localStorage, selectedAssemblyId, getMyAreaStorageKey(homeScope));
+  }, [myAreaHydrated, selectedAssemblyId, homeScope]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -1439,12 +1478,16 @@ export default function Home() {
   }, [issueCatalogReload]);
 
   useEffect(() => {
+    if (!scopeHydrated || issueCatalogLoading) return;
+
     const controller = new AbortController();
     const apiBase = getApiBase();
+    const assembliesToLoad = (homeScope === 'diet' ? NATIONAL_ASSEMBLIES : TOKYO_ASSEMBLIES)
+      .filter(isAssemblyReady);
 
     const loadFeaturedRecords = async () => {
       const loaded: Record<string, AssemblyRecord> = {};
-      await Promise.all(TOKYO_ASSEMBLIES.map(async (assembly) => {
+      await mapWithConcurrency(assembliesToLoad, 4, async (assembly) => {
         const query = new URLSearchParams({
           assembly_id: assembly.id,
           discussion_id: assembly.featuredDiscussionId,
@@ -1453,10 +1496,13 @@ export default function Home() {
           limit: '100',
         });
         try {
-          const response = await fetch(`${apiBase}/api/assembly-records?${query.toString()}`, {
-            cache: 'no-store',
-            signal: controller.signal,
-          });
+          const response = await fetchWithRetry(
+            `${apiBase}/api/assembly-records?${query.toString()}`,
+            {
+              cache: 'no-store',
+              signal: controller.signal,
+            },
+          );
           if (!response.ok) throw new Error(`Assembly record API failed: ${response.status}`);
           const payload = await response.json() as AssemblyRecordsResponse;
           loaded[assembly.id] = validateFeaturedRecord(assembly, payload);
@@ -1464,14 +1510,14 @@ export default function Home() {
           if (controller.signal.aborted) return;
           console.error('Featured discussion could not be loaded', assembly.id, error);
         }
-      }));
+      });
       if (controller.signal.aborted) return;
-      setFeaturedRecords(loaded);
+      setFeaturedRecords((previous) => ({ ...previous, ...loaded }));
     };
 
     void loadFeaturedRecords();
     return () => controller.abort();
-  }, []);
+  }, [scopeHydrated, homeScope, issueCatalogLoading]);
 
   const refreshFollows = useCallback(async () => {
     setFollowsLoading(true);
@@ -1518,16 +1564,58 @@ export default function Home() {
     void refreshNotificationInbox();
   }, [refreshNotificationInbox, showMyFollows]);
 
-  // 地図表示用（実データ公開中の議会 + 導入リクエスト受付中の地域）
+  const scopeAssemblies = useMemo(
+    () => (homeScope === 'diet' ? NATIONAL_ASSEMBLIES : TOKYO_ASSEMBLIES),
+    [homeScope],
+  );
+
+  const scopeAssemblyIds = useMemo(
+    () => new Set(scopeAssemblies.map((assembly) => assembly.id)),
+    [scopeAssemblies],
+  );
+
+  const scopedIssues = useMemo(
+    () => (issueCatalog?.issues ?? []).filter((issue) => scopeAssemblyIds.has(issue.assembly_id)),
+    [issueCatalog?.issues, scopeAssemblyIds],
+  );
+
+  const scopeReadyCount = useMemo(
+    () => scopeAssemblies.filter((assembly) => isAssemblyReady(assembly)).length,
+    [scopeAssemblies],
+  );
+
+  const handleHomeScopeChange = (nextScope: HomeScope) => {
+    setHomeScope(nextScope);
+    setUserTheme('all');
+    const validAssemblyIds = validAssemblyIdsForScope(
+      nextScope,
+      TOKYO_ASSEMBLIES,
+      NATIONAL_ASSEMBLIES,
+      TOKYO_PLANNED_IDS,
+    );
+    setSelectedAssemblyId(loadMyArea(
+      window.localStorage,
+      validAssemblyIds,
+      getMyAreaStorageKey(nextScope),
+    ));
+  };
+
+  // 地図表示用（スコープ内の ready + planned）
   const mapAssemblies = useMemo(() => {
+    if (homeScope === 'diet') {
+      if (selectedAssemblyId === 'all') return NATIONAL_ASSEMBLIES;
+      return NATIONAL_ASSEMBLIES.filter((assembly) => assembly.id === selectedAssemblyId);
+    }
     const all = mergeTokyoAssemblies(TOKYO_ASSEMBLIES);
     if (selectedAssemblyId === 'all') return all;
     return all.filter((assembly) => assembly.id === selectedAssemblyId);
-  }, [selectedAssemblyId]);
+  }, [homeScope, selectedAssemblyId]);
 
   // 選択中の自治体情報
   const currentSelectedAssembly = useMemo(() => {
-    return TOKYO_ASSEMBLIES.find((a) => a.id === selectedAssemblyId) || null;
+    return ALL_READY_ASSEMBLIES.find((assembly) => assembly.id === selectedAssemblyId)
+      || TOKYO_PLANNED_ASSEMBLIES.find((assembly) => assembly.id === selectedAssemblyId)
+      || null;
   }, [selectedAssemblyId]);
 
   const openAssemblyModal = (
@@ -1561,7 +1649,7 @@ export default function Home() {
       setSelectedAssemblyId('all');
       return;
     }
-    const assembly = TOKYO_ASSEMBLIES.find((item) => item.id === assemblyId)
+    const assembly = ALL_READY_ASSEMBLIES.find((item) => item.id === assemblyId)
       || TOKYO_PLANNED_ASSEMBLIES.find((item) => item.id === assemblyId);
     if (assembly && !isAssemblyReady(assembly)) {
       setRegionRequestAssembly(assembly);
@@ -1578,8 +1666,11 @@ export default function Home() {
     const questionIssue = getCitizenQuestionByIssueId(issueId);
     const catalogIssue = issueCatalog?.issues.find((item) => item.issue_id === issueId);
     const assemblyId = questionIssue?.assemblyId || catalogIssue?.assembly_id;
-    const assembly = TOKYO_ASSEMBLIES.find((item) => item.id === assemblyId);
+    const assembly = ALL_READY_ASSEMBLIES.find((item) => item.id === assemblyId);
     if (!assemblyId || !assembly) return;
+    if (assemblyId === NATIONAL_DIET_ASSEMBLY_ID) {
+      setHomeScope('diet');
+    }
     directIssueOpenedRef.current = true;
     const record = featuredRecords[assembly.id];
     queueMicrotask(() => {
@@ -1615,7 +1706,10 @@ export default function Home() {
   };
 
   const openCatalogIssue = (issue: IssueCatalogItem) => {
-    const assembly = TOKYO_ASSEMBLIES.find((item) => item.id === issue.assembly_id);
+    if (issue.assembly_id === NATIONAL_DIET_ASSEMBLY_ID) {
+      setHomeScope('diet');
+    }
+    const assembly = ALL_READY_ASSEMBLIES.find((item) => item.id === issue.assembly_id);
     if (!assembly) return;
     openAssemblyModal(assembly, issue.theme.label, issue.issue_id);
   };
@@ -1654,7 +1748,7 @@ export default function Home() {
   };
 
   const openFollowedTopic = (followedTopic: FollowedTopic) => {
-    const assembly = TOKYO_ASSEMBLIES.find((item) => item.id === followedTopic.assembly_id);
+    const assembly = ALL_READY_ASSEMBLIES.find((item) => item.id === followedTopic.assembly_id);
     if (!assembly) return;
     setOpenedFollowSnapshot(followedTopic);
     openAssemblyModal(assembly, followedTopic.theme_name, followedTopic.discussion_id);
@@ -1725,16 +1819,20 @@ export default function Home() {
         </p>
 
         <div className="mt-5 flex flex-col items-center gap-2" data-hide-in-education>
-          <button
-            onClick={openSickChildCareDemo}
-            className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-sm font-bold flex items-center gap-2 transition-colors shadow-md"
-          >
-            <MessageSquare className="w-4 h-4" />
-            <span>実データのデモを見る</span>
-          </button>
-          <span className="text-xs font-semibold dark:text-slate-300 text-slate-700">
-            新宿区｜病児保育の予約・受入問題
-          </span>
+          {homeScope === 'tokyo' && (
+            <>
+              <button
+                onClick={openSickChildCareDemo}
+                className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-sm font-bold flex items-center gap-2 transition-colors shadow-md"
+              >
+                <MessageSquare className="w-4 h-4" />
+                <span>実データのデモを見る</span>
+              </button>
+              <span className="text-xs font-semibold dark:text-slate-300 text-slate-700">
+                新宿区｜病児保育の予約・受入問題
+              </span>
+            </>
+          )}
         </div>
 
         <p className="mt-4 max-w-2xl text-xs sm:text-sm font-semibold dark:text-slate-300 text-slate-700 leading-relaxed">
@@ -1744,13 +1842,15 @@ export default function Home() {
           異なる形式の会議録を発言単位に構造化し、議員・日時・議題・原文を保持したままAI要約しています。
         </p>
 
-        {/* 2ステップ選択カード */}
-        <div className="w-full mt-6 sm:mt-8 p-4 sm:p-5 dark:bg-slate-900/90 dark:border-slate-800 bg-white border-slate-200 border rounded-2xl shadow-xl space-y-4 text-left">
+        {/* 東京 / 国会タブ + 2ステップ選択カード */}
+        <div className="w-full mt-6 sm:mt-8 space-y-3">
+          <HomeScopeTabs value={homeScope} onChange={handleHomeScopeChange} />
+          <div className="p-4 sm:p-5 dark:bg-slate-900/90 dark:border-slate-800 bg-white border-slate-200 border rounded-2xl shadow-xl space-y-4 text-left">
           {/* Step 1: 地域を選ぶ */}
           <div id="my-area-selector" className="space-y-2 scroll-mt-20">
             <label className="text-xs font-semibold dark:text-slate-300 text-slate-700 flex items-center gap-1.5">
               <MapPin className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-              <span>Step 1: あなたの街を選ぶ</span>
+              <span>{homeScope === 'diet' ? 'Step 1: 国政の論点を選ぶ' : 'Step 1: あなたの街を選ぶ'}</span>
             </label>
             <div className="relative">
               <select
@@ -1758,27 +1858,35 @@ export default function Home() {
                 onChange={(e) => handleMyAreaChange(e.target.value)}
                 className="w-full dark:bg-slate-950 dark:border-slate-700/80 dark:text-white bg-slate-50 border-slate-300 text-slate-900 border rounded-xl px-3.5 py-2.5 text-xs sm:text-sm focus:outline-none focus:ring-1 focus:ring-emerald-500 appearance-none cursor-pointer pr-10 font-medium transition-colors"
               >
-                <option value="all">東京都全域（現在{officialStats.assemblyCount}議会の実データを公開中）</option>
+                <option value="all">
+                  {homeScope === 'diet'
+                    ? `国会（実データ${scopeReadyCount}件を公開中）`
+                    : `東京都全域（現在${scopeReadyCount}議会の実データを公開中）`}
+                </option>
                 <optgroup label="実データ公開中">
-                  {TOKYO_ASSEMBLIES.map((a) => (
+                  {scopeAssemblies.map((a) => (
                     <option key={a.id} value={a.id}>
                       {a.name} ({a.type === 'national' ? '国会' : a.type === 'prefecture' ? '都議会' : a.type === 'ward' ? '特別区' : '市'})
                     </option>
                   ))}
                 </optgroup>
-                <optgroup label="導入リクエスト受付中">
-                  {TOKYO_PLANNED_ASSEMBLIES.map((a) => (
-                    <option key={a.id} value={a.id}>
-                      {a.name.replace(/議会$/, '')}（準備中）
-                    </option>
-                  ))}
-                </optgroup>
+                {homeScope === 'tokyo' && (
+                  <optgroup label="導入リクエスト受付中">
+                    {TOKYO_PLANNED_ASSEMBLIES.map((a) => (
+                      <option key={a.id} value={a.id}>
+                        {a.name.replace(/議会$/, '')}（準備中）
+                      </option>
+                    ))}
+                  </optgroup>
+                )}
               </select>
               <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3 top-3 pointer-events-none" />
             </div>
             {myAreaHydrated && selectedAssemblyId !== 'all' && (
               <p data-testid="my-area-saved" className="text-[10px] font-medium text-emerald-700 dark:text-emerald-400">
-                Myエリアとして記憶しました。次回もこの地域から表示します。
+                {homeScope === 'diet'
+                  ? '国会タブの表示範囲として記憶しました。'
+                  : 'Myエリアとして記憶しました。次回もこの地域から表示します。'}
               </p>
             )}
           </div>
@@ -1812,20 +1920,23 @@ export default function Home() {
 
           <div className="pt-3 border-t dark:border-slate-800/80 border-slate-200 text-xs">
             <span className="text-[11px] dark:text-slate-400 text-slate-500">
-              選んだ地域・テーマに合わせて、下の議題一覧を絞り込めます。
+              {homeScope === 'diet'
+                ? '選んだ国会審議・テーマに合わせて、下の議題一覧を絞り込めます。'
+                : '選んだ地域・テーマに合わせて、下の議題一覧を絞り込めます。'}
             </span>
+          </div>
           </div>
         </div>
 
-        {/* 東京都全域 議会オープンデータ構造化実績 (数字の証拠) */}
+        {/* スコープ内の実データ実績 */}
         <div className="w-full mt-6 grid grid-cols-2 sm:grid-cols-4 gap-3 text-left" data-hide-in-education>
           <div className="dark:bg-slate-900/90 bg-white border dark:border-slate-800 border-slate-200 p-3 rounded-xl shadow-sm">
             <div className="text-[10px] dark:text-slate-400 text-slate-500 font-semibold mb-1">公開中の議題</div>
-            <div className="text-lg font-bold text-emerald-600 dark:text-emerald-400">{issueCatalog?.total_catalog_issue_count || officialStats.catalogIssueCount || '—'}<span className="text-[10px] text-slate-500 font-normal ml-1">件</span></div>
+            <div className="text-lg font-bold text-emerald-600 dark:text-emerald-400">{scopedIssues.length || '—'}<span className="text-[10px] text-slate-500 font-normal ml-1">件</span></div>
           </div>
           <div className="dark:bg-slate-900/90 bg-white border dark:border-slate-800 border-slate-200 p-3 rounded-xl shadow-sm">
             <div className="text-[10px] dark:text-slate-400 text-slate-500 font-semibold mb-1">実データ接続</div>
-            <div className="text-lg font-bold dark:text-white text-slate-900">{officialStats.assemblyCount}<span className="text-[10px] text-slate-500 font-normal ml-1">議会</span></div>
+            <div className="text-lg font-bold dark:text-white text-slate-900">{scopeReadyCount}<span className="text-[10px] text-slate-500 font-normal ml-1">{homeScope === 'diet' ? '件' : '議会'}</span></div>
           </div>
           <div className="dark:bg-slate-900/90 bg-white border dark:border-slate-800 border-slate-200 p-3 rounded-xl shadow-sm">
             <div className="text-[10px] dark:text-slate-400 text-slate-500 font-semibold mb-1">原文照合済み発言</div>
@@ -1840,8 +1951,8 @@ export default function Home() {
 
       <section className="mx-auto w-full max-w-5xl px-4 pb-12">
         <IssueExplorer
-          assemblies={TOKYO_ASSEMBLIES}
-          issues={issueCatalog?.issues || []}
+          assemblies={scopeAssemblies}
+          issues={scopedIssues}
           themes={issueCatalog?.themes || []}
           loading={issueCatalogLoading}
           error={issueCatalogError}
@@ -1869,7 +1980,9 @@ export default function Home() {
                 <span>地図・全リストから探す</span>
               </h3>
               <p className="text-xs dark:text-slate-400 text-slate-500 mt-0.5">
-                都内62市区町村＋都議会の実データを地図で確認できます
+                {homeScope === 'diet'
+                  ? '国会の実データと今後の全国展開エリアを地図で確認できます'
+                  : '都内62市区町村＋都議会の実データを地図で確認できます'}
               </p>
             </div>
 
@@ -1884,12 +1997,14 @@ export default function Home() {
 
           {showMapExplorer && (
             <div className="space-y-4 pt-2">
+              {homeScope === 'tokyo' && (
               <div
                 data-testid="region-request-banner"
                 className="rounded-xl border border-amber-300/40 bg-amber-50 px-4 py-3 text-sm text-amber-950 dark:border-amber-800/60 dark:bg-amber-950/30 dark:text-amber-100"
               >
                 点線ピンの地域は準備中です。ピンまたは一覧から「導入リクエスト」を送ると、公開優先度の参考にします。
               </div>
+              )}
               {/* モバイル切り替え */}
               <div className="lg:hidden dark:bg-slate-900 bg-white p-1 rounded-xl border dark:border-slate-800 border-slate-200 flex items-center gap-1">
                 <button
@@ -1918,6 +2033,7 @@ export default function Home() {
                     assemblies={mapAssemblies}
                     selectedAssemblyId={currentSelectedAssembly?.id || regionRequestAssembly?.id || null}
                     onSelectAssembly={(assembly) => openAssemblyModal(assembly)}
+                    mapScope={homeScope}
                   />
                 </div>
 
