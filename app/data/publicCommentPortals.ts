@@ -93,6 +93,55 @@ export const PUBLIC_COMMENT_PORTALS: readonly PublicCommentPortal[] = [
     portalUrl: 'https://www.city.tachikawa.lg.jp/kusei/seisaku/publiccomment/index.html',
     guidance: '市のパブリックコメントページで、該当する募集を選んで意見を提出してください。',
   },
+  {
+    assemblyId: 'chuo-ward',
+    municipality: '中央区',
+    portalLabel: '中央区 意見公募',
+    portalUrl: 'https://www.city.chuo.lg.jp/kusei/seisaku/publiccomment/index.html',
+    guidance: '区の意見公募ページから、該当するテーマを選んで意見を送ってください。',
+  },
+  {
+    assemblyId: 'kodaira-city',
+    municipality: '小平市',
+    portalLabel: '小平市 パブリックコメント',
+    portalUrl: 'https://www.city.kodaira.tokyo.jp/kusei/seisaku/publiccomment/index.html',
+    guidance: '市のパブリックコメントページで、該当する募集を選んで意見を提出してください。',
+  },
+  {
+    assemblyId: 'akishima-city',
+    municipality: '昭島市',
+    portalLabel: '昭島市 パブリックコメント',
+    portalUrl: 'https://www.city.akishima.lg.jp/kusei/seisaku/publiccomment/index.html',
+    guidance: '市のパブリックコメントページで、該当する募集を選んで意見を提出してください。',
+  },
+  {
+    assemblyId: 'ome-city',
+    municipality: '青梅市',
+    portalLabel: '青梅市 パブリックコメント',
+    portalUrl: 'https://www.city.ome.tokyo.jp/kusei/seisaku/publiccomment/index.html',
+    guidance: '市のパブリックコメントページで、該当する募集を選んで意見を提出してください。',
+  },
+  {
+    assemblyId: 'higashiyamato-city',
+    municipality: '東大和市',
+    portalLabel: '東大和市 パブリックコメント',
+    portalUrl: 'https://www.city.higashiyamato.lg.jp/kusei/seisaku/publiccomment/index.html',
+    guidance: '市のパブリックコメントページで、該当する募集を選んで意見を提出してください。',
+  },
+  {
+    assemblyId: 'kiyose-city',
+    municipality: '清瀬市',
+    portalLabel: '清瀬市 パブリックコメント',
+    portalUrl: 'https://www.city.kiyose.lg.jp/kusei/seisaku/publiccomment/index.html',
+    guidance: '市のパブリックコメントページで、該当する募集を選んで意見を提出してください。',
+  },
+  {
+    assemblyId: 'musashimurayama-city',
+    municipality: '武蔵村山市',
+    portalLabel: '武蔵村山市 パブリックコメント',
+    portalUrl: 'https://www.city.musashimurayama.lg.jp/kusei/seisaku/publiccomment/index.html',
+    guidance: '市のパブリックコメントページで、該当する募集を選んで意見を提出してください。',
+  },
 ] as const;
 
 const PORTAL_BY_ASSEMBLY_ID = new Map(
