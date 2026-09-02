@@ -3,6 +3,8 @@
 import React, { useState, useEffect } from 'react';
 import { Landmark, Sun, Moon, BookmarkCheck } from 'lucide-react';
 import { Assembly } from '../types/assembly';
+import CitizenBadgePanel from './growth/CitizenBadgePanel';
+import EducationModeToggle from './growth/EducationModeToggle';
 
 interface HeaderProps {
   readonly onOpenFollows: () => void;
@@ -92,9 +94,10 @@ export default function Header({
         </div>
 
         {/* 文字サイズ変更 ＆ テーマ切替 ＆ 行政向け導線 */}
-        <div className="flex items-center gap-2 shrink-0">
+        <div className="hidden md:flex items-center gap-2 shrink-0">
           <button
             type="button"
+            data-onboarding="follows"
             onClick={onOpenFollows}
             className="relative px-2.5 py-1.5 rounded-lg bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-emerald-800 dark:bg-emerald-950/40 dark:border-emerald-800 dark:text-emerald-300 text-xs font-bold flex items-center gap-1.5"
             aria-label={followAriaLabel}
@@ -117,6 +120,8 @@ export default function Header({
               </>
             )}
           </button>
+          <CitizenBadgePanel />
+          <EducationModeToggle />
           {/* 文字サイズ変更ピル */}
           <div className="flex items-center gap-0.5 p-1 rounded-lg dark:bg-slate-800/80 dark:border-slate-700/70 bg-slate-100 border-slate-300 border text-xs">
             <span className="px-1 text-slate-500 font-bold hidden sm:inline text-[11px]">文字</span>

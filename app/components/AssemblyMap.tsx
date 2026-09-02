@@ -3,6 +3,7 @@
 import React, { useEffect, useRef, useState, useMemo } from 'react';
 import { Search, MessageSquare, Compass, CheckCircle2 } from 'lucide-react';
 import { Assembly } from '../types/assembly';
+import { isAssemblyReady } from '../data/tokyoPlannedAssemblies';
 
 // Leaflet types
 declare global {
@@ -158,30 +159,44 @@ export default function AssemblyMap({
     filteredAssemblies.forEach((assembly) => {
       const isSelected = selectedAssemblyId === assembly.id;
       const isTokyoMet = assembly.id === 'tokyo-metropolitan';
+      const isReady = isAssemblyReady(assembly);
+      const shortName = assembly.name.replace(/(区|市|町|村)?議会$/, '');
+      const typeLabel = assembly.type === 'prefecture'
+        ? '都'
+        : assembly.type === 'ward'
+          ? '区'
+          : assembly.type === 'city'
+            ? '市'
+            : '町';
 
-      // プロフェッショナルなピンUI
       const iconHtml = `
         <div onclick="if(window.selectGijiAssembly) window.selectGijiAssembly('${assembly.id}')" style="pointer-events: auto; cursor: pointer;" class="custom-marker-pin group transition-transform duration-150 ${
           isSelected ? 'scale-105 z-50' : 'hover:scale-102'
-        }">
+        }" data-testid="map-marker" data-assembly-id="${assembly.id}" data-assembly-ready="${isReady}">
           <div class="flex items-center gap-2 px-3 py-1.5 rounded-xl shadow-md border text-xs font-semibold whitespace-nowrap ${
             isSelected
-              ? 'bg-slate-900 border-emerald-500 text-white shadow-emerald-950/40'
-              : isTokyoMet
-              ? 'bg-slate-900/95 border-amber-500/70 text-slate-100 hover:border-amber-400'
-              : 'bg-slate-900/95 border-slate-700/80 text-slate-100 hover:border-slate-500'
+              ? isReady
+                ? 'bg-slate-900 border-emerald-500 text-white shadow-emerald-950/40'
+                : 'bg-slate-900 border-amber-500 text-white shadow-amber-950/40'
+              : isReady
+                ? isTokyoMet
+                  ? 'bg-slate-900/95 border-amber-500/70 text-slate-100 hover:border-amber-400'
+                  : 'bg-slate-900/95 border-slate-700/80 text-slate-100 hover:border-slate-500'
+                : 'bg-slate-900/90 border-dashed border-amber-500/50 text-slate-200 hover:border-amber-400'
           }">
             <span class="w-4 h-4 rounded-md ${
-              isTokyoMet ? 'bg-amber-500/20 text-amber-300' : 'bg-emerald-500/20 text-emerald-400'
+              isReady
+                ? isTokyoMet ? 'bg-amber-500/20 text-amber-300' : 'bg-emerald-500/20 text-emerald-400'
+                : 'bg-amber-500/10 text-amber-300'
             } flex items-center justify-center font-bold text-[10px] shrink-0">
-              ${isTokyoMet ? '都' : '区'}
+              ${typeLabel}
             </span>
             <div class="flex flex-col text-left leading-tight">
               <span class="font-bold text-xs text-white">
-                ${assembly.name}
+                ${shortName}
               </span>
-              <span class="text-[10px] text-slate-400 font-normal truncate max-w-[110px]">
-                ${assembly.hotTopic}
+              <span class="text-[10px] ${isReady ? 'text-slate-400' : 'text-amber-300/90'} font-normal truncate max-w-[110px]">
+                ${isReady ? assembly.hotTopic : '導入リクエスト受付中'}
               </span>
             </div>
           </div>
@@ -221,7 +236,7 @@ export default function AssemblyMap({
               </span>
             </h2>
             <p className="text-[10px] sm:text-xs text-slate-400 truncate">
-              ピンを選択して議事録対話を開始
+              実データ7議会＋導入リクエスト受付中の地域を表示
             </p>
           </div>
         </div>

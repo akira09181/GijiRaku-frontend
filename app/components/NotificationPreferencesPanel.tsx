@@ -8,6 +8,7 @@ import {
   putNotificationPreferences,
   type NotificationMatch,
 } from '../lib/notificationApi';
+import LineNotificationConnect from './growth/LineNotificationConnect';
 
 function parseEntries(value: string): string[] {
   return Array.from(new Set(
@@ -131,6 +132,7 @@ export default function NotificationPreferencesPanel() {
               <span className="text-xs text-slate-600 dark:text-slate-300">一致する議題 {matches.length}件</span>
             </div>
             {saved && <p role="status" className="text-xs font-medium text-emerald-700">通知条件を保存しました。</p>}
+            <LineNotificationConnect />
           </>
         )}
         {error && <p role="alert" className="text-xs font-medium text-rose-700">{error}</p>}

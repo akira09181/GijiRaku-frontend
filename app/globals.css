@@ -38,6 +38,10 @@ body {
   -ms-overflow-style: none;
   scrollbar-width: none;
 }
+
+html[data-education-mode="true"] [data-hide-in-education] {
+  display: none !important;
+}
 .scrollbar-none::-webkit-scrollbar {
   display: none;
 }

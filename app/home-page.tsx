@@ -8,7 +8,11 @@ import AssemblyListDrawer from './components/AssemblyListDrawer';
 import LineChatModal from './components/LineChatModal';
 import MyFollowModal from './components/MyFollowModal';
 import IssueExplorer from './components/IssueExplorer';
+import MobileBottomNavigation from './components/MobileBottomNavigation';
+import OnboardingTour from './components/OnboardingTour';
+import RegionRequestModal from './components/growth/RegionRequestModal';
 import { Assembly, IssueTheme } from './types/assembly';
+import { isAssemblyReady, mergeTokyoAssemblies, TOKYO_PLANNED_ASSEMBLIES } from './data/tokyoPlannedAssemblies';
 import type { AssemblyRecord, AssemblyRecordsResponse } from './types/assemblyRecord';
 import type { IssueCatalogItem, IssueCatalogResponse } from './types/issueCatalog';
 import type { FollowedTopic, FollowTopicInput } from './types/follow';
@@ -23,7 +27,9 @@ import {
   putFirestoreFollow,
 } from './lib/followApi';
 import { getApiBase } from './lib/apiBase';
+import { loadMyArea, saveMyArea } from './lib/myArea';
 import { getCitizenQuestionByIssueId } from './data/citizenQuestions';
+import { unlockCitizenBadge } from './lib/citizenBadges';
 import {
   MapPin,
   Filter,
@@ -249,6 +255,7 @@ function validateFeaturedRecord(
 export default function Home() {
   const router = useRouter();
   const [selectedAssemblyId, setSelectedAssemblyId] = useState<string>('all');
+  const [myAreaHydrated, setMyAreaHydrated] = useState(false);
   const [userTheme, setUserTheme] = useState<IssueTheme>('all');
   const [selectedAssemblyForModal, setSelectedAssemblyForModal] = useState<Assembly | null>(null);
   const [modalInitialTheme, setModalInitialTheme] = useState<string | undefined>();
@@ -266,6 +273,7 @@ export default function Home() {
   const [issueCatalogLoading, setIssueCatalogLoading] = useState(true);
   const [issueCatalogError, setIssueCatalogError] = useState<string | null>(null);
   const [issueCatalogReload, setIssueCatalogReload] = useState(0);
+  const [regionRequestAssembly, setRegionRequestAssembly] = useState<Assembly | null>(null);
   const directIssueOpenedRef = useRef(false);
   const viewedFollowRef = useRef<string | null>(null);
   const [officialStats, setOfficialStats] = useState({
@@ -275,6 +283,22 @@ export default function Home() {
     statementCount: 367,
     updatedAt: '2026/08/24',
   });
+
+  useEffect(() => {
+    let cancelled = false;
+    queueMicrotask(() => {
+      if (cancelled) return;
+      const validAssemblyIds = TOKYO_ASSEMBLIES.map((assembly) => assembly.id);
+      setSelectedAssemblyId(loadMyArea(window.localStorage, validAssemblyIds));
+      setMyAreaHydrated(true);
+    });
+    return () => { cancelled = true; };
+  }, []);
+
+  useEffect(() => {
+    if (!myAreaHydrated) return;
+    saveMyArea(window.localStorage, selectedAssemblyId);
+  }, [myAreaHydrated, selectedAssemblyId]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -388,22 +412,12 @@ export default function Home() {
     return () => { cancelled = true; };
   }, [refreshFollows]);
 
-  // 対象自治体の絞り込み
-  const activeAssemblies = useMemo(() => {
-    let list = TOKYO_ASSEMBLIES;
-    if (selectedAssemblyId !== 'all') {
-      list = list.filter((a) => a.id === selectedAssemblyId);
-    }
-    if (userTheme !== 'all') {
-      const matchingAssemblyIds = new Set(
-        issueCatalog?.issues
-          .filter((issue) => issue.theme.id === userTheme)
-          .map((issue) => issue.assembly_id) || [],
-      );
-      list = list.filter((assembly) => matchingAssemblyIds.has(assembly.id));
-    }
-    return list;
-  }, [issueCatalog, selectedAssemblyId, userTheme]);
+  // 地図表示用（実データ7議会 + 導入リクエスト受付中55地域）
+  const mapAssemblies = useMemo(() => {
+    const all = mergeTokyoAssemblies(TOKYO_ASSEMBLIES);
+    if (selectedAssemblyId === 'all') return all;
+    return all.filter((assembly) => assembly.id === selectedAssemblyId);
+  }, [selectedAssemblyId]);
 
   // 選択中の自治体情報
   const currentSelectedAssembly = useMemo(() => {
@@ -415,6 +429,10 @@ export default function Home() {
     initialTheme = getThemeKeyword(userTheme),
     initialDiscussionId?: string,
   ) => {
+    if (!isAssemblyReady(assembly)) {
+      setRegionRequestAssembly(assembly);
+      return;
+    }
     const featuredRecord = featuredRecords[assembly.id];
     const selectedRecord = featuredRecord?.discussion_id === initialDiscussionId
       || initialDiscussionId === undefined
@@ -430,6 +448,20 @@ export default function Home() {
     );
     setModalInitialRecord(selectedRecord);
     setSelectedAssemblyForModal(assembly);
+  };
+
+  const handleMyAreaChange = (assemblyId: string) => {
+    if (assemblyId === 'all') {
+      setSelectedAssemblyId('all');
+      return;
+    }
+    const assembly = TOKYO_ASSEMBLIES.find((item) => item.id === assemblyId)
+      || TOKYO_PLANNED_ASSEMBLIES.find((item) => item.id === assemblyId);
+    if (assembly && !isAssemblyReady(assembly)) {
+      setRegionRequestAssembly(assembly);
+      return;
+    }
+    setSelectedAssemblyId(assemblyId);
   };
 
   useEffect(() => {
@@ -499,6 +531,7 @@ export default function Home() {
         ));
       } else {
         await putFirestoreFollow(topic.discussion_id);
+        unlockCitizenBadge('first_follow');
       }
       await refreshFollows();
       return true;
@@ -531,7 +564,7 @@ export default function Home() {
   const unreadFollowCount = followedTopics.filter((follow) => follow.has_new_status).length;
 
   return (
-    <main className="min-h-screen flex flex-col dark:bg-slate-950 dark:text-slate-100 bg-slate-50 text-slate-900 selection:bg-emerald-500 selection:text-slate-950 transition-colors duration-200">
+    <main className="min-h-screen flex flex-col pb-16 md:pb-0 dark:bg-slate-950 dark:text-slate-100 bg-slate-50 text-slate-900 selection:bg-emerald-500 selection:text-slate-950 transition-colors duration-200">
       {/* 共通ヘッダー */}
       <Header
         onOpenFollows={() => setShowMyFollows(true)}
@@ -539,6 +572,13 @@ export default function Home() {
         unreadFollowCount={followsError ? 0 : unreadFollowCount}
         followUnavailable={Boolean(followsError)}
       />
+      <MobileBottomNavigation
+        onOpenFollows={() => setShowMyFollows(true)}
+        followCount={followsLoading || followsError ? null : followedTopics.length}
+        unreadFollowCount={followsError ? 0 : unreadFollowCount}
+        followUnavailable={Boolean(followsError)}
+      />
+      <OnboardingTour />
 
       {!followsError && unreadFollowCount > 0 && (
         <button
@@ -570,7 +610,7 @@ export default function Home() {
           知る → 確かめる → 声を届ける
         </p>
 
-        <div className="mt-5 flex flex-col items-center gap-2">
+        <div className="mt-5 flex flex-col items-center gap-2" data-hide-in-education>
           <button
             onClick={openSickChildCareDemo}
             className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-sm font-bold flex items-center gap-2 transition-colors shadow-md"
@@ -593,7 +633,7 @@ export default function Home() {
         {/* 2ステップ選択カード */}
         <div className="w-full mt-6 sm:mt-8 p-4 sm:p-5 dark:bg-slate-900/90 dark:border-slate-800 bg-white border-slate-200 border rounded-2xl shadow-xl space-y-4 text-left">
           {/* Step 1: 地域を選ぶ */}
-          <div className="space-y-2">
+          <div id="my-area-selector" className="space-y-2 scroll-mt-20">
             <label className="text-xs font-semibold dark:text-slate-300 text-slate-700 flex items-center gap-1.5">
               <MapPin className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
               <span>Step 1: あなたの街を選ぶ</span>
@@ -601,18 +641,32 @@ export default function Home() {
             <div className="relative">
               <select
                 value={selectedAssemblyId}
-                onChange={(e) => setSelectedAssemblyId(e.target.value)}
+                onChange={(e) => handleMyAreaChange(e.target.value)}
                 className="w-full dark:bg-slate-950 dark:border-slate-700/80 dark:text-white bg-slate-50 border-slate-300 text-slate-900 border rounded-xl px-3.5 py-2.5 text-xs sm:text-sm focus:outline-none focus:ring-1 focus:ring-emerald-500 appearance-none cursor-pointer pr-10 font-medium transition-colors"
               >
                 <option value="all">東京都全域（現在{officialStats.assemblyCount}議会の実データを公開中）</option>
-                {TOKYO_ASSEMBLIES.map((a) => (
-                  <option key={a.id} value={a.id}>
-                    {a.name} ({a.type === 'prefecture' ? '都議会' : a.type === 'ward' ? '特別区' : '市'})
-                  </option>
-                ))}
+                <optgroup label="実データ公開中">
+                  {TOKYO_ASSEMBLIES.map((a) => (
+                    <option key={a.id} value={a.id}>
+                      {a.name} ({a.type === 'prefecture' ? '都議会' : a.type === 'ward' ? '特別区' : '市'})
+                    </option>
+                  ))}
+                </optgroup>
+                <optgroup label="導入リクエスト受付中">
+                  {TOKYO_PLANNED_ASSEMBLIES.map((a) => (
+                    <option key={a.id} value={a.id}>
+                      {a.name.replace(/議会$/, '')}（準備中）
+                    </option>
+                  ))}
+                </optgroup>
               </select>
               <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3 top-3 pointer-events-none" />
             </div>
+            {myAreaHydrated && selectedAssemblyId !== 'all' && (
+              <p data-testid="my-area-saved" className="text-[10px] font-medium text-emerald-700 dark:text-emerald-400">
+                Myエリアとして記憶しました。次回もこの地域から表示します。
+              </p>
+            )}
           </div>
 
           {/* Step 2: 関心のあるテーマを選ぶ */}
@@ -650,7 +704,7 @@ export default function Home() {
         </div>
 
         {/* 東京都全域 議会オープンデータ構造化実績 (数字の証拠) */}
-        <div className="w-full mt-6 grid grid-cols-2 sm:grid-cols-4 gap-3 text-left">
+        <div className="w-full mt-6 grid grid-cols-2 sm:grid-cols-4 gap-3 text-left" data-hide-in-education>
           <div className="dark:bg-slate-900/90 bg-white border dark:border-slate-800 border-slate-200 p-3 rounded-xl shadow-sm">
             <div className="text-[10px] dark:text-slate-400 text-slate-500 font-semibold mb-1">公開中の議題</div>
             <div className="text-lg font-bold text-emerald-600 dark:text-emerald-400">{issueCatalog?.total_catalog_issue_count || officialStats.catalogIssueCount || '—'}<span className="text-[10px] text-slate-500 font-normal ml-1">件</span></div>
@@ -692,7 +746,7 @@ export default function Home() {
       </section>
 
       {/* セカンダリセクション: 地図 & 都内全市区町村から探す */}
-      <section className="dark:bg-slate-900/60 dark:border-slate-800 bg-slate-100/70 border-slate-200 border-t py-8 px-4">
+      <section className="dark:bg-slate-900/60 dark:border-slate-800 bg-slate-100/70 border-slate-200 border-t py-8 px-4" data-hide-in-education>
         <div className="max-w-5xl mx-auto space-y-4">
           <div className="flex items-center justify-between">
             <div>
@@ -701,7 +755,7 @@ export default function Home() {
                 <span>地図・全リストから探す</span>
               </h3>
               <p className="text-xs dark:text-slate-400 text-slate-500 mt-0.5">
-                都内62市区町村への展開を想定し、現在の接続対象を地図上で確認できます
+                都内62市区町村への展開を想定。実データ7議会と、導入リクエスト受付中の地域を地図で確認できます
               </p>
             </div>
 
@@ -716,6 +770,12 @@ export default function Home() {
 
           {showMapExplorer && (
             <div className="space-y-4 pt-2">
+              <div
+                data-testid="region-request-banner"
+                className="rounded-xl border border-amber-300/40 bg-amber-50 px-4 py-3 text-sm text-amber-950 dark:border-amber-800/60 dark:bg-amber-950/30 dark:text-amber-100"
+              >
+                点線ピンの地域は準備中です。ピンまたは一覧から「導入リクエスト」を送ると、公開優先度の参考にします。
+              </div>
               {/* モバイル切り替え */}
               <div className="lg:hidden dark:bg-slate-900 bg-white p-1 rounded-xl border dark:border-slate-800 border-slate-200 flex items-center gap-1">
                 <button
@@ -741,16 +801,16 @@ export default function Home() {
               <div className="flex flex-col lg:flex-row gap-4 items-start">
                 <div className={`flex-1 w-full ${mobileView === 'map' ? 'block' : 'hidden lg:block'}`}>
                   <AssemblyMap
-                    assemblies={activeAssemblies}
-                    selectedAssemblyId={currentSelectedAssembly?.id || null}
+                    assemblies={mapAssemblies}
+                    selectedAssemblyId={currentSelectedAssembly?.id || regionRequestAssembly?.id || null}
                     onSelectAssembly={(assembly) => openAssemblyModal(assembly)}
                   />
                 </div>
 
                 <div className={`w-full lg:w-auto ${mobileView === 'list' ? 'block' : 'hidden lg:block'}`}>
                   <AssemblyListDrawer
-                    assemblies={activeAssemblies}
-                    selectedAssemblyId={currentSelectedAssembly?.id || null}
+                    assemblies={mapAssemblies}
+                    selectedAssemblyId={currentSelectedAssembly?.id || regionRequestAssembly?.id || null}
                     onSelectAssembly={(assembly) => openAssemblyModal(assembly)}
                   />
                 </div>
@@ -786,6 +846,13 @@ export default function Home() {
             });
             router.push(`/pro/analytics?${query.toString()}`);
           }}
+        />
+      )}
+
+      {regionRequestAssembly && (
+        <RegionRequestModal
+          assembly={regionRequestAssembly}
+          onClose={() => setRegionRequestAssembly(null)}
         />
       )}
 

@@ -9,8 +9,6 @@ import {
   FileText,
   ChevronDown,
   ChevronUp,
-  ThumbsUp,
-  ThumbsDown,
   ExternalLink,
   Bot,
   Sparkles,
@@ -33,6 +31,15 @@ import { getIssueFaqByIssueId } from '../data/issueFaqs';
 import { getOrCreateAnonymousUserId } from '../lib/anonymousUser';
 import { getApiBase } from '../lib/apiBase';
 import { applyOptimisticReaction } from '../lib/reactionOptimistic';
+import {
+  fetchReactionSnapshot as fetchReactionSnapshotApi,
+  putReactionState as putReactionStateApi,
+  reactionAggregatesFrom,
+  userReactionStatesFrom,
+} from '../lib/reactions/reactionApi';
+import type { ReactionCounts, ReactionType } from '../types/reaction';
+import { ReactionBar } from './reactions/ReactionBar';
+import { ChatBubbleSkeleton } from './ui/ChatBubbleSkeleton';
 
 interface Comment {
   readonly user: string;
@@ -118,44 +125,6 @@ interface LineChatModalProps {
   readonly onToggleFollowTopic?: (topic: FollowTopicInput) => Promise<boolean>;
   readonly onClose: () => void;
   readonly onOpenDashboard?: () => void;
-}
-
-type ReactionType = 'agree' | 'concern' | 'helpful';
-
-interface ReactionCounts {
-  readonly agree: number;
-  readonly concern: number;
-  readonly helpful: number;
-}
-
-interface ReactionStateResponse {
-  readonly status: 'success';
-  readonly statement_id: string;
-  readonly previous_reaction_type: ReactionType | null;
-  readonly reaction_type: ReactionType | null;
-  readonly changed: boolean;
-  readonly counts: ReactionCounts;
-}
-
-interface PersistedReactionAggregate {
-  readonly statement_id: string;
-  readonly counts: ReactionCounts;
-  readonly live_counts?: ReactionCounts;
-}
-
-interface PersistedUserReactionState {
-  readonly statement_id: string;
-  readonly reaction_type: ReactionType;
-}
-
-interface LegacyPersistedReactionState extends PersistedReactionAggregate {
-  readonly reaction_type: ReactionType | null;
-}
-
-interface ReactionSnapshotResponse {
-  readonly aggregates?: PersistedReactionAggregate[];
-  readonly user_reactions?: PersistedUserReactionState[];
-  readonly data?: LegacyPersistedReactionState[];
 }
 
 const TOKYO_VERIFIED_MINUTES_URL = 'https://www.gikai.metro.tokyo.lg.jp/record/proceedings/2026-2/02-01.html';
@@ -626,6 +595,7 @@ export default function LineChatModal({
   const [messages, setMessages] = useState<Message[]>([]);
   const [expandedQuotes, setExpandedQuotes] = useState<Record<string, boolean>>({});
   const [expandedChains, setExpandedChains] = useState<Record<string, boolean>>({});
+  const [expandedSummaries, setExpandedSummaries] = useState<Record<string, boolean>>({});
   const [expandedSpeakerKeys, setExpandedSpeakerKeys] = useState<Record<string, boolean>>({});
   const [highlightedSourceKey, setHighlightedSourceKey] = useState<string | null>(null);
   const [inputQuestion, setInputQuestion] = useState('');
@@ -718,57 +688,21 @@ export default function LineChatModal({
     statementId: string,
     reactionType: ReactionType | null,
     baseCounts: ReactionCounts,
-  ): Promise<ReactionStateResponse> => {
-    const apiBase = getApiBase();
-    const response = await fetch(`${apiBase}/api/reactions`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        discussion_id: discussionKey,
-        statement_id: statementId,
-        reaction_type: reactionType,
-        anonymous_user_id: getAnonymousUserId(),
-        base_counts: baseCounts,
-      }),
-    });
-    if (!response.ok) throw new Error(`Reaction API failed: ${response.status}`);
-    return response.json();
-  };
-
-  const fetchReactionSnapshot = async (
-    includeUserState: boolean,
-  ): Promise<ReactionSnapshotResponse> => {
-    const apiBase = getApiBase();
-    const query = new URLSearchParams({
-      discussion_id: discussionKey,
-      include_user_state: String(includeUserState),
-    });
-    if (includeUserState) {
-      query.set('anonymous_user_id', getAnonymousUserId());
-    }
-    const response = await fetch(`${apiBase}/api/reactions?${query.toString()}`, {
-      cache: 'no-store',
-    });
-    if (!response.ok) throw new Error(`Reaction API failed: ${response.status}`);
-    return response.json();
-  };
-
-  const reactionAggregatesFrom = (payload: ReactionSnapshotResponse) => (
-    payload.aggregates || payload.data || []
+  ) => putReactionStateApi(
+    discussionKey,
+    statementId,
+    reactionType,
+    baseCounts,
+    getAnonymousUserId(),
   );
 
-  const userReactionStatesFrom = (payload: ReactionSnapshotResponse) => (
-    payload.user_reactions
-    || (payload.data || []).flatMap((state) => (
-      state.reaction_type
-        ? [{ statement_id: state.statement_id, reaction_type: state.reaction_type }]
-        : []
-    ))
+  const fetchReactionSnapshot = async (includeUserState: boolean) => (
+    fetchReactionSnapshotApi(discussionKey, includeUserState, getAnonymousUserId())
   );
 
-  const applyReactionAggregates = (aggregates: readonly PersistedReactionAggregate[]) => {
+  const applyReactionAggregates = (aggregates: readonly { readonly statement_id: string; readonly counts: ReactionCounts }[]) => {
     const statementCounts: Record<string, ReactionCounts> = {};
-    const topicAggregates = new Map<string, PersistedReactionAggregate>();
+    const topicAggregates = new Map<string, { readonly statement_id: string; readonly counts: ReactionCounts }>();
     const countsByStatement = new Map<string, ReactionCounts>();
 
     aggregates.forEach((aggregate) => {
@@ -1126,6 +1060,7 @@ export default function LineChatModal({
       setUtteranceVotes({});
       setUtteranceCounts({});
       setExpandedSpeakerKeys({});
+      setExpandedSummaries({});
       setHighlightedSourceKey(null);
       setMessages(initialRecord
         ? applyAssemblyRecordToMessages(initialMsgs, initialRecord)
@@ -1553,14 +1488,13 @@ export default function LineChatModal({
         {/* チャットメッセージログ（スクロール領域） */}
         <div ref={chatContainerRef} className="flex-1 overflow-y-auto p-4 space-y-4 dark:bg-slate-950 bg-slate-50/80">
           {messages.length === 0 && !recordLoadError && (
-            <p role="status" className="text-sm font-semibold text-center dark:text-slate-300 text-slate-600 py-8">
-              選択した議題の詳細を読み込んでいます…
-            </p>
+            <ChatBubbleSkeleton />
           )}
           {messages.map((msg) => {
             const isUser = msg.sender === 'user';
             const isQuoteExpanded = expandedQuotes[msg.id];
             const isChainExpanded = expandedChains[msg.id];
+            const isSummaryExpanded = expandedSummaries[msg.id] === true;
             const hasVoted = userVotes[msg.id];
             const chainSteps = msg.aiChainSteps || DEFAULT_CHAIN_STEPS;
 
@@ -1618,9 +1552,23 @@ export default function LineChatModal({
                           {msg.sourceVerified ? '原文検証済み' : 'デモデータ'}
                         </span>
                       </div>
-                      <div data-testid={msg.structuredSummary ? 'detail-summary' : undefined} className="text-sm sm:text-base font-bold dark:text-white text-slate-900 leading-snug">
+                      <div data-testid={msg.structuredSummary ? 'detail-summary' : undefined} className={`text-sm sm:text-base font-bold dark:text-white text-slate-900 leading-snug ${isSummaryExpanded ? '' : 'line-clamp-3'}`}>
                         {msg.structuredSummary ? msg.structuredSummary.whatChanges : msg.plainText}
                       </div>
+                      {msg.structuredSummary && (
+                        <button
+                          type="button"
+                          data-testid="summary-disclosure-toggle"
+                          aria-expanded={isSummaryExpanded}
+                          onClick={() => setExpandedSummaries((current) => ({
+                            ...current,
+                            [msg.id]: !current[msg.id],
+                          }))}
+                          className="mt-1 text-[11px] font-bold text-emerald-700 hover:text-emerald-500 dark:text-emerald-400"
+                        >
+                          {isSummaryExpanded ? '要約を閉じる' : '詳細を見る'}
+                        </button>
+                      )}
                     </div>
 
                     {/* 【主要ブロック】この議論で、誰が何を言った？ (一覧では軽く ➔ タップで無制限深掘り展開) */}
@@ -1754,46 +1702,12 @@ export default function LineChatModal({
                                           <div className="flex flex-wrap items-center justify-between gap-1.5 text-[11px]">
                                            <div className="flex items-center gap-1.5 flex-wrap">
                                              <span className="text-[10px] dark:text-slate-400 text-slate-500 font-medium shrink-0">この発言への反応:</span>
-
-                                              <button
-                                                onClick={() => handleUtteranceVote(itemKey, utt.speakerName, 'agree', defaultCounts)}
-                                                aria-pressed={uttUserVote === 'agree'}
-                                               className={`px-2 py-0.8 rounded-lg font-semibold border flex items-center gap-1 transition-all ${
-                                                 uttUserVote === 'agree'
-                                                   ? 'bg-emerald-600 text-white border-emerald-500 shadow-sm'
-                                                   : 'dark:bg-slate-900 dark:hover:bg-slate-800 dark:text-slate-300 dark:border-slate-800 bg-white hover:bg-slate-100 text-slate-700 border-slate-300'
-                                               }`}
-                                             >
-                                               <span>👍 賛成</span>
-                                               <span className="text-[10px] opacity-90 font-mono">({counts.agree})</span>
-                                             </button>
-
-                                              <button
-                                                onClick={() => handleUtteranceVote(itemKey, utt.speakerName, 'concern', defaultCounts)}
-                                                aria-pressed={uttUserVote === 'concern'}
-                                               className={`px-2 py-0.8 rounded-lg font-semibold border flex items-center gap-1 transition-all ${
-                                                 uttUserVote === 'concern'
-                                                   ? 'bg-amber-600 text-white border-amber-500 shadow-sm'
-                                                   : 'dark:bg-slate-900 dark:hover:bg-slate-800 dark:text-slate-300 dark:border-slate-800 bg-white hover:bg-slate-100 text-slate-700 border-slate-300'
-                                               }`}
-                                             >
-                                               <span>⚠️ 気になる</span>
-                                               <span className="text-[10px] opacity-90 font-mono">({counts.concern})</span>
-                                             </button>
-
-                                              <button
-                                                onClick={() => handleUtteranceVote(itemKey, utt.speakerName, 'helpful', defaultCounts)}
-                                                aria-pressed={uttUserVote === 'helpful'}
-                                               className={`px-2 py-0.8 rounded-lg font-semibold border flex items-center gap-1 transition-all ${
-                                                 uttUserVote === 'helpful'
-                                                   ? 'bg-sky-600 text-white border-sky-500 shadow-sm'
-                                                   : 'dark:bg-slate-900 dark:hover:bg-slate-800 dark:text-slate-300 dark:border-slate-800 bg-white hover:bg-slate-100 text-slate-700 border-slate-300'
-                                               }`}
-                                             >
-                                               <span>💡 参考</span>
-                                               <span className="text-[10px] opacity-90 font-mono">({counts.helpful})</span>
-                                             </button>
-
+                                             <ReactionBar
+                                               counts={counts}
+                                               userVote={uttUserVote ?? null}
+                                               variant="utterance"
+                                               onVote={(type) => handleUtteranceVote(itemKey, utt.speakerName, type, defaultCounts)}
+                                             />
                                              <button
                                                onClick={() => toggleUtteranceCommentBox(itemKey)}
                                                className="px-2 py-0.8 rounded-lg font-semibold border dark:bg-slate-900 dark:hover:bg-slate-800 dark:text-emerald-400 dark:border-emerald-900/60 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border-emerald-300 flex items-center gap-1 transition-colors shadow-2xs"
@@ -1923,38 +1837,20 @@ export default function LineChatModal({
                         <div className="flex items-center justify-between flex-wrap gap-2">
                           <div className="flex items-center gap-1.5 flex-wrap">
                             <span className="text-[11px] font-bold dark:text-slate-300 text-slate-800">この議題全体への反応</span>
-                            <button
-                              onClick={() => handleVote(msg.id, 'agree', {
+                            <ReactionBar
+                              counts={{
+                                agree: msg.agreeCount ?? 0,
+                                concern: msg.disagreeCount ?? 0,
+                                helpful: 0,
+                              }}
+                              userVote={hasVoted ?? null}
+                              variant="topic"
+                              onVote={(type) => handleVote(msg.id, type as 'agree' | 'concern', {
                                 agree: msg.agreeCount ?? 0,
                                 concern: msg.disagreeCount ?? 0,
                                 helpful: 0,
                               })}
-                              aria-pressed={hasVoted === 'agree'}
-                              className={`px-2.5 py-1 rounded-lg text-xs font-medium border flex items-center gap-1 transition-colors ${
-                                hasVoted === 'agree'
-                                  ? 'bg-emerald-600/20 text-emerald-700 dark:text-emerald-300 border-emerald-500/40'
-                                  : 'dark:bg-slate-800 dark:hover:bg-slate-750 dark:text-slate-300 dark:border-slate-700 bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-300'
-                              }`}
-                            >
-                              <ThumbsUp className="w-3 h-3" />
-                              <span>進めてほしい {msg.agreeCount !== undefined ? msg.agreeCount : 0}</span>
-                            </button>
-                            <button
-                              onClick={() => handleVote(msg.id, 'concern', {
-                                agree: msg.agreeCount ?? 0,
-                                concern: msg.disagreeCount ?? 0,
-                                helpful: 0,
-                              })}
-                              aria-pressed={hasVoted === 'concern'}
-                              className={`px-2.5 py-1 rounded-lg text-xs font-medium border flex items-center gap-1 transition-colors ${
-                                hasVoted === 'concern'
-                                  ? 'bg-rose-600/20 text-rose-700 dark:text-rose-300 border-rose-500/40'
-                                  : 'dark:bg-slate-800 dark:hover:bg-slate-750 dark:text-slate-300 dark:border-slate-700 bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-300'
-                              }`}
-                            >
-                              <ThumbsDown className="w-3 h-3" />
-                              <span>もっと議論してほしい {msg.disagreeCount !== undefined ? msg.disagreeCount : 0}</span>
-                            </button>
+                            />
                             <button
                               onClick={() => toggleCommentBox(msg.id)}
                               className="px-2.5 py-1 rounded-lg text-xs font-medium dark:bg-slate-800 dark:hover:bg-slate-750 dark:text-slate-300 dark:border-slate-700 bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-300 border flex items-center gap-1 transition-colors"

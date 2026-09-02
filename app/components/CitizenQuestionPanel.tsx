@@ -18,6 +18,7 @@ import {
   type CitizenResponseAggregate,
 } from '../lib/citizenResponse';
 import { getApiBase } from '../lib/apiBase';
+import { unlockCitizenBadge } from '../lib/citizenBadges';
 
 interface CitizenQuestionPanelProps {
   readonly config: CitizenQuestionDefinition;
@@ -163,6 +164,7 @@ export default function CitizenQuestionPanel({
         freeText,
       });
       setAccepted(true);
+      unlockCitizenBadge('first_answer');
       setFollowDecision(isFollowed ? 'followed' : null);
       requestAnimationFrame(() => receiptRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
     } catch {

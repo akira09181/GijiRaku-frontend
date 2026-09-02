@@ -18,6 +18,9 @@ import {
 } from '../lib/citizenResponse';
 import { getApiBase } from '../lib/apiBase';
 import SemanticIssueSearch from './SemanticIssueSearch';
+import { IssueExplorerSkeleton } from './ui/IssueExplorerSkeleton';
+import { IssueCardReaction } from './reactions/IssueCardReaction';
+import RelatedIssuesPanel from './growth/RelatedIssuesPanel';
 
 interface IssueExplorerProps {
   readonly assemblies: readonly Assembly[];
@@ -174,7 +177,7 @@ export default function IssueExplorer({
     .filter((item) => item.total > 0), [assemblies, issues, selectedAssemblyId, selectedTheme]);
 
   if (loading) {
-    return <p className="rounded-2xl border border-slate-200 bg-white p-6 text-sm text-slate-600">議題を読み込んでいます…</p>;
+    return <IssueExplorerSkeleton />;
   }
   if (error) {
     return (
@@ -273,6 +276,9 @@ export default function IssueExplorer({
                   <p><Users className="mr-1 inline h-3 w-3" />{issue.people.join('、')}（発言者 {issue.speaker_count}人）</p>
                   <p className="font-medium text-slate-700 dark:text-slate-300"><ResponseCount state={answerCountStates[issue.issue_id]} enabled={Boolean(issue.question_id)} /></p>
                 </div>
+                {!issue.question_id && (
+                  <IssueCardReaction issueId={issue.issue_id} />
+                )}
                 <div className="mt-auto flex items-center justify-between gap-3 border-t border-slate-100 pt-3 dark:border-slate-800">
                   <button type="button" onClick={() => onOpenIssue(issue)} className="inline-flex items-center gap-1 rounded-lg bg-emerald-600 px-3 py-2 text-xs font-bold text-white hover:bg-emerald-500">
                     <MessageSquare className="h-3.5 w-3.5" />詳細を見る
@@ -287,6 +293,13 @@ export default function IssueExplorer({
           <button type="button" data-testid="load-more-issues" onClick={() => setVisibleCount((count) => count + PAGE_SIZE)} className="mx-auto mt-5 block rounded-xl border border-emerald-300 px-5 py-2.5 text-sm font-bold text-emerald-700 hover:bg-emerald-50 dark:text-emerald-400">もっと見る</button>
         )}
       </section>
+
+      <RelatedIssuesPanel
+        issueId={filteredIssues[0]?.issue_id ?? 'catalog-overview'}
+        assemblyId={selectedAssemblyId === 'all' ? undefined : selectedAssemblyId}
+        themeLabel={selectedTheme === 'all' ? undefined : themes.find((theme) => theme.id === selectedTheme)?.label}
+        onOpenIssue={onOpenIssue}
+      />
     </div>
   );
 }

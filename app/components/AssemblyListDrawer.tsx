@@ -3,6 +3,7 @@
 import React from 'react';
 import { Building, ChevronRight, Info } from 'lucide-react';
 import { Assembly } from '../types/assembly';
+import { isAssemblyReady } from '../data/tokyoPlannedAssemblies';
 
 interface AssemblyListDrawerProps {
   readonly assemblies: readonly Assembly[];
@@ -38,14 +39,20 @@ export default function AssemblyListDrawer({
         {assemblies.map((assembly) => {
           const isSelected = selectedAssemblyId === assembly.id;
           const isTokyoMet = assembly.id === 'tokyo-metropolitan';
+          const isReady = isAssemblyReady(assembly);
 
           return (
             <div
               key={assembly.id}
+              data-testid="assembly-list-item"
+              data-assembly-id={assembly.id}
+              data-assembly-ready={isReady}
               onClick={() => onSelectAssembly(assembly)}
               className={`p-3.5 rounded-xl cursor-pointer border transition-all duration-150 text-left ${
                 isSelected
-                  ? 'bg-slate-800 border-emerald-500 text-white shadow-sm'
+                  ? isReady
+                    ? 'bg-slate-800 border-emerald-500 text-white shadow-sm'
+                    : 'bg-slate-800 border-amber-500 text-white shadow-sm'
                   : 'bg-slate-900/70 hover:bg-slate-800/80 border-slate-800 text-slate-200 hover:border-slate-700'
               }`}
             >
@@ -57,22 +64,27 @@ export default function AssemblyListDrawer({
                       都庁本庁
                     </span>
                   )}
+                  {!isReady && (
+                    <span className="text-[10px] bg-amber-500/10 text-amber-300 border border-amber-500/20 px-1.5 py-0.2 rounded font-medium">
+                      準備中
+                    </span>
+                  )}
                 </span>
                 <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-800 text-slate-400 font-medium border border-slate-700/50">
-                  {assembly.type === 'prefecture' ? '都議会' : assembly.type === 'ward' ? '特別区' : '市町村'}
+                  {assembly.type === 'prefecture' ? '都議会' : assembly.type === 'ward' ? '特別区' : assembly.type === 'city' ? '市' : '町村'}
                 </span>
               </div>
 
-              <div className="text-[11px] sm:text-xs text-slate-300 font-medium truncate mb-2">
-                {assembly.hotTopic}
+              <div className={`text-[11px] sm:text-xs font-medium truncate mb-2 ${isReady ? 'text-slate-300' : 'text-amber-200/90'}`}>
+                {isReady ? assembly.hotTopic : 'この地域の導入をリクエストできます'}
               </div>
 
               <div className="pt-2 border-t border-slate-800/80 flex items-center justify-between text-[11px] text-slate-400">
                 <span className="text-slate-400 truncate max-w-[140px]">
-                  {assembly.mayorName} 首長
+                  {isReady ? `${assembly.mayorName} 首長` : 'オープンデータ接続待ち'}
                 </span>
-                <span className="text-emerald-400 font-medium flex items-center gap-0.5 shrink-0">
-                  <span>見る</span>
+                <span className={`font-medium flex items-center gap-0.5 shrink-0 ${isReady ? 'text-emerald-400' : 'text-amber-300'}`}>
+                  <span>{isReady ? '見る' : 'リクエスト'}</span>
                   <ChevronRight className="w-3 h-3" />
                 </span>
               </div>
@@ -85,7 +97,7 @@ export default function AssemblyListDrawer({
       <div className="p-3 bg-slate-950/60 rounded-xl border border-slate-800 text-[10px] sm:text-[11px] text-slate-400 flex items-start gap-2">
         <Info className="w-3.5 h-3.5 text-slate-400 shrink-0 mt-0.5" />
         <div>
-          <span className="text-slate-300 font-semibold">データ連携:</span> 表示中の6議会は公式会議録に接続済み、その他はデモデータを含みます
+          <span className="text-slate-300 font-semibold">データ連携:</span> 実データ接続済み7議会と、導入リクエスト受付中の55地域を表示しています
         </div>
       </div>
     </div>
