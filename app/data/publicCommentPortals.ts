@@ -58,6 +58,41 @@ export const PUBLIC_COMMENT_PORTALS: readonly PublicCommentPortal[] = [
     portalUrl: 'https://www.city.hachioji.tokyo.jp/kurashi/kikaku/publiccomment/index.html',
     guidance: '市のパブリックコメントページで、該当する募集を選んで意見を提出してください。',
   },
+  {
+    assemblyId: 'nerima-ward',
+    municipality: '練馬区',
+    portalLabel: '練馬区 パブリックコメント',
+    portalUrl: 'https://www.city.nerima.tokyo.jp/kusei/seisaku/publiccomment/index.html',
+    guidance: '区のパブリックコメントページから、該当する募集テーマを選んで意見を送信してください。',
+  },
+  {
+    assemblyId: 'nakano-ward',
+    municipality: '中野区',
+    portalLabel: '中野区 意見公募',
+    portalUrl: 'https://www.city.nakano.tokyo.jp/kusei/seisaku/ikenkoubo/index.html',
+    guidance: '区の意見公募ページから、該当する政策テーマの募集を選んでください。',
+  },
+  {
+    assemblyId: 'kita-ward',
+    municipality: '北区',
+    portalLabel: '北区 パブリックコメント',
+    portalUrl: 'https://www.city.kita.tokyo.jp/kusei/seisaku/publiccomment/index.html',
+    guidance: '区のパブリックコメントページで、該当する募集案内を確認して提出してください。',
+  },
+  {
+    assemblyId: 'sumida-ward',
+    municipality: '墨田区',
+    portalLabel: '墨田区 意見公募',
+    portalUrl: 'https://www.city.sumida.lg.jp/kusei/seisaku/ikenkoubo/index.html',
+    guidance: '区の意見公募ページから、該当するテーマを選んで意見を送ってください。',
+  },
+  {
+    assemblyId: 'tachikawa-city',
+    municipality: '立川市',
+    portalLabel: '立川市 パブリックコメント',
+    portalUrl: 'https://www.city.tachikawa.lg.jp/kusei/seisaku/publiccomment/index.html',
+    guidance: '市のパブリックコメントページで、該当する募集を選んで意見を提出してください。',
+  },
 ] as const;
 
 const PORTAL_BY_ASSEMBLY_ID = new Map(
